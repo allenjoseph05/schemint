@@ -1,0 +1,185 @@
+# Schemint Project Context Example
+# This file defines schema metadata and conventions for an e-commerce project
+# Place as schemint.yaml in your project root, or pass via API
+
+project_name: "E-Commerce Platform"
+description: "Online shopping platform with strict financial and audit requirements"
+
+# Schema metadata - documents your current database schema
+schema:
+  database_type: mysql
+  version: "2.3.0"
+  tables:
+    - name: users
+      description: "User accounts for customers and staff"
+      primary_key: [id]
+      columns:
+        - name: id
+          type: BIGINT
+          description: "Auto-incrementing primary key"
+        - name: email
+          type: VARCHAR(255)
+          description: "User's email address"
+          indexed: true
+        - name: password_hash
+          type: VARCHAR(255)
+          description: "Bcrypt hashed password"
+          pii: true
+        - name: role
+          type: VARCHAR(20)
+          description: "User role (customer, admin, staff)"
+        - name: created_at
+          type: DATETIME
+        - name: updated_at
+          type: DATETIME
+        - name: deleted_at
+          type: DATETIME
+          description: "Soft delete timestamp"
+
+    - name: products
+      description: "Product catalog"
+      primary_key: [id]
+      columns:
+        - name: id
+          type: BIGINT
+        - name: sku
+          type: VARCHAR(50)
+          description: "Stock keeping unit"
+          indexed: true
+        - name: name
+          type: VARCHAR(255)
+        - name: description
+          type: TEXT
+        - name: price
+          type: DECIMAL(19,4)
+          description: "Product price - MUST use DECIMAL for money"
+        - name: stock_quantity
+          type: INT
+        - name: category_id
+          type: BIGINT
+          foreign_key_to: categories.id
+        - name: created_at
+          type: DATETIME
+        - name: updated_at
+          type: DATETIME
+
+    - name: orders
+      description: "Customer orders - financial records"
+      primary_key: [id]
+      columns:
+        - name: id
+          type: BIGINT
+        - name: user_id
+          type: BIGINT
+          foreign_key_to: users.id
+          indexed: true
+        - name: status
+          type: VARCHAR(20)
+          description: "Order status (pending, paid, shipped, completed, cancelled)"
+        - name: subtotal
+          type: DECIMAL(19,4)
+          description: "Order subtotal before tax/shipping"
+        - name: tax_amount
+          type: DECIMAL(19,4)
+        - name: shipping_amount
+          type: DECIMAL(19,4)
+        - name: total
+          type: DECIMAL(19,4)
+          description: "Final order total"
+        - name: currency
+          type: CHAR(3)
+          description: "ISO 4217 currency code"
+        # Deprecated column - being phased out
+        - name: legacy_discount_code
+          type: VARCHAR(50)
+          deprecated: true
+          deprecated_reason: "Use order_discounts table instead for multiple discounts"
+          deprecated_since: "v2.0"
+        - name: created_at
+          type: DATETIME
+        - name: updated_at
+          type: DATETIME
+
+    - name: order_discounts
+      description: "Discounts applied to orders (replaces legacy_discount_code)"
+      primary_key: [id]
+      columns:
+        - name: id
+          type: BIGINT
+        - name: order_id
+          type: BIGINT
+          foreign_key_to: orders.id
+        - name: discount_code
+          type: VARCHAR(50)
+        - name: discount_amount
+          type: DECIMAL(19,4)
+        - name: created_at
+          type: DATETIME
+
+# Project-specific SQL conventions
+conventions:
+  # Naming rules
+  naming_conventions:
+    case: snake_case
+    table_suffix: ""
+
+  # Required columns for ALL tables
+  required_columns:
+    - created_at
+    - updated_at
+
+  # Columns that should never be used
+  forbidden_column_names:
+    - type      # Reserved word, use specific names like user_type
+    - data      # Too generic
+    - status2   # Avoid numbered columns
+
+  # Forbidden data types
+  forbidden_data_types:
+    - FLOAT     # Never use for financial data
+    - DOUBLE    # Never use for financial data
+    - TINYTEXT  # Use TEXT instead
+
+  # Preferred types for specific uses
+  preferred_types:
+    money: "DECIMAL(19,4)"
+    percentage: "DECIMAL(5,4)"
+    uuid: "CHAR(36)"
+
+  # ID column preferences
+  preferred_id_type: BIGINT
+  preferred_timestamp_type: DATETIME
+
+  # Foreign key requirements
+  fk_naming_pattern: "fk_{table}_{column}"
+  require_fk_indexes: true
+  require_cascade_actions: true
+
+  # Soft delete requirements
+  require_soft_delete: true
+  soft_delete_column: deleted_at
+
+  # Multi-tenancy (disabled for this project)
+  require_tenant_column: false
+
+# Migration history (optional - can also be loaded from migrations/ directory)
+migrations:
+  - version: "001"
+    description: "Initial schema"
+    timestamp: "2024-01-15T10:00:00Z"
+    actions: [create_table]
+    tables_affected: [users, products, orders]
+
+  - version: "002"
+    description: "Add order discounts table, deprecate legacy_discount_code"
+    timestamp: "2024-03-01T14:30:00Z"
+    actions: [create_table, alter_table]
+    tables_affected: [orders, order_discounts]
+    deprecated_columns:
+      - orders.legacy_discount_code
+
+  - version: "003"
+    description: "Add soft delete to users"
+    timestamp: "2024-04-15T09:00:00Z"
+    actions: [add_column]
+    tables_affected: [users]

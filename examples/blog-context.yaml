@@ -1,0 +1,55 @@
+# Schemint Project Context - Simple Blog
+# A minimal context with fewer restrictions
+
+project_name: "Personal Blog"
+description: "Simple blog with minimal requirements"
+
+schema:
+  database_type: mysql
+  version: "1.0.0"
+  tables:
+    - name: posts
+      description: "Blog posts"
+      columns:
+        - name: id
+          type: INT
+        - name: title
+          type: VARCHAR(255)
+        - name: slug
+          type: VARCHAR(255)
+          indexed: true
+        - name: content
+          type: TEXT
+        - name: published
+          type: BOOLEAN
+        - name: created_at
+          type: DATETIME
+
+    - name: comments
+      description: "Post comments"
+      columns:
+        - name: id
+          type: INT
+        - name: post_id
+          type: INT
+          foreign_key_to: posts.id
+        - name: author_name
+          type: VARCHAR(100)
+        - name: content
+          type: TEXT
+        - name: created_at
+          type: DATETIME
+
+# Minimal conventions
+conventions:
+  naming_conventions:
+    case: snake_case
+
+  # No required columns beyond basics
+  required_columns: []
+
+  # No soft delete required
+  require_soft_delete: false
+
+  # No multi-tenancy
+  require_tenant_column: false
