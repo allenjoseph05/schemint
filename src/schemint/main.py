@@ -14,11 +14,11 @@ from schemint.config import get_settings
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
     settings = get_settings()
-    print(f"🚀 Starting {settings.app_name} v{settings.app_version}")
-    print(f"📍 Environment: {settings.env}")
-    print(f"🤖 AI Enabled: {settings.ai_enabled}")
+    print(f"Starting {settings.app_name} v{settings.app_version}")
+    print(f"Environment: {settings.env}")
+    print(f"AI Enabled: {settings.ai_enabled}")
     yield
-    print("👋 Shutting down...")
+    print("Shutting down...")
 
 
 def create_app() -> FastAPI:
