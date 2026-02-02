@@ -62,3 +62,8 @@ logs/
 # Build
 *.zip
 dist/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3

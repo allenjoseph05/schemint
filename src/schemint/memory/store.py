@@ -1,28 +1,31 @@
 """
 Project Memory Store.
 
-Provides durable storage for project memory using SQLite (development)
-or PostgreSQL (production). Abstracts database operations behind a
-clean interface.
+Provides durable storage for project memory using PostgreSQL.
+
+Usage:
+    from schemint.memory import get_memory_store
+
+    store = get_memory_store()
+    project = store.register_project("github:org/repo", "My Project")
 """
 
 from __future__ import annotations
 
 import json
-import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
-from pathlib import Path
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Generator
 from uuid import UUID, uuid4
+
+import psycopg2
+import psycopg2.extras
 
 from schemint.memory.models import (
     AcceptedFinding,
     AnalysisHistory,
     BusinessRule,
     FeedbackScope,
-    HistoricalInflectionPoint,
-    KnownSafePattern,
     MemorySummary,
     Project,
     SchemaSemantics,
@@ -35,134 +38,141 @@ if TYPE_CHECKING:
 
 class MemoryStore:
     """
-    Project memory store with SQLite backend.
-
-    For production, this can be extended to support PostgreSQL
-    by implementing a DatabaseBackend interface.
+    Project memory store with PostgreSQL backend.
     """
 
-    def __init__(self, db_path: str | Path = "schemint_memory.db"):
+    def __init__(self, database_url: str):
         """
         Initialize the memory store.
 
         Args:
-            db_path: Path to SQLite database file
+            database_url: PostgreSQL connection string
+                         (e.g., postgresql://user:pass@localhost:5432/schemint)
         """
-        self.db_path = Path(db_path)
+        if not database_url:
+            raise ValueError(
+                "DATABASE_URL is required. "
+                "Set it in your .env file or environment variable.\n"
+                "Example: postgresql://schemint:password@localhost:5432/schemint"
+            )
+        self.database_url = database_url
         self._init_database()
 
-    def _init_database(self) -> None:
-        """Create database tables if they don't exist."""
-        with self._get_connection() as conn:
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS projects (
-                    id TEXT PRIMARY KEY,
-                    external_id TEXT UNIQUE NOT NULL,
-                    name TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    settings TEXT NOT NULL DEFAULT '{}'
-                );
-
-                CREATE TABLE IF NOT EXISTS accepted_findings (
-                    id TEXT PRIMARY KEY,
-                    project_id TEXT NOT NULL REFERENCES projects(id),
-                    finding_type TEXT NOT NULL,
-                    pattern_hash TEXT NOT NULL,
-                    scope TEXT NOT NULL,
-                    reason TEXT NOT NULL,
-                    accepted_by TEXT NOT NULL,
-                    accepted_at TEXT NOT NULL,
-                    expires_at TEXT,
-                    context TEXT NOT NULL DEFAULT '{}',
-                    UNIQUE(project_id, pattern_hash, scope)
-                );
-
-                CREATE TABLE IF NOT EXISTS known_safe_patterns (
-                    id TEXT PRIMARY KEY,
-                    project_id TEXT NOT NULL REFERENCES projects(id),
-                    pattern_type TEXT NOT NULL,
-                    pattern_hash TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    created_by TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    examples TEXT NOT NULL DEFAULT '[]',
-                    UNIQUE(project_id, pattern_hash)
-                );
-
-                CREATE TABLE IF NOT EXISTS business_rules (
-                    id TEXT PRIMARY KEY,
-                    project_id TEXT NOT NULL REFERENCES projects(id),
-                    rule_type TEXT NOT NULL,
-                    rule_config TEXT NOT NULL DEFAULT '{}',
-                    severity TEXT NOT NULL,
-                    applies_to TEXT NOT NULL DEFAULT '{"tables": ["*"]}',
-                    rationale TEXT NOT NULL,
-                    created_by TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    active INTEGER NOT NULL DEFAULT 1
-                );
-
-                CREATE TABLE IF NOT EXISTS schema_semantics (
-                    id TEXT PRIMARY KEY,
-                    project_id TEXT NOT NULL REFERENCES projects(id),
-                    element_type TEXT NOT NULL,
-                    element_path TEXT NOT NULL,
-                    semantic_tags TEXT NOT NULL DEFAULT '[]',
-                    description TEXT NOT NULL,
-                    constraints TEXT NOT NULL DEFAULT '{}',
-                    updated_at TEXT NOT NULL,
-                    UNIQUE(project_id, element_path)
-                );
-
-                CREATE TABLE IF NOT EXISTS historical_inflection_points (
-                    id TEXT PRIMARY KEY,
-                    project_id TEXT NOT NULL REFERENCES projects(id),
-                    event_type TEXT NOT NULL,
-                    event_date TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    impact TEXT NOT NULL DEFAULT '{}',
-                    affected_tables TEXT NOT NULL DEFAULT '[]',
-                    created_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS analysis_history (
-                    id TEXT PRIMARY KEY,
-                    project_id TEXT NOT NULL REFERENCES projects(id),
-                    ref TEXT NOT NULL,
-                    event_type TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    finding_count INTEGER NOT NULL,
-                    findings_hash TEXT NOT NULL,
-                    memory_applied TEXT NOT NULL DEFAULT '[]',
-                    duration_ms INTEGER NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-
-                -- Indexes for common queries
-                CREATE INDEX IF NOT EXISTS idx_accepted_project
-                    ON accepted_findings(project_id);
-                CREATE INDEX IF NOT EXISTS idx_accepted_hash
-                    ON accepted_findings(pattern_hash);
-                CREATE INDEX IF NOT EXISTS idx_safe_patterns_project
-                    ON known_safe_patterns(project_id);
-                CREATE INDEX IF NOT EXISTS idx_rules_project
-                    ON business_rules(project_id, active);
-                CREATE INDEX IF NOT EXISTS idx_semantics_project
-                    ON schema_semantics(project_id);
-                CREATE INDEX IF NOT EXISTS idx_history_project
-                    ON analysis_history(project_id, created_at);
-            """)
-
     @contextmanager
-    def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
+    def _get_connection(self) -> Generator[psycopg2.extensions.connection, None, None]:
         """Get a database connection."""
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
+        conn = psycopg2.connect(self.database_url)
         try:
             yield conn
             conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
+
+    def _get_cursor(self, conn: psycopg2.extensions.connection):
+        """Get a cursor that returns dictionaries."""
+        return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    def _init_database(self) -> None:
+        """Create database tables if they don't exist."""
+        create_tables_sql = """
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                external_id TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                settings JSONB NOT NULL DEFAULT '{}'
+            );
+
+            CREATE TABLE IF NOT EXISTS accepted_findings (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                finding_type TEXT NOT NULL,
+                pattern_hash TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                accepted_by TEXT NOT NULL,
+                accepted_at TIMESTAMPTZ NOT NULL,
+                expires_at TIMESTAMPTZ,
+                context JSONB NOT NULL DEFAULT '{}',
+                UNIQUE(project_id, pattern_hash, scope)
+            );
+
+            CREATE TABLE IF NOT EXISTS known_safe_patterns (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                pattern_type TEXT NOT NULL,
+                pattern_hash TEXT NOT NULL,
+                description TEXT NOT NULL,
+                created_by TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                examples JSONB NOT NULL DEFAULT '[]',
+                UNIQUE(project_id, pattern_hash)
+            );
+
+            CREATE TABLE IF NOT EXISTS business_rules (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                rule_type TEXT NOT NULL,
+                rule_config JSONB NOT NULL DEFAULT '{}',
+                severity TEXT NOT NULL,
+                applies_to JSONB NOT NULL DEFAULT '{"tables": ["*"]}',
+                rationale TEXT NOT NULL,
+                created_by TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                active BOOLEAN NOT NULL DEFAULT true
+            );
+
+            CREATE TABLE IF NOT EXISTS schema_semantics (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                element_type TEXT NOT NULL,
+                element_path TEXT NOT NULL,
+                semantic_tags JSONB NOT NULL DEFAULT '[]',
+                description TEXT NOT NULL,
+                constraints JSONB NOT NULL DEFAULT '{}',
+                updated_at TIMESTAMPTZ NOT NULL,
+                UNIQUE(project_id, element_path)
+            );
+
+            CREATE TABLE IF NOT EXISTS historical_inflection_points (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                event_type TEXT NOT NULL,
+                event_date DATE NOT NULL,
+                description TEXT NOT NULL,
+                impact JSONB NOT NULL DEFAULT '{}',
+                affected_tables JSONB NOT NULL DEFAULT '[]',
+                created_at TIMESTAMPTZ NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS analysis_history (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                ref TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                finding_count INTEGER NOT NULL,
+                findings_hash TEXT NOT NULL,
+                memory_applied JSONB NOT NULL DEFAULT '[]',
+                duration_ms INTEGER NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL
+            );
+
+            -- Indexes for common queries
+            CREATE INDEX IF NOT EXISTS idx_accepted_project ON accepted_findings(project_id);
+            CREATE INDEX IF NOT EXISTS idx_accepted_hash ON accepted_findings(pattern_hash);
+            CREATE INDEX IF NOT EXISTS idx_safe_patterns_project ON known_safe_patterns(project_id);
+            CREATE INDEX IF NOT EXISTS idx_rules_project ON business_rules(project_id) WHERE active = true;
+            CREATE INDEX IF NOT EXISTS idx_semantics_project ON schema_semantics(project_id);
+            CREATE INDEX IF NOT EXISTS idx_history_project ON analysis_history(project_id, created_at DESC);
+        """
+
+        with self._get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(create_tables_sql)
 
     # =========================================================================
     # Project Operations
@@ -198,29 +208,32 @@ class MemoryStore:
         )
 
         with self._get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO projects (id, external_id, name, created_at, settings)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    str(project.id),
-                    project.external_id,
-                    project.name,
-                    project.created_at.isoformat(),
-                    json.dumps(project.settings),
-                ),
-            )
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO projects (id, external_id, name, created_at, settings)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(project.id),
+                        project.external_id,
+                        project.name,
+                        project.created_at,
+                        json.dumps(project.settings),
+                    ),
+                )
 
         return project
 
     def get_project(self, project_id: UUID) -> Project | None:
         """Get project by ID."""
         with self._get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM projects WHERE id = ?",
-                (str(project_id),),
-            ).fetchone()
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    "SELECT * FROM projects WHERE id = %s",
+                    (str(project_id),),
+                )
+                row = cur.fetchone()
 
         if not row:
             return None
@@ -230,24 +243,35 @@ class MemoryStore:
     def get_project_by_external_id(self, external_id: str) -> Project | None:
         """Get project by external ID."""
         with self._get_connection() as conn:
-            row = conn.execute(
-                "SELECT * FROM projects WHERE external_id = ?",
-                (external_id,),
-            ).fetchone()
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    "SELECT * FROM projects WHERE external_id = %s",
+                    (external_id,),
+                )
+                row = cur.fetchone()
 
         if not row:
             return None
 
         return self._row_to_project(row)
 
-    def _row_to_project(self, row: sqlite3.Row) -> Project:
+    def list_projects(self) -> list[Project]:
+        """List all registered projects."""
+        with self._get_connection() as conn:
+            with self._get_cursor(conn) as cur:
+                cur.execute("SELECT * FROM projects ORDER BY created_at DESC")
+                rows = cur.fetchall()
+
+        return [self._row_to_project(row) for row in rows]
+
+    def _row_to_project(self, row: dict) -> Project:
         """Convert database row to Project."""
         return Project(
             id=UUID(row["id"]),
             external_id=row["external_id"],
             name=row["name"],
-            created_at=datetime.fromisoformat(row["created_at"]),
-            settings=json.loads(row["settings"]),
+            created_at=row["created_at"],
+            settings=row["settings"] if isinstance(row["settings"], dict) else json.loads(row["settings"]),
         )
 
     # =========================================================================
@@ -266,18 +290,6 @@ class MemoryStore:
     ) -> AcceptedFinding:
         """
         Accept a finding (mark as false positive or intentional).
-
-        Args:
-            project_id: Project ID
-            finding: The finding to accept
-            reason: Why it's being accepted
-            accepted_by: User who accepted
-            scope: How broadly to apply
-            expires_at: Optional expiration
-            context: Additional context
-
-        Returns:
-            AcceptedFinding record
         """
         pattern_hash = compute_finding_hash(finding)
 
@@ -297,26 +309,34 @@ class MemoryStore:
         )
 
         with self._get_connection() as conn:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO accepted_findings
-                (id, project_id, finding_type, pattern_hash, scope, reason,
-                 accepted_by, accepted_at, expires_at, context)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    str(accepted.id),
-                    str(accepted.project_id),
-                    accepted.finding_type,
-                    accepted.pattern_hash,
-                    accepted.scope.value,
-                    accepted.reason,
-                    accepted.accepted_by,
-                    accepted.accepted_at.isoformat(),
-                    accepted.expires_at.isoformat() if accepted.expires_at else None,
-                    json.dumps(accepted.context),
-                ),
-            )
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO accepted_findings
+                    (id, project_id, finding_type, pattern_hash, scope, reason,
+                     accepted_by, accepted_at, expires_at, context)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (project_id, pattern_hash, scope)
+                    DO UPDATE SET
+                        reason = EXCLUDED.reason,
+                        accepted_by = EXCLUDED.accepted_by,
+                        accepted_at = EXCLUDED.accepted_at,
+                        expires_at = EXCLUDED.expires_at,
+                        context = EXCLUDED.context
+                    """,
+                    (
+                        str(accepted.id),
+                        str(accepted.project_id),
+                        accepted.finding_type,
+                        accepted.pattern_hash,
+                        accepted.scope.value,
+                        accepted.reason,
+                        accepted.accepted_by,
+                        accepted.accepted_at,
+                        accepted.expires_at,
+                        json.dumps(accepted.context),
+                    ),
+                )
 
         return accepted
 
@@ -325,41 +345,32 @@ class MemoryStore:
         project_id: UUID,
         finding: "Issue",
     ) -> AcceptedFinding | None:
-        """
-        Check if a finding is accepted in project memory.
-
-        Args:
-            project_id: Project ID
-            finding: The finding to check
-
-        Returns:
-            AcceptedFinding if accepted, None otherwise
-        """
+        """Check if a finding is accepted in project memory."""
         pattern_hash = compute_finding_hash(finding)
 
         with self._get_connection() as conn:
-            # Check for exact match or pattern/rule match
-            row = conn.execute(
-                """
-                SELECT * FROM accepted_findings
-                WHERE project_id = ?
-                  AND (
-                    (scope = 'once' AND pattern_hash = ?)
-                    OR (scope = 'pattern' AND pattern_hash = ?)
-                    OR (scope = 'rule' AND finding_type = ?)
-                  )
-                  AND (expires_at IS NULL OR expires_at > ?)
-                ORDER BY accepted_at DESC
-                LIMIT 1
-                """,
-                (
-                    str(project_id),
-                    pattern_hash,
-                    pattern_hash,
-                    finding.category.value,
-                    datetime.utcnow().isoformat(),
-                ),
-            ).fetchone()
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    SELECT * FROM accepted_findings
+                    WHERE project_id = %s
+                      AND (
+                        (scope = 'once' AND pattern_hash = %s)
+                        OR (scope = 'pattern' AND pattern_hash = %s)
+                        OR (scope = 'rule' AND finding_type = %s)
+                      )
+                      AND (expires_at IS NULL OR expires_at > NOW())
+                    ORDER BY accepted_at DESC
+                    LIMIT 1
+                    """,
+                    (
+                        str(project_id),
+                        pattern_hash,
+                        pattern_hash,
+                        finding.category.value,
+                    ),
+                )
+                row = cur.fetchone()
 
         if not row:
             return None
@@ -369,19 +380,31 @@ class MemoryStore:
     def get_accepted_findings(self, project_id: UUID) -> list[AcceptedFinding]:
         """Get all accepted findings for a project."""
         with self._get_connection() as conn:
-            rows = conn.execute(
-                """
-                SELECT * FROM accepted_findings
-                WHERE project_id = ?
-                  AND (expires_at IS NULL OR expires_at > ?)
-                ORDER BY accepted_at DESC
-                """,
-                (str(project_id), datetime.utcnow().isoformat()),
-            ).fetchall()
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    SELECT * FROM accepted_findings
+                    WHERE project_id = %s
+                      AND (expires_at IS NULL OR expires_at > NOW())
+                    ORDER BY accepted_at DESC
+                    """,
+                    (str(project_id),),
+                )
+                rows = cur.fetchall()
 
         return [self._row_to_accepted_finding(row) for row in rows]
 
-    def _row_to_accepted_finding(self, row: sqlite3.Row) -> AcceptedFinding:
+    def delete_accepted_finding(self, project_id: UUID, finding_id: UUID) -> bool:
+        """Delete an accepted finding."""
+        with self._get_connection() as conn:
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    "DELETE FROM accepted_findings WHERE id = %s AND project_id = %s",
+                    (str(finding_id), str(project_id)),
+                )
+        return True
+
+    def _row_to_accepted_finding(self, row: dict) -> AcceptedFinding:
         """Convert database row to AcceptedFinding."""
         return AcceptedFinding(
             id=UUID(row["id"]),
@@ -391,9 +414,9 @@ class MemoryStore:
             scope=FeedbackScope(row["scope"]),
             reason=row["reason"],
             accepted_by=row["accepted_by"],
-            accepted_at=datetime.fromisoformat(row["accepted_at"]),
-            expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
-            context=json.loads(row["context"]),
+            accepted_at=row["accepted_at"],
+            expires_at=row["expires_at"],
+            context=row["context"] if isinstance(row["context"], dict) else json.loads(row["context"]),
         )
 
     # =========================================================================
@@ -423,26 +446,27 @@ class MemoryStore:
         )
 
         with self._get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO business_rules
-                (id, project_id, rule_type, rule_config, severity, applies_to,
-                 rationale, created_by, created_at, active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    str(rule.id),
-                    str(rule.project_id),
-                    rule.rule_type,
-                    json.dumps(rule.rule_config),
-                    rule.severity.value,
-                    json.dumps(rule.applies_to),
-                    rule.rationale,
-                    rule.created_by,
-                    rule.created_at.isoformat(),
-                    1 if rule.active else 0,
-                ),
-            )
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO business_rules
+                    (id, project_id, rule_type, rule_config, severity, applies_to,
+                     rationale, created_by, created_at, active)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(rule.id),
+                        str(rule.project_id),
+                        rule.rule_type,
+                        json.dumps(rule.rule_config),
+                        rule.severity.value,
+                        json.dumps(rule.applies_to),
+                        rule.rationale,
+                        rule.created_by,
+                        rule.created_at,
+                        rule.active,
+                    ),
+                )
 
         return rule
 
@@ -451,16 +475,18 @@ class MemoryStore:
         project_id: UUID,
         table_name: str | None = None,
     ) -> list[BusinessRule]:
-        """Get active business rules for a project, optionally filtered by table."""
+        """Get active business rules for a project."""
         with self._get_connection() as conn:
-            rows = conn.execute(
-                """
-                SELECT * FROM business_rules
-                WHERE project_id = ? AND active = 1
-                ORDER BY created_at DESC
-                """,
-                (str(project_id),),
-            ).fetchall()
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    SELECT * FROM business_rules
+                    WHERE project_id = %s AND active = true
+                    ORDER BY created_at DESC
+                    """,
+                    (str(project_id),),
+                )
+                rows = cur.fetchall()
 
         rules = []
         for row in rows:
@@ -481,21 +507,29 @@ class MemoryStore:
 
         return rules
 
-    def _row_to_business_rule(self, row: sqlite3.Row) -> BusinessRule:
+    def _row_to_business_rule(self, row: dict) -> BusinessRule:
         """Convert database row to BusinessRule."""
         from schemint.memory.models import FindingSeverity
+
+        applies_to = row["applies_to"]
+        if isinstance(applies_to, str):
+            applies_to = json.loads(applies_to)
+
+        rule_config = row["rule_config"]
+        if isinstance(rule_config, str):
+            rule_config = json.loads(rule_config)
 
         return BusinessRule(
             id=UUID(row["id"]),
             project_id=UUID(row["project_id"]),
             rule_type=row["rule_type"],
-            rule_config=json.loads(row["rule_config"]),
+            rule_config=rule_config,
             severity=FindingSeverity(row["severity"]),
-            applies_to=json.loads(row["applies_to"]),
+            applies_to=applies_to,
             rationale=row["rationale"],
             created_by=row["created_by"],
-            created_at=datetime.fromisoformat(row["created_at"]),
-            active=bool(row["active"]),
+            created_at=row["created_at"],
+            active=row["active"],
         )
 
     # =========================================================================
@@ -523,24 +557,32 @@ class MemoryStore:
         )
 
         with self._get_connection() as conn:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO schema_semantics
-                (id, project_id, element_type, element_path, semantic_tags,
-                 description, constraints, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    str(semantics.id),
-                    str(semantics.project_id),
-                    semantics.element_type.value,
-                    semantics.element_path,
-                    json.dumps(semantics.semantic_tags),
-                    semantics.description,
-                    json.dumps(semantics.constraints),
-                    semantics.updated_at.isoformat(),
-                ),
-            )
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO schema_semantics
+                    (id, project_id, element_type, element_path, semantic_tags,
+                     description, constraints, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (project_id, element_path)
+                    DO UPDATE SET
+                        element_type = EXCLUDED.element_type,
+                        semantic_tags = EXCLUDED.semantic_tags,
+                        description = EXCLUDED.description,
+                        constraints = EXCLUDED.constraints,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    (
+                        str(semantics.id),
+                        str(semantics.project_id),
+                        semantics.element_type.value,
+                        semantics.element_path,
+                        json.dumps(semantics.semantic_tags),
+                        semantics.description,
+                        json.dumps(semantics.constraints),
+                        semantics.updated_at,
+                    ),
+                )
 
         return semantics
 
@@ -551,35 +593,45 @@ class MemoryStore:
     ) -> list[SchemaSemantics]:
         """Get schema semantics, optionally filtered by element path."""
         with self._get_connection() as conn:
-            if element_path:
-                rows = conn.execute(
-                    """
-                    SELECT * FROM schema_semantics
-                    WHERE project_id = ? AND element_path = ?
-                    """,
-                    (str(project_id), element_path),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT * FROM schema_semantics WHERE project_id = ?",
-                    (str(project_id),),
-                ).fetchall()
+            with self._get_cursor(conn) as cur:
+                if element_path:
+                    cur.execute(
+                        """
+                        SELECT * FROM schema_semantics
+                        WHERE project_id = %s AND element_path = %s
+                        """,
+                        (str(project_id), element_path),
+                    )
+                else:
+                    cur.execute(
+                        "SELECT * FROM schema_semantics WHERE project_id = %s",
+                        (str(project_id),),
+                    )
+                rows = cur.fetchall()
 
         return [self._row_to_schema_semantics(row) for row in rows]
 
-    def _row_to_schema_semantics(self, row: sqlite3.Row) -> SchemaSemantics:
+    def _row_to_schema_semantics(self, row: dict) -> SchemaSemantics:
         """Convert database row to SchemaSemantics."""
         from schemint.memory.models import ElementType
+
+        semantic_tags = row["semantic_tags"]
+        if isinstance(semantic_tags, str):
+            semantic_tags = json.loads(semantic_tags)
+
+        constraints = row["constraints"]
+        if isinstance(constraints, str):
+            constraints = json.loads(constraints)
 
         return SchemaSemantics(
             id=UUID(row["id"]),
             project_id=UUID(row["project_id"]),
             element_type=ElementType(row["element_type"]),
             element_path=row["element_path"],
-            semantic_tags=json.loads(row["semantic_tags"]),
+            semantic_tags=semantic_tags,
             description=row["description"],
-            constraints=json.loads(row["constraints"]),
-            updated_at=datetime.fromisoformat(row["updated_at"]),
+            constraints=constraints,
+            updated_at=row["updated_at"],
         )
 
     # =========================================================================
@@ -593,42 +645,46 @@ class MemoryStore:
             return None
 
         with self._get_connection() as conn:
-            accepted_count = conn.execute(
-                "SELECT COUNT(*) FROM accepted_findings WHERE project_id = ?",
-                (str(project_id),),
-            ).fetchone()[0]
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    "SELECT COUNT(*) as cnt FROM accepted_findings WHERE project_id = %s",
+                    (str(project_id),),
+                )
+                accepted_count = cur.fetchone()["cnt"]
 
-            patterns_count = conn.execute(
-                "SELECT COUNT(*) FROM known_safe_patterns WHERE project_id = ?",
-                (str(project_id),),
-            ).fetchone()[0]
+                cur.execute(
+                    "SELECT COUNT(*) as cnt FROM known_safe_patterns WHERE project_id = %s",
+                    (str(project_id),),
+                )
+                patterns_count = cur.fetchone()["cnt"]
 
-            rules_count = conn.execute(
-                "SELECT COUNT(*) FROM business_rules WHERE project_id = ? AND active = 1",
-                (str(project_id),),
-            ).fetchone()[0]
+                cur.execute(
+                    "SELECT COUNT(*) as cnt FROM business_rules WHERE project_id = %s AND active = true",
+                    (str(project_id),),
+                )
+                rules_count = cur.fetchone()["cnt"]
 
-            semantics_count = conn.execute(
-                "SELECT COUNT(*) FROM schema_semantics WHERE project_id = ?",
-                (str(project_id),),
-            ).fetchone()[0]
+                cur.execute(
+                    "SELECT COUNT(*) as cnt FROM schema_semantics WHERE project_id = %s",
+                    (str(project_id),),
+                )
+                semantics_count = cur.fetchone()["cnt"]
 
-            inflection_count = conn.execute(
-                "SELECT COUNT(*) FROM historical_inflection_points WHERE project_id = ?",
-                (str(project_id),),
-            ).fetchone()[0]
+                cur.execute(
+                    "SELECT COUNT(*) as cnt FROM historical_inflection_points WHERE project_id = %s",
+                    (str(project_id),),
+                )
+                inflection_count = cur.fetchone()["cnt"]
 
-            history_row = conn.execute(
-                """
-                SELECT created_at, COUNT(*) as total
-                FROM analysis_history
-                WHERE project_id = ?
-                GROUP BY project_id
-                ORDER BY created_at DESC
-                LIMIT 1
-                """,
-                (str(project_id),),
-            ).fetchone()
+                cur.execute(
+                    """
+                    SELECT MAX(created_at) as last_created, COUNT(*) as total
+                    FROM analysis_history
+                    WHERE project_id = %s
+                    """,
+                    (str(project_id),),
+                )
+                history_row = cur.fetchone()
 
         return MemorySummary(
             project_id=project_id,
@@ -638,7 +694,7 @@ class MemoryStore:
             business_rules_count=rules_count,
             semantic_entries_count=semantics_count,
             inflection_points_count=inflection_count,
-            last_analysis=datetime.fromisoformat(history_row["created_at"]) if history_row else None,
+            last_analysis=history_row["last_created"] if history_row and history_row["last_created"] else None,
             total_analyses=history_row["total"] if history_row else 0,
         )
 
@@ -671,39 +727,90 @@ class MemoryStore:
         )
 
         with self._get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO analysis_history
-                (id, project_id, ref, event_type, status, finding_count,
-                 findings_hash, memory_applied, duration_ms, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    str(history.id),
-                    str(history.project_id),
-                    history.ref,
-                    history.event_type,
-                    history.status,
-                    history.finding_count,
-                    history.findings_hash,
-                    json.dumps(history.memory_applied),
-                    history.duration_ms,
-                    history.created_at.isoformat(),
-                ),
-            )
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO analysis_history
+                    (id, project_id, ref, event_type, status, finding_count,
+                     findings_hash, memory_applied, duration_ms, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(history.id),
+                        str(history.project_id),
+                        history.ref,
+                        history.event_type,
+                        history.status,
+                        history.finding_count,
+                        history.findings_hash,
+                        json.dumps(history.memory_applied),
+                        history.duration_ms,
+                        history.created_at,
+                    ),
+                )
 
         return history
 
+    def get_analysis_history(
+        self,
+        project_id: UUID,
+        limit: int = 50,
+    ) -> list[AnalysisHistory]:
+        """Get recent analysis history for a project."""
+        with self._get_connection() as conn:
+            with self._get_cursor(conn) as cur:
+                cur.execute(
+                    """
+                    SELECT * FROM analysis_history
+                    WHERE project_id = %s
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                    """,
+                    (str(project_id), limit),
+                )
+                rows = cur.fetchall()
 
-# Global store instance (can be overridden for testing)
+        results = []
+        for row in rows:
+            memory_applied = row["memory_applied"]
+            if isinstance(memory_applied, str):
+                memory_applied = json.loads(memory_applied)
+
+            results.append(AnalysisHistory(
+                id=UUID(row["id"]),
+                project_id=UUID(row["project_id"]),
+                ref=row["ref"],
+                event_type=row["event_type"],
+                status=row["status"],
+                finding_count=row["finding_count"],
+                findings_hash=row["findings_hash"],
+                memory_applied=memory_applied,
+                duration_ms=row["duration_ms"],
+                created_at=row["created_at"],
+            ))
+
+        return results
+
+
+# =============================================================================
+# Global Store Instance
+# =============================================================================
+
 _store: MemoryStore | None = None
 
 
 def get_memory_store() -> MemoryStore:
-    """Get the global memory store instance."""
+    """
+    Get the global memory store instance.
+
+    Requires DATABASE_URL to be set in environment or .env file.
+    """
     global _store
     if _store is None:
-        _store = MemoryStore()
+        from schemint.config import get_settings
+
+        settings = get_settings()
+        _store = MemoryStore(database_url=settings.database_url)
     return _store
 
 

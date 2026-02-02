@@ -6,12 +6,17 @@ Data models for CI/CD integration (Phase 2).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
+
+
+def _utc_now() -> datetime:
+    """Get current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class CIEventType(str, Enum):
@@ -223,7 +228,7 @@ class AnalysisDecision(BaseModel):
 
     # Metadata
     duration_ms: int = Field(0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utc_now)
 
     # URLs
     check_url: str | None = Field(None, description="URL to view full results")

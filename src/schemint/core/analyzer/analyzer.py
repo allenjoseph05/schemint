@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from schemint.config import get_settings
@@ -219,7 +219,7 @@ def analyze_schema(
 
     return AnalysisResult(
         id=analysis_id,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         duration_ms=duration_ms,
         score=score,
         tables=tables,
