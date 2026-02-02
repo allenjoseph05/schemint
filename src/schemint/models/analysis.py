@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, Field
+
+
+def _utc_now() -> datetime:
+    """Get current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from schemint.models.issue import Issue, IssueSeverity
 from schemint.models.schema import Table
@@ -107,7 +112,7 @@ class AnalysisResult(BaseModel):
 
     # Metadata
     id: str = Field(..., description="Analysis ID")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utc_now)
     duration_ms: int | None = Field(None, description="Analysis duration in ms")
 
     # Scores

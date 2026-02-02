@@ -160,8 +160,12 @@ pip install -e ".[ai,dev]"
 
 ```bash
 cp .env.example .env
-# Edit .env and add CLAUDE_API_KEY (optional)
+# Edit .env and configure:
+# - CLAUDE_API_KEY (optional, for AI analysis)
+# - DATABASE_URL (optional, for PostgreSQL - default is SQLite)
 ```
+
+**PostgreSQL Setup:** See [docs/POSTGRESQL_SETUP.md](docs/POSTGRESQL_SETUP.md) for detailed instructions.
 
 ### Run Server
 
@@ -245,7 +249,7 @@ store.accept_finding(
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| 1. Foundation | ✅ Done | Memory store models and basic operations |
+| 1. Foundation | ✅ Complete | Memory store, pattern hashing, project API ([docs/phase_1.md](docs/phase_1.md)) |
 | 2. CI Integration | 🔲 Next | CI ingestion endpoint, diff extraction |
 | 3. Memory Integration | 🔲 | Memory consultation in analysis pipeline |
 | 4. Reasoning Enhancement | 🔲 | Memory-aware AI prompts |

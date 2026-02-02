@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     max_sql_length: int = 100000  # 100KB
     default_database_type: str = "mysql"
 
+    # Database (Memory Store)
+    database_url: str | None = None  # PostgreSQL connection string
+    # Example: postgresql://user:password@localhost:5432/schemint
+
     @property
     def is_development(self) -> bool:
         return self.env == "development"

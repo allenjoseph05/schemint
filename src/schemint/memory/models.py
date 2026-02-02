@@ -7,12 +7,17 @@ All models are designed to store CONCLUSIONS, not raw code.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
+
+
+def _utc_now() -> datetime:
+    """Get current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class FeedbackScope(str, Enum):
@@ -65,7 +70,7 @@ class Project(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     external_id: str = Field(..., description="External identifier (e.g., 'github:org/repo')")
     name: str = Field(..., description="Human-readable project name")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utc_now)
     settings: dict[str, Any] = Field(
         default_factory=dict,
         description="Project-level settings"
@@ -106,7 +111,7 @@ class AcceptedFinding(BaseModel):
     # Context
     reason: str = Field(..., description="Human explanation for acceptance")
     accepted_by: str = Field(..., description="User who accepted")
-    accepted_at: datetime = Field(default_factory=datetime.utcnow)
+    accepted_at: datetime = Field(default_factory=_utc_now)
     expires_at: datetime | None = Field(None, description="Optional expiration")
 
     # Additional context (NO raw SQL here)
@@ -150,7 +155,7 @@ class KnownSafePattern(BaseModel):
     # Documentation
     description: str = Field(..., description="What this pattern is and why it's safe")
     created_by: str = Field(..., description="User who created")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utc_now)
 
     # Examples (structured, not raw SQL)
     examples: list[dict[str, Any]] = Field(
@@ -202,7 +207,7 @@ class BusinessRule(BaseModel):
     # Documentation
     rationale: str = Field(..., description="Why this rule exists")
     created_by: str = Field(..., description="User who created")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utc_now)
     active: bool = Field(True, description="Whether rule is active")
 
     class Config:
@@ -245,7 +250,7 @@ class SchemaSemantics(BaseModel):
         description="Semantic constraints (e.g., {'currency': 'USD', 'precision': 4})"
     )
 
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=_utc_now)
 
     class Config:
         json_schema_extra = {
@@ -288,7 +293,7 @@ class HistoricalInflectionPoint(BaseModel):
         description="Tables affected (empty = all)"
     )
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utc_now)
 
     class Config:
         json_schema_extra = {
@@ -333,7 +338,7 @@ class AnalysisHistory(BaseModel):
 
     # Performance
     duration_ms: int = Field(..., description="Analysis duration")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utc_now)
 
     class Config:
         json_schema_extra = {
