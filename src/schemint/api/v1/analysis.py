@@ -52,6 +52,7 @@ class ProjectContextResponse(BaseModel):
 async def analyze_schema(
     request: AnalysisRequest,
     use_ai: bool = Query(False, description="Enable AI-powered analysis (requires CLAUDE_API_KEY)"),
+    project_id: str | None = Query(None, description="Project ID for memory-enriched analysis"),
 ) -> AnalysisResult:
     """
     Analyze a database schema.
@@ -65,6 +66,9 @@ async def analyze_schema(
 
     Set `use_ai=true` to enable Claude AI analysis for deeper insights.
     Requires CLAUDE_API_KEY environment variable.
+
+    Optionally provide `project_id` (UUID or external ID like "github:org/repo")
+    to enable memory-enriched analysis with suppressed findings and AI scores.
     """
     try:
         # Check if AI is requested but not available
@@ -85,6 +89,7 @@ async def analyze_schema(
             database_type=request.database_type,
             use_ai=use_ai,
             app_type=app_type,
+            project_id=project_id,
         )
         return result
 
@@ -105,6 +110,7 @@ async def analyze_schema(
 async def quick_analyze(
     request: AnalysisRequest,
     use_ai: bool = Query(False, description="Enable AI-powered analysis"),
+    project_id: str | None = Query(None, description="Project ID for memory-enriched analysis"),
 ) -> dict:
     """
     Quick analysis - returns just score and issue counts.
@@ -121,6 +127,7 @@ async def quick_analyze(
             database_type=request.database_type,
             use_ai=use_ai,
             app_type=app_type,
+            project_id=project_id,
         )
 
         return {

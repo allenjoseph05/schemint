@@ -46,6 +46,9 @@ class IssueCategory(str, Enum):
     NO_MULTI_TENANCY = "no_multi_tenancy"
     MISSING_CASCADE = "missing_cascade"
 
+    # Domain
+    DOMAIN = "domain"  # Business logic / domain-specific issues
+
     # Other
     OTHER = "other"
 
