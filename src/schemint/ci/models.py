@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def _utc_now() -> datetime:
@@ -90,8 +90,8 @@ class CIIngestRequest(BaseModel):
     pr_title: str | None = Field(None, description="PR title if applicable")
     author: str | None = Field(None, description="Author of changes")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "project_id": "github:acme/ecommerce",
                 "event_type": "pull_request",
@@ -99,9 +99,10 @@ class CIIngestRequest(BaseModel):
                 "base_ref": "main",
                 "provider": "github",
                 "pr_number": 123,
-                "pr_title": "Add new payments table"
+                "pr_title": "Add new payments table",
             }
         }
+    )
 
 
 # =============================================================================
@@ -122,13 +123,16 @@ class SQLChange(BaseModel):
     """
     A SQL change extracted from a diff.
 
-    NOTE: Contains parsed structure, NOT raw SQL.
+    Contains both parsed structure AND raw content for analysis.
     """
 
     file_path: str = Field(..., description="Source file path")
     change_type: str = Field(..., description="added | modified | deleted")
 
-    # Parsed structure (NOT raw SQL)
+    # Raw content for analysis (needed by RuleAnalyzer)
+    content: str | None = Field(None, description="Raw file content for analysis")
+
+    # Parsed structure
     tables_added: list[str] = Field(default_factory=list)
     tables_modified: list[str] = Field(default_factory=list)
     tables_dropped: list[str] = Field(default_factory=list)
@@ -158,6 +162,36 @@ class SchemaDiff(BaseModel):
     # Summary
     total_tables_affected: int = Field(0)
     total_columns_affected: int = Field(0)
+
+
+# =============================================================================
+# Report Models
+# =============================================================================
+
+
+class CIAnnotation(BaseModel):
+    """A single annotation for inline PR comments."""
+
+    file: str = Field(..., description="File path")
+    line: int | None = Field(None, description="Start line number")
+    end_line: int | None = Field(None, description="End line number")
+    severity: str = Field(..., description="critical | warning | suggestion")
+    title: str = Field(..., description="Short title")
+    message: str = Field(..., description="Detailed message")
+    suggestion: str | None = Field(None, description="Suggested fix")
+    category: str | None = Field(None, description="Issue category")
+
+
+class CIReportScore(BaseModel):
+    """Score breakdown for CI reports."""
+
+    total: int = Field(..., ge=0, le=100, description="Overall score 0-100")
+    grade: str = Field(..., description="Letter grade A-F")
+    label: str = Field(..., description="Human-readable label")
+    structural: int = Field(0, ge=0, le=100)
+    performance: int = Field(0, ge=0, le=100)
+    naming: int = Field(0, ge=0, le=100)
+    best_practices: int = Field(0, ge=0, le=100)
 
 
 # =============================================================================
@@ -230,12 +264,21 @@ class AnalysisDecision(BaseModel):
     duration_ms: int = Field(0)
     created_at: datetime = Field(default_factory=_utc_now)
 
+    # Report
+    summary: str | None = Field(None, description="Markdown report for CI logs")
+    annotations: list[CIAnnotation] = Field(
+        default_factory=list, description="Inline PR annotations"
+    )
+    report_score: CIReportScore | None = Field(
+        None, description="Score breakdown"
+    )
+
     # URLs
     check_url: str | None = Field(None, description="URL to view full results")
     feedback_base_url: str | None = Field(None, description="Base URL for feedback")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "decision_id": "dec_abc123def456",
                 "project_id": "github:acme/ecommerce",
@@ -248,12 +291,13 @@ class AnalysisDecision(BaseModel):
                         "severity": "critical",
                         "title": "Table 'payments' has no primary key",
                         "location": {"table": "payments"},
-                        "memory_context": "No prior exceptions for this pattern"
+                        "memory_context": "No prior exceptions for this pattern",
                     }
                 ],
                 "critical_count": 1,
                 "warning_count": 0,
                 "suppressed_count": 0,
-                "memory_applied": []
+                "memory_applied": [],
             }
         }
+    )

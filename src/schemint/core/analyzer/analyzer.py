@@ -62,6 +62,35 @@ def _convert_ai_issues(ai_issues: list[dict]) -> list[Issue]:
     return issues
 
 
+_STRUCTURAL_CATEGORIES = frozenset({
+    IssueCategory.MISSING_PRIMARY_KEY,
+    IssueCategory.MISSING_FOREIGN_KEY,
+    IssueCategory.ORPHANED_FOREIGN_KEY,
+    IssueCategory.MISSING_CONSTRAINT,
+    IssueCategory.MISSING_NOT_NULL,
+})
+
+_PERFORMANCE_CATEGORIES = frozenset({
+    IssueCategory.MISSING_INDEX,
+    IssueCategory.WRONG_DATA_TYPE,
+    IssueCategory.INEFFICIENT_TYPE,
+})
+
+_NAMING_CATEGORIES = frozenset({
+    IssueCategory.NAMING_CONVENTION,
+    IssueCategory.RESERVED_WORD,
+})
+
+_BEST_PRACTICES_CATEGORIES = frozenset({
+    IssueCategory.MISSING_TIMESTAMPS,
+    IssueCategory.NO_SOFT_DELETE,
+    IssueCategory.MISSING_CASCADE,
+    IssueCategory.NO_MULTI_TENANCY,
+    IssueCategory.SECURITY_RISK,
+    IssueCategory.PII_DETECTED,
+})
+
+
 def calculate_score(
     issues: list[Issue],
     table_count: int,
@@ -73,27 +102,25 @@ def calculate_score(
     suggestion_count = len([i for i in issues if i.severity == IssueSeverity.SUGGESTION])
 
     # Calculate total score (start at 100, deduct points)
+    # Cap suggestion deductions at 10pts max
     total = 100
     total -= critical_count * 15
     total -= warning_count * 5
-    total -= suggestion_count * 2
+    total -= min(suggestion_count * 2, 10)
     total = max(0, min(100, total))
 
-    # Calculate category scores (simplified)
+    # Calculate category scores
     structural = 100 - (
-        len([i for i in issues if "primary" in i.category.value or "foreign" in i.category.value])
-        * 20
+        len([i for i in issues if i.category in _STRUCTURAL_CATEGORIES]) * 15
     )
     performance = 100 - (
-        len([i for i in issues if "index" in i.category.value or "type" in i.category.value]) * 15
+        len([i for i in issues if i.category in _PERFORMANCE_CATEGORIES]) * 12
     )
     naming = 100 - (
-        len([i for i in issues if "naming" in i.category.value or "reserved" in i.category.value])
-        * 10
+        len([i for i in issues if i.category in _NAMING_CATEGORIES]) * 10
     )
     best_practices = 100 - (
-        len([i for i in issues if "timestamp" in i.category.value or "cascade" in i.category.value])
-        * 10
+        len([i for i in issues if i.category in _BEST_PRACTICES_CATEGORIES]) * 8
     )
 
     return AnalysisScore(
