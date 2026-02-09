@@ -54,8 +54,16 @@ class SQLParser:
         "enum": DataType.ENUM,
     }
 
-    def parse(self, sql: str, database_type: str = "mysql") -> ParsedSchema:
-        """Parse SQL string into ParsedSchema."""
+    def parse(
+        self, sql: str, database_type: str = "mysql", normalize_identifiers: bool = True
+    ) -> ParsedSchema:
+        """Parse SQL string into ParsedSchema.
+
+        Args:
+            sql: SQL CREATE TABLE statements
+            database_type: Target database type
+            normalize_identifiers: If True, lowercase all identifier names
+        """
         if not sql or not sql.strip():
             raise SQLParserError("Empty SQL input")
 
@@ -75,15 +83,45 @@ class SQLParser:
         if not tables:
             raise SQLParserError("No valid CREATE TABLE statements found")
 
-        return ParsedSchema(
+        schema = ParsedSchema(
             tables=tables,
             database_type=database_type,
             raw_sql=sql,
         )
 
+        if normalize_identifiers:
+            schema = self._normalize_schema(schema)
+
+        return schema
+
+    def _normalize_schema(self, schema: ParsedSchema) -> ParsedSchema:
+        """Lowercase all identifier names in the schema."""
+        for table in schema.tables:
+            table.name = table.name.lower()
+            table.primary_key = [pk.lower() for pk in table.primary_key]
+            for col in table.columns:
+                col.name = col.name.lower()
+            for fk in table.foreign_keys:
+                fk.column = fk.column.lower()
+                fk.references_table = fk.references_table.lower()
+                fk.references_column = fk.references_column.lower()
+            for idx in table.indexes:
+                idx.columns = [c.lower() for c in idx.columns]
+        return schema
+
     def _is_create_table(self, statement: Statement) -> bool:
         """Check if statement is CREATE TABLE."""
-        tokens = [t for t in statement.tokens if not t.is_whitespace]
+        from sqlparse import tokens as T
+
+        # Skip whitespace and comments to find the first real tokens
+        tokens = [
+            t for t in statement.tokens
+            if not t.is_whitespace and t.ttype not in (T.Comment.Single, T.Comment.Multiline)
+            and not (hasattr(t, 'tokens') and all(
+                getattr(sub, 'ttype', None) in (T.Comment.Single, T.Comment.Multiline, T.Newline, T.Whitespace)
+                for sub in t.flatten()
+            ))
+        ]
         if len(tokens) < 2:
             return False
 
@@ -327,7 +365,9 @@ class SQLParser:
         )
 
 
-def parse_sql(sql: str, database_type: str = "mysql") -> ParsedSchema:
+def parse_sql(
+    sql: str, database_type: str = "mysql", normalize_identifiers: bool = True
+) -> ParsedSchema:
     """Convenience function to parse SQL."""
     parser = SQLParser()
-    return parser.parse(sql, database_type)
+    return parser.parse(sql, database_type, normalize_identifiers=normalize_identifiers)

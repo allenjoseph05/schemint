@@ -4,17 +4,26 @@ Git Provider Integrations.
 Provides adapters for different git hosting providers:
 - GitHub
 - GitLab
-- Bitbucket
-- Azure DevOps
-- Generic Git
+- Generic (Bitbucket, Azure DevOps, local git, etc.)
 
 Each provider implements:
-- get_diff(base_ref, head_ref) -> list of file changes
-- get_file_content(ref, path) -> file content
-- set_check_status(status) -> update CI status
+- get_diff(repo, base_ref, head_ref) -> list of file changes
+- get_file_content(repo, ref, path) -> file content
+- set_check_status(repo, ref, status) -> update CI status
 """
 
-# Placeholder for Phase 2 implementation
-# from schemint.ci.providers.base import GitProvider
-# from schemint.ci.providers.github import GitHubProvider
-# from schemint.ci.providers.gitlab import GitLabProvider
+from schemint.ci.providers.base import BaseGitProvider, CheckStatus, DiffFile
+from schemint.ci.providers.generic import GenericGitProvider
+from schemint.ci.providers.github import GitHubProvider
+from schemint.ci.providers.gitlab import GitLabProvider
+
+__all__ = [
+    # Base classes
+    "BaseGitProvider",
+    "DiffFile",
+    "CheckStatus",
+    # Implementations
+    "GitHubProvider",
+    "GitLabProvider",
+    "GenericGitProvider",
+]

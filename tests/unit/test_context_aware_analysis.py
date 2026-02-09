@@ -186,10 +186,16 @@ class TestContextAwareAnalysis:
                    for t in ecommerce_issue_titles), \
             "E-commerce context should require timestamp columns"
 
-        # Blog context should NOT flag soft delete (not required)
+        # Blog context should not have context-specific soft delete issues
+        # Note: The rule analyzer now flags no_soft_delete as a SUGGESTION
+        # for all tables, so we only check that blog doesn't add *extra*
+        # context-driven soft delete issues beyond what rules produce.
         blog_issue_titles = [i.title.lower() for i in blog_result.issues]
-        assert not any("soft delete" in t for t in blog_issue_titles), \
-            "Blog context should NOT require soft delete"
+        no_context_titles = [i.title.lower() for i in no_context_result.issues]
+        blog_soft_delete = [t for t in blog_issue_titles if "soft delete" in t]
+        no_ctx_soft_delete = [t for t in no_context_titles if "soft delete" in t]
+        assert len(blog_soft_delete) <= len(no_ctx_soft_delete), \
+            "Blog context should NOT add extra soft delete requirements beyond rules"
 
         # Both should flag FLOAT for money (this is a basic rule)
         assert any("float" in t or "money" in t or "decimal" in t
@@ -367,7 +373,8 @@ class TestConventionChecker:
         );
         """
 
-        schema = parse_sql(sql)
+        # Disable normalization so camelCase identifiers are preserved
+        schema = parse_sql(sql, normalize_identifiers=False)
         checker = ConventionChecker(conventions)
         issues = checker.check(schema)
 

@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def _utc_now() -> datetime:
@@ -76,8 +76,8 @@ class Project(BaseModel):
         description="Project-level settings"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "external_id": "github:acme/ecommerce",
@@ -85,9 +85,10 @@ class Project(BaseModel):
                 "settings": {
                     "default_severity": "warning",
                     "auto_block_rules": ["missing_primary_key"],
-                }
+                },
             }
         }
+    )
 
 
 class AcceptedFinding(BaseModel):
@@ -120,8 +121,8 @@ class AcceptedFinding(BaseModel):
         description="Structured context (table name, semantic tags, etc.)"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "finding_type": "wrong_data_type_float",
                 "pattern_hash": "a1b2c3d4...",
@@ -131,10 +132,11 @@ class AcceptedFinding(BaseModel):
                 "context": {
                     "table": "metrics",
                     "column": "value",
-                    "semantic_tags": ["metrics", "non_financial"]
-                }
+                    "semantic_tags": ["metrics", "non_financial"],
+                },
             }
         }
+    )
 
 
 class KnownSafePattern(BaseModel):
@@ -163,16 +165,17 @@ class KnownSafePattern(BaseModel):
         description="Examples of this pattern (table, column, rationale)"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "pattern_type": "float_for_percentages",
                 "description": "FLOAT is acceptable for percentage values (0.0-100.0)",
                 "examples": [
                     {"table": "metrics", "column": "cpu_usage", "rationale": "CPU percentage"}
-                ]
+                ],
             }
         }
+    )
 
 
 class BusinessRule(BaseModel):
@@ -210,16 +213,17 @@ class BusinessRule(BaseModel):
     created_at: datetime = Field(default_factory=_utc_now)
     active: bool = Field(True, description="Whether rule is active")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "rule_type": "require_tenant_id",
                 "rule_config": {"column_name": "tenant_id", "type": "UUID"},
                 "severity": "critical",
                 "applies_to": {"tables": ["*"], "except": ["migrations", "schema_versions"]},
-                "rationale": "Multi-tenant architecture requires tenant isolation"
+                "rationale": "Multi-tenant architecture requires tenant isolation",
             }
         }
+    )
 
 
 class SchemaSemantics(BaseModel):
@@ -252,16 +256,17 @@ class SchemaSemantics(BaseModel):
 
     updated_at: datetime = Field(default_factory=_utc_now)
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "element_type": "column",
                 "element_path": "orders.total",
                 "semantic_tags": ["money", "usd", "customer_facing"],
                 "description": "Total order amount in USD, shown to customers",
-                "constraints": {"currency": "USD", "min_precision": 2}
+                "constraints": {"currency": "USD", "min_precision": 2},
             }
         }
+    )
 
 
 class HistoricalInflectionPoint(BaseModel):
@@ -295,19 +300,20 @@ class HistoricalInflectionPoint(BaseModel):
 
     created_at: datetime = Field(default_factory=_utc_now)
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "event_type": "convention_adopted",
                 "event_date": "2023-06-01T00:00:00Z",
                 "description": "Adopted DECIMAL for all money columns",
                 "impact": {
                     "before_date": {"float_for_money": "warning"},
-                    "after_date": {"float_for_money": "critical"}
+                    "after_date": {"float_for_money": "critical"},
                 },
-                "affected_tables": []  # All tables
+                "affected_tables": [],  # All tables
             }
         }
+    )
 
 
 class AnalysisHistory(BaseModel):
@@ -340,8 +346,8 @@ class AnalysisHistory(BaseModel):
     duration_ms: int = Field(..., description="Analysis duration")
     created_at: datetime = Field(default_factory=_utc_now)
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "ref": "abc123def",
                 "event_type": "pull_request",
@@ -351,9 +357,10 @@ class AnalysisHistory(BaseModel):
                 "memory_applied": [
                     {"type": "accepted_finding", "id": "...", "reason": "..."}
                 ],
-                "duration_ms": 1234
+                "duration_ms": 1234,
             }
         }
+    )
 
 
 # =============================================================================

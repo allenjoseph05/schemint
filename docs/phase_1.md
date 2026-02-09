@@ -4,7 +4,7 @@
 
 Phase 1 establishes the memory store infrastructure while keeping existing functionality working. This phase lays the groundwork for the CI-native, memory-backed architecture.
 
-**Database Support:** SQLite (default) and PostgreSQL (production)
+**Database:** PostgreSQL (required)
 
 ## Completed Deliverables
 
@@ -89,7 +89,7 @@ Foundation models for Phase 2:
 
 ┌──────────────┐     ┌─────────────────┐     ┌─────────────────────────┐
 │   Client     │────▶│  Projects API   │────▶│    Memory Store         │
-│              │     │                 │     │    (SQLite)             │
+│              │     │                 │     │    (PostgreSQL)         │
 └──────────────┘     └─────────────────┘     │                         │
                                               │  - projects             │
                                               │  - accepted_findings    │
@@ -102,48 +102,51 @@ Foundation models for Phase 2:
 
 ## Database Schema
 
-SQLite database (`schemint_memory.db`) with tables:
+PostgreSQL database with tables:
 
 ```sql
 -- Projects table
 CREATE TABLE projects (
-    id TEXT PRIMARY KEY,
-    external_id TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    settings TEXT NOT NULL DEFAULT '{}'
+    id UUID PRIMARY KEY,
+    external_id VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    settings JSONB NOT NULL DEFAULT '{}'
 );
 
 -- Accepted findings (won't warn again)
 CREATE TABLE accepted_findings (
-    id TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL,
-    finding_type TEXT NOT NULL,
-    pattern_hash TEXT NOT NULL,  -- SHA256, not raw SQL
-    scope TEXT NOT NULL,         -- 'once', 'pattern', 'rule'
+    id UUID PRIMARY KEY,
+    project_id UUID NOT NULL REFERENCES projects(id),
+    finding_type VARCHAR(100) NOT NULL,
+    pattern_hash VARCHAR(64) NOT NULL,  -- SHA256, not raw SQL
+    scope VARCHAR(20) NOT NULL,         -- 'once', 'pattern', 'rule'
     reason TEXT NOT NULL,
-    accepted_by TEXT NOT NULL,
-    accepted_at TEXT NOT NULL,
-    expires_at TEXT,
-    context TEXT NOT NULL DEFAULT '{}'
+    accepted_by VARCHAR(255) NOT NULL,
+    accepted_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    context JSONB NOT NULL DEFAULT '{}'
 );
 
 -- Business rules (severity overrides)
 CREATE TABLE business_rules (
-    id TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL,
-    rule_type TEXT NOT NULL,
-    rule_config TEXT NOT NULL DEFAULT '{}',
-    severity TEXT NOT NULL,
-    applies_to TEXT NOT NULL DEFAULT '{"tables": ["*"]}',
+    id UUID PRIMARY KEY,
+    project_id UUID NOT NULL REFERENCES projects(id),
+    rule_type VARCHAR(100) NOT NULL,
+    rule_config JSONB NOT NULL DEFAULT '{}',
+    severity VARCHAR(20) NOT NULL,
+    applies_to JSONB NOT NULL DEFAULT '{"tables": ["*"]}',
     rationale TEXT NOT NULL,
-    created_by TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 1
+    created_by VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT true
 );
 
 -- Plus: known_safe_patterns, schema_semantics,
 --       historical_inflection_points, analysis_history
 ```
+
+See `docs/POSTGRESQL_SETUP.md` for full setup instructions.
 
 ## Tests
 
@@ -239,17 +242,16 @@ store.add_business_rule(
 
 ## Next Phase
 
-**Phase 2: CI Integration** will add:
-- `POST /api/v1/ci/ingest` endpoint
-- Git diff extraction
-- SQL file detection
-- GitHub/GitLab webhook handlers
+**Phase 2: CI Integration** - See `docs/phase_2.md`
 
 ## Verification
 
 Run all tests to verify Phase 1 implementation:
 
 ```bash
+# Set DATABASE_URL (required for memory store tests)
+export DATABASE_URL=postgresql://schemint:schemint123@localhost:5432/schemint
+
 # Run memory store tests
 pytest tests/unit/test_memory_store.py -v
 
@@ -259,5 +261,7 @@ pytest tests/integration/test_projects_api.py -v
 # Run all tests
 pytest tests/ -v
 ```
+
+**Note:** Memory store tests require PostgreSQL. If `DATABASE_URL` is not set, these tests will be skipped.
 
 All 80 tests should pass.
