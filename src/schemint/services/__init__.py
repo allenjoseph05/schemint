@@ -1,8 +1,8 @@
 """External services."""
 
-from schemint.services.claude import ClaudeAnalyzer, get_claude_analyzer
+from schemint.services.agent import AgentAnalyzer, get_agent_analyzer
 
 __all__ = [
-    "ClaudeAnalyzer",
-    "get_claude_analyzer",
+    "AgentAnalyzer",
+    "get_agent_analyzer",
 ]

@@ -84,7 +84,6 @@ class CIIngestRequest(BaseModel):
         None,
         description="Token for git provider access"
     )
-
     # Optional context
     pr_number: int | None = Field(None, description="PR number if applicable")
     pr_title: str | None = Field(None, description="PR title if applicable")
@@ -129,7 +128,7 @@ class SQLChange(BaseModel):
     file_path: str = Field(..., description="Source file path")
     change_type: str = Field(..., description="added | modified | deleted")
 
-    # Raw content for analysis (needed by RuleAnalyzer)
+    # Raw content for analysis
     content: str | None = Field(None, description="Raw file content for analysis")
 
     # Parsed structure

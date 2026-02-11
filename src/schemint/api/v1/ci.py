@@ -13,16 +13,20 @@ from schemint.ci.models import (
     CIIngestRequest,
     GitProvider,
 )
+from schemint.config import get_settings
 
 router = APIRouter()
 
 
 @router.post("/ingest", response_model=AnalysisDecision)
-async def ingest_ci(request: CIIngestRequest) -> AnalysisDecision:
+async def ingest_ci(
+    request: CIIngestRequest,
+) -> AnalysisDecision:
     """
     Ingest a CI event for schema analysis.
 
     This is the PRIMARY entry point for CI integration.
+    Analysis is always AI-powered. Requires `CLAUDE_API_KEY`.
 
     **Triggered by:** GitHub Actions, GitLab CI, Jenkins, etc.
 
@@ -30,7 +34,7 @@ async def ingest_ci(request: CIIngestRequest) -> AnalysisDecision:
     1. Validate/register project
     2. Fetch diff from git provider
     3. Extract SQL changes
-    4. Run analysis pipeline
+    4. Run AI-powered analysis pipeline
     5. Update CI status
     6. Return decision with findings
 
@@ -59,8 +63,19 @@ async def ingest_ci(request: CIIngestRequest) -> AnalysisDecision:
     - `suppressed_count` shows how many were suppressed
     """
     try:
+        # Validate AI availability
+        settings = get_settings()
+        if not settings.ai_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="CLAUDE_API_KEY is not configured. AI analysis requires a valid API key.",
+            )
+
         decision = await ingest_ci_event(request)
         return decision
+
+    except HTTPException:
+        raise
 
     except ValueError as e:
         raise HTTPException(

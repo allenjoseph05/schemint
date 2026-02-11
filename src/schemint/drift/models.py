@@ -1,0 +1,340 @@
+"""Pydantic models for schema drift detection.
+
+Design invariant:
+    "Only record what can be provably extracted.
+     Missing information results in uncertainty, not inference."
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
+
+
+# =============================================================================
+# Snapshot Models (Phase 0)
+# =============================================================================
+
+
+class ColumnSnapshot(BaseModel):
+    """Snapshot of a single column's state.
+
+    All values come from the DDL parser or information_schema — no inference.
+    Type names are stored in canonical lowercase form for stable comparison.
+    """
+
+    name: str
+    type: str  # Canonical lowercase, e.g. "integer", "varchar(255)"
+    nullable: bool = True
+    default: str | None = None
+    constraints: list[str] = Field(default_factory=list)
+
+
+class TableSnapshot(BaseModel):
+    """Snapshot of a single table's state.
+
+    Column order is preserved from the source (DDL ordinal or
+    information_schema.ordinal_position) via insertion-ordered dict.
+    """
+
+    name: str
+    columns: dict[str, ColumnSnapshot] = Field(default_factory=dict)
+    primary_key: list[str] = Field(default_factory=list)
+    indexes: list[dict] = Field(default_factory=list)
+    foreign_keys: list[dict] = Field(default_factory=list)
+
+
+class SchemaSnapshot(BaseModel):
+    """Complete snapshot of a single database schema at a point in time.
+
+    Scope: single schema (e.g. "public"). Multi-schema and cross-database
+    snapshots are NOT supported — each snapshot covers exactly one schema.
+    The schema_name field records which schema was captured.
+    """
+
+    snapshot_id: str  # Timestamp-based, never random — e.g. "ddl_20240101_120000"
+    captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    source: Literal["ddl", "live_db"]
+    database_type: str = "postgresql"
+    schema_name: str = "public"  # The single schema this snapshot covers
+    tables: dict[str, TableSnapshot] = Field(default_factory=dict)
+
+
+# =============================================================================
+# Dependency Models (Phase 0)
+# =============================================================================
+
+
+class DependencySource(BaseModel):
+    """A single provable source for a dependency edge.
+
+    Every edge MUST have at least one source with explicit provenance.
+    No edge may exist without proof of origin.
+    """
+
+    source_type: Literal["dbt_manifest", "sql_ast", "view_definition", "fk_constraint"]
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    file_path: str | None = None
+    line_number: int | None = None
+    extracted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # For dbt sources: the full unique_id (e.g. "model.project.users")
+    # Preserves context that the short name alone would lose.
+    dbt_unique_id: str | None = None
+    # Whether table aliases in SQL were fully resolved to real table names.
+    # False means the edge references may contain unresolved aliases.
+    alias_resolved: bool = True
+
+    @field_validator("confidence")
+    @classmethod
+    def validate_confidence(cls, v: float) -> float:
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("Confidence must be between 0 and 1")
+        return v
+
+
+class DependencyEdge(BaseModel):
+    """A directed dependency between two schema elements.
+
+    Direction semantics:
+        from_element is UPSTREAM (depended upon).
+        to_element is DOWNSTREAM (depends on from_element).
+
+    Example: FK orders.user_id → users.id means
+        from_element="orders.user_id" (downstream, has the FK)
+        to_element="users.id" (upstream, referenced)
+        direction="upstream"
+
+    Every edge MUST have ≥1 source. Edges without proof are forbidden.
+    final_confidence = max(source confidences), never averaged.
+    """
+
+    from_element: str  # e.g. "orders.user_id"
+    to_element: str  # e.g. "users.id"
+    direction: Literal["upstream", "downstream"] = "downstream"
+    usage_type: Literal["join_key", "fk", "select", "filter", "group_by", "transform"]
+    sources: list[DependencySource] = Field(default_factory=list)
+    final_confidence: float = Field(0.0, ge=0.0, le=1.0)
+
+    @field_validator("sources")
+    @classmethod
+    def validate_has_source(cls, v: list[DependencySource]) -> list[DependencySource]:
+        # Allow empty during construction (e.g. test fixtures) but warn
+        # In production, build() enforces this invariant.
+        return v
+
+
+class DependencyGraph(BaseModel):
+    """Complete dependency graph built from deterministic sources.
+
+    Invariant: every edge has ≥1 explicit DependencySource.
+    No inferred edges. Missing lineage = uncertainty, not fabricated edges.
+    """
+
+    edges: list[DependencyEdge] = Field(default_factory=list)
+    built_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class DependencyCoverage(BaseModel):
+    """Coverage metrics for the dependency graph.
+
+    Surfaces what percentage of the schema has provable lineage
+    and explicitly lists tables with NO lineage (opaque/untracked).
+    Missing lineage reduces confidence — it does not invent edges.
+    """
+
+    tables_total: int = 0
+    tables_with_lineage: int = 0
+    coverage_pct: float = 0.0
+    untracked_tables: list[str] = Field(default_factory=list)
+
+
+# =============================================================================
+# Diff Models (Phase 1)
+# =============================================================================
+
+
+class SchemaChangeEvent(BaseModel):
+    """A single detected schema change."""
+
+    change_type: Literal[
+        "column_added",
+        "column_dropped",
+        "column_type_change",
+        "column_nullable_change",
+        "column_default_change",
+        "table_added",
+        "table_dropped",
+        "table_renamed",
+        "index_added",
+        "index_dropped",
+        "fk_added",
+        "fk_dropped",
+    ]
+    table: str
+    column: str | None = None
+    old_value: str | None = None
+    new_value: str | None = None
+    detected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class SchemaDiffResult(BaseModel):
+    """Result of diffing two schema snapshots."""
+
+    old_snapshot_id: str
+    new_snapshot_id: str
+    changes: list[SchemaChangeEvent] = Field(default_factory=list)
+    diffed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# =============================================================================
+# Context Models (Phase 2)
+# =============================================================================
+
+
+class ImpactAssessment(BaseModel):
+    """Impact assessment for a single downstream dependency."""
+
+    table: str
+    usage: str
+    dependency_count: int = 0
+    confidence: float = 0.0
+
+
+class ImpactMetrics(BaseModel):
+    """Aggregate impact metrics for a schema change."""
+
+    downstream_tables: int = 0
+    downstream_columns: int = 0
+    max_depth: int = 0
+    criticality: Literal["low", "medium", "high", "critical"] = "low"
+
+
+class ContextPackage(BaseModel):
+    """Complete context package for a single schema change — sole input to AI.
+
+    context_quality signals how much the AI can trust this package:
+        - "complete": Full coverage, high confidence, no depth truncation.
+        - "partial": Coverage gaps, low-confidence edges, or depth was truncated.
+        - "insufficient": Coverage <50% or all edges below confidence threshold.
+    """
+
+    schema_change: SchemaChangeEvent
+    impacted_dependencies: list[ImpactAssessment] = Field(default_factory=list)
+    impact_metrics: ImpactMetrics = Field(default_factory=ImpactMetrics)
+    dependency_coverage: DependencyCoverage = Field(default_factory=DependencyCoverage)
+    context_quality: Literal["complete", "partial", "insufficient"] = "complete"
+
+
+# =============================================================================
+# Agent Decision Models (Phase 3)
+# =============================================================================
+
+
+class AgentDecision(BaseModel):
+    """AI agent's severity judgment for a schema change.
+
+    The LLM may escalate severity above the deterministic floor
+    but NEVER below it. Post-AI invariants enforce safety constraints.
+    """
+
+    severity: Literal["low", "medium", "high", "critical"]
+    confidence_in_decision: float = Field(..., ge=0.0, le=1.0)
+    requires_human_review: bool
+    rationale: list[str] = Field(..., min_length=1)
+    recommended_action_categories: list[
+        Literal[
+            "backward_compatibility",
+            "downstream_updates",
+            "monitor_only",
+            "block_deploy",
+            "notify_owner",
+        ]
+    ] = Field(..., max_length=3)
+    context_quality: Literal["complete", "partial", "insufficient"]
+
+
+# =============================================================================
+# Execution Plan Models (Phase 4)
+# =============================================================================
+
+
+class PlanStep(BaseModel):
+    """A single step in an execution plan.
+
+    action must match an ActionTemplate.action_id from the registry.
+    """
+
+    step: int = Field(..., ge=1)
+    action: str
+    target: str
+    notes: str = ""
+    reversible: bool = True
+
+
+class ExecutionPlan(BaseModel):
+    """Constrained execution plan generated from an AgentDecision.
+
+    Plans are always subject to execution approval by default.
+    """
+
+    plan: list[PlanStep]
+    requires_execution_approval: bool = True
+    source_severity: Literal["low", "medium", "high", "critical"]
+    source_requires_human_review: bool
+
+
+# =============================================================================
+# Execution Models (Phase 5)
+# =============================================================================
+
+
+class ExecutionResult(BaseModel):
+    """Result of executing a single plan step.
+
+    Every step produces exactly one result — no silent gaps.
+    """
+
+    step: int
+    action: str
+    status: Literal["success", "failed", "skipped"]
+    error_message: str | None = None
+    reversible: bool = True
+    executed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ExecutionReport(BaseModel):
+    """Complete report for an execution run.
+
+    Immutable once recorded. Captures overall status and rollback need.
+    """
+
+    execution_id: str
+    overall_status: Literal["success", "partial_failure", "failed", "pending_approval"]
+    step_results: list[ExecutionResult] = Field(default_factory=list)
+    requires_rollback: bool = False
+    executed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# =============================================================================
+# Verification Models (Phase 6)
+# =============================================================================
+
+
+class VerificationReport(BaseModel):
+    """Structured verification of whether the agent's goal was achieved.
+
+    Purely deterministic — no AI reasoning. Produces signals for the
+    agent controller to decide: retry, rollback, escalate, or terminate.
+    """
+
+    execution_id: str
+    schema_valid: bool = False
+    dependency_valid: bool = False
+    tests_passed: bool = False
+    downstream_breakage_detected: bool = False
+    goal_satisfied: bool = False
+    requires_rollback: bool = False
+    requires_human_escalation: bool = False
+    verified_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

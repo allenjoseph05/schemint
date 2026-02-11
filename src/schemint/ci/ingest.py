@@ -231,7 +231,7 @@ class CIIngestHandler:
                     result = analyze_sql(
                         sql=file_content,
                         database_type="mysql",  # TODO: detect from project settings
-                        use_ai=False,  # Don't use AI for CI (too slow)
+                        project_id=str(project_id),
                     )
 
                     analysis_results.append(result)

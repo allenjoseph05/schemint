@@ -65,6 +65,17 @@ SEVERITY LEVELS:
 - warning: Performance degradation, data integrity risk, or maintenance burden
 - suggestion: Improvement that would make the schema better but isn't urgent
 
+SCORING RUBRIC:
+Score each dimension 0-100 (start at 100, deduct):
+
+Structural: -20 missing PK, -15 missing FK where clear, -10 orphaned FK, -5 missing NOT NULL
+Performance: -15 missing index on FK, -15 FLOAT for money, -10 no indexes on 5+ col table
+Naming: -10 reserved word, -8 inconsistent convention, -5 heavy abbreviation
+Best Practices: -10 missing timestamps, -5 missing ON DELETE, -5 no soft delete
+Security deductions from best_practices: -25 plaintext password, -15 PII unencrypted
+
+Total = structural*0.30 + performance*0.25 + naming*0.15 + best_practices*0.30
+
 MEMORY RULES:
 When the input includes a "memory" section with accepted_findings, DO NOT
 report findings that match an accepted pattern. Instead, note them in a
