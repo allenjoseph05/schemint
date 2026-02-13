@@ -225,9 +225,18 @@ class DriftStore:
 _store: DriftStore | None = None
 
 
-def get_drift_store() -> DriftStore:
-    """Get the global drift store instance."""
+def get_drift_store(database_url: str | None = None) -> DriftStore:
+    """Get the global drift store instance.
+
+    Args:
+        database_url: Optional explicit database URL. If provided, creates
+            a new store with this URL (useful for testing). If None, uses
+            the configured settings.
+    """
     global _store
+    if database_url is not None:
+        _store = DriftStore(database_url=database_url)
+        return _store
     if _store is None:
         from schemint.config import get_settings
         settings = get_settings()
@@ -235,3 +244,15 @@ def get_drift_store() -> DriftStore:
             raise ValueError("DATABASE_URL must be set for drift store.")
         _store = DriftStore(database_url=settings.database_url)
     return _store
+
+
+def set_drift_store(store: DriftStore | None) -> None:
+    """Set or clear the global drift store instance.
+
+    Useful for test injection:
+        set_drift_store(mock_store)
+        # ... run tests ...
+        set_drift_store(None)  # reset
+    """
+    global _store
+    _store = store

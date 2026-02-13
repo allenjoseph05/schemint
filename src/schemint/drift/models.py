@@ -32,18 +32,114 @@ class ColumnSnapshot(BaseModel):
     constraints: list[str] = Field(default_factory=list)
 
 
+class ForeignKeySnapshot(BaseModel):
+    """Snapshot of a single foreign key constraint.
+
+    Replaces untyped dict with explicit fields for type safety
+    and attribute access (fk.column instead of fk.get("column")).
+    """
+
+    name: str = ""
+    column: str = ""
+    references_table: str = ""
+    references_column: str = ""
+    on_delete: str | None = None
+    on_update: str | None = None
+
+
+class IndexSnapshot(BaseModel):
+    """Snapshot of a single index.
+
+    Replaces untyped dict with explicit fields for type safety.
+    """
+
+    name: str = ""
+    columns: list[str] = Field(default_factory=list)
+    is_unique: bool = False
+    is_primary: bool = False
+    definition: str | None = None  # Raw index definition from pg_indexes
+
+
 class TableSnapshot(BaseModel):
     """Snapshot of a single table's state.
 
     Column order is preserved from the source (DDL ordinal or
     information_schema.ordinal_position) via insertion-ordered dict.
+
+    foreign_keys and indexes accept both typed models and raw dicts
+    (for backward compatibility). The field_validator coerces dicts
+    to the typed model automatically.
     """
 
     name: str
     columns: dict[str, ColumnSnapshot] = Field(default_factory=dict)
     primary_key: list[str] = Field(default_factory=list)
-    indexes: list[dict] = Field(default_factory=list)
-    foreign_keys: list[dict] = Field(default_factory=list)
+    indexes: list[ForeignKeySnapshot | IndexSnapshot | dict] = Field(default_factory=list)
+    foreign_keys: list[ForeignKeySnapshot | dict] = Field(default_factory=list)
+
+    @field_validator("foreign_keys", mode="before")
+    @classmethod
+    def coerce_foreign_keys(cls, v: list) -> list:
+        """Coerce raw dicts to ForeignKeySnapshot models."""
+        _str_fields = {"name", "column", "references_table", "references_column"}
+        result = []
+        for item in v:
+            if isinstance(item, dict):
+                # Replace None with "" for required string fields
+                cleaned = {}
+                for k, val in item.items():
+                    if k not in ForeignKeySnapshot.model_fields:
+                        continue
+                    if val is None and k in _str_fields:
+                        val = ""
+                    cleaned[k] = val
+                result.append(ForeignKeySnapshot(**cleaned))
+            else:
+                result.append(item)
+        return result
+
+    @field_validator("indexes", mode="before")
+    @classmethod
+    def coerce_indexes(cls, v: list) -> list:
+        """Coerce raw dicts to IndexSnapshot models."""
+        result = []
+        for item in v:
+            if isinstance(item, dict):
+                cleaned = {
+                    k: v
+                    for k, v in item.items()
+                    if k in IndexSnapshot.model_fields
+                }
+                result.append(IndexSnapshot(**cleaned))
+            else:
+                result.append(item)
+        return result
+
+
+class ViewSnapshot(BaseModel):
+    """Snapshot of a database view definition.
+
+    Captures the view name, its SQL body, and source tables referenced.
+    """
+
+    name: str
+    definition: str  # SQL body (SELECT ...)
+    source_tables: list[str] = Field(default_factory=list)  # Tables referenced
+
+
+class TriggerSnapshot(BaseModel):
+    """Snapshot of a database trigger.
+
+    Captures the trigger name, the table it's attached to, the event/timing,
+    the function it calls, and optionally the full trigger body.
+    """
+
+    name: str
+    table: str  # Table this trigger is attached to
+    event: str  # INSERT, UPDATE, DELETE, or combination
+    timing: str  # BEFORE, AFTER, INSTEAD OF
+    function_name: str  # The function it calls
+    definition: str | None = None  # Full trigger body if available
 
 
 class SchemaSnapshot(BaseModel):
@@ -56,10 +152,12 @@ class SchemaSnapshot(BaseModel):
 
     snapshot_id: str  # Timestamp-based, never random — e.g. "ddl_20240101_120000"
     captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    source: Literal["ddl", "live_db"]
+    source: Literal["ddl", "live_db", "composed"]
     database_type: str = "postgresql"
     schema_name: str = "public"  # The single schema this snapshot covers
     tables: dict[str, TableSnapshot] = Field(default_factory=dict)
+    views: dict[str, ViewSnapshot] = Field(default_factory=dict)
+    triggers: dict[str, TriggerSnapshot] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -116,6 +214,7 @@ class DependencyEdge(BaseModel):
     usage_type: Literal["join_key", "fk", "select", "filter", "group_by", "transform"]
     sources: list[DependencySource] = Field(default_factory=list)
     final_confidence: float = Field(0.0, ge=0.0, le=1.0)
+    lineage_type: Literal["table", "column"] = "table"
 
     @field_validator("sources")
     @classmethod
@@ -164,6 +263,7 @@ class SchemaChangeEvent(BaseModel):
         "column_type_change",
         "column_nullable_change",
         "column_default_change",
+        "column_constraint_change",
         "table_added",
         "table_dropped",
         "table_renamed",
@@ -171,11 +271,19 @@ class SchemaChangeEvent(BaseModel):
         "index_dropped",
         "fk_added",
         "fk_dropped",
+        "fk_action_change",
+        "view_added",
+        "view_dropped",
+        "view_definition_change",
+        "trigger_added",
+        "trigger_dropped",
+        "trigger_changed",
     ]
     table: str
     column: str | None = None
     old_value: str | None = None
     new_value: str | None = None
+    change_risk: Literal["safe", "needs_review", "potentially_breaking", "breaking"] | None = None
     detected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -211,6 +319,39 @@ class ImpactMetrics(BaseModel):
     criticality: Literal["low", "medium", "high", "critical"] = "low"
 
 
+class ParseHealth(BaseModel):
+    """Tracks parse success/failure rates for dependency extraction.
+
+    Surfaces which SQL files failed to parse so the system knows
+    its dependency graph may be incomplete.
+    """
+
+    total_files: int = 0
+    parsed_ok: int = 0
+    parse_failures: list[str] = Field(default_factory=list)  # file paths that failed
+
+    @property
+    def success_rate(self) -> float:
+        if self.total_files == 0:
+            return 1.0
+        return self.parsed_ok / self.total_files
+
+
+class ContextGaps(BaseModel):
+    """Explicitly surfaces what information is missing from context.
+
+    The AI agent can use this to calibrate confidence and decide
+    whether to escalate to a human.
+    """
+
+    missing_upstream_tables: list[str] = Field(default_factory=list)
+    missing_downstream_tables: list[str] = Field(default_factory=list)
+    untracked_tables: list[str] = Field(default_factory=list)
+    low_confidence_edges: int = 0
+    parse_health: ParseHealth = Field(default_factory=ParseHealth)
+    has_gaps: bool = False
+
+
 class ContextPackage(BaseModel):
     """Complete context package for a single schema change — sole input to AI.
 
@@ -225,6 +366,8 @@ class ContextPackage(BaseModel):
     impact_metrics: ImpactMetrics = Field(default_factory=ImpactMetrics)
     dependency_coverage: DependencyCoverage = Field(default_factory=DependencyCoverage)
     context_quality: Literal["complete", "partial", "insufficient"] = "complete"
+    context_gaps: ContextGaps | None = None
+    upstream_impacts: list[ImpactAssessment] = Field(default_factory=list)
 
 
 # =============================================================================
@@ -338,3 +481,22 @@ class VerificationReport(BaseModel):
     requires_rollback: bool = False
     requires_human_escalation: bool = False
     verified_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# =============================================================================
+# Multi-Schema Models (Cross-Schema Composition)
+# =============================================================================
+
+
+class MultiSchemaSnapshot(BaseModel):
+    """Composes multiple single-schema snapshots for cross-schema analysis.
+
+    Enables diff and context analysis across schema boundaries by
+    combining multiple SchemaSnapshots into a single queryable structure.
+    """
+
+    snapshot_id: str
+    captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    source: Literal["ddl", "live_db", "composed"]
+    database_type: str = "postgresql"
+    schemas: dict[str, SchemaSnapshot] = Field(default_factory=dict)
