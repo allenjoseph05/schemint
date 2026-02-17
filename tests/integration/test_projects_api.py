@@ -2,10 +2,10 @@
 Integration tests for the Projects API (Phase 1).
 
 Tests the HTTP endpoints for project management.
+Requires DATABASE_URL to be set (PostgreSQL).
 """
 
 import os
-import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,26 +13,22 @@ from fastapi.testclient import TestClient
 from schemint.main import app
 from schemint.memory.store import MemoryStore, set_memory_store
 
+# Skip entire module if no DATABASE_URL configured
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("DATABASE_URL"),
+    reason="DATABASE_URL not set — skipping integration tests requiring PostgreSQL",
+)
+
 # =============================================================================
 # Fixtures
 # =============================================================================
 
 
 @pytest.fixture
-def temp_db():
-    """Create a temporary database file."""
-    fd, path = tempfile.mkstemp(suffix=".db")
-    os.close(fd)
-    yield path
-    if os.path.exists(path):
-        os.unlink(path)
-
-
-@pytest.fixture
-def client(temp_db):
+def client():
     """Create test client with isolated memory store."""
-    # Use a temporary database for tests
-    store = MemoryStore(db_path=temp_db)
+    database_url = os.environ["DATABASE_URL"]
+    store = MemoryStore(database_url=database_url)
     set_memory_store(store)
 
     with TestClient(app) as client:
