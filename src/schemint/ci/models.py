@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -60,31 +60,12 @@ class CIIngestRequest(BaseModel):
     This is the PRIMARY entry point for CI integration.
     """
 
-    project_id: str = Field(
-        ...,
-        description="Project identifier (e.g., 'github:org/repo')"
-    )
-    event_type: CIEventType = Field(
-        ...,
-        description="Type of CI event"
-    )
-    ref: str = Field(
-        ...,
-        description="Git ref to analyze (commit SHA, branch, PR ref)"
-    )
-    base_ref: str = Field(
-        ...,
-        description="Base ref for diff calculation (e.g., 'main')"
-    )
-    provider: GitProvider = Field(
-        ...,
-        description="Git provider"
-    )
-    provider_token: str | None = Field(
-        None,
-        description="Token for git provider access"
-    )
-
+    project_id: str = Field(..., description="Project identifier (e.g., 'github:org/repo')")
+    event_type: CIEventType = Field(..., description="Type of CI event")
+    ref: str = Field(..., description="Git ref to analyze (commit SHA, branch, PR ref)")
+    base_ref: str = Field(..., description="Base ref for diff calculation (e.g., 'main')")
+    provider: GitProvider = Field(..., description="Git provider")
+    provider_token: str | None = Field(None, description="Token for git provider access")
     # Optional context
     pr_number: int | None = Field(None, description="PR number if applicable")
     pr_title: str | None = Field(None, description="PR title if applicable")
@@ -129,7 +110,7 @@ class SQLChange(BaseModel):
     file_path: str = Field(..., description="Source file path")
     change_type: str = Field(..., description="added | modified | deleted")
 
-    # Raw content for analysis (needed by RuleAnalyzer)
+    # Raw content for analysis
     content: str | None = Field(None, description="Raw file content for analysis")
 
     # Parsed structure
@@ -219,14 +200,8 @@ class AnalysisFinding(BaseModel):
     location: FindingLocation = Field(default_factory=FindingLocation)
 
     # Memory context
-    memory_context: str | None = Field(
-        None,
-        description="How memory affected this finding"
-    )
-    suppressed_by_memory: bool = Field(
-        False,
-        description="Was this suppressed by memory?"
-    )
+    memory_context: str | None = Field(None, description="How memory affected this finding")
+    suppressed_by_memory: bool = Field(False, description="Was this suppressed by memory?")
 
     # Actions
     suggested_action: str = Field("warn", description="block | warn | info")
@@ -256,8 +231,7 @@ class AnalysisDecision(BaseModel):
 
     # Memory
     memory_applied: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Memory items that affected this analysis"
+        default_factory=list, description="Memory items that affected this analysis"
     )
 
     # Metadata
@@ -269,9 +243,7 @@ class AnalysisDecision(BaseModel):
     annotations: list[CIAnnotation] = Field(
         default_factory=list, description="Inline PR annotations"
     )
-    report_score: CIReportScore | None = Field(
-        None, description="Score breakdown"
-    )
+    report_score: CIReportScore | None = Field(None, description="Score breakdown")
 
     # URLs
     check_url: str | None = Field(None, description="URL to view full results")

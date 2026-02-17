@@ -23,9 +23,9 @@ def _utc_now() -> datetime:
 class FeedbackScope(str, Enum):
     """Scope of feedback application."""
 
-    ONCE = "once"          # Just this specific instance
-    PATTERN = "pattern"    # Similar patterns in this project
-    RULE = "rule"          # All instances of this rule type
+    ONCE = "once"  # Just this specific instance
+    PATTERN = "pattern"  # Similar patterns in this project
+    RULE = "rule"  # All instances of this rule type
 
 
 class FindingSeverity(str, Enum):
@@ -71,10 +71,7 @@ class Project(BaseModel):
     external_id: str = Field(..., description="External identifier (e.g., 'github:org/repo')")
     name: str = Field(..., description="Human-readable project name")
     created_at: datetime = Field(default_factory=_utc_now)
-    settings: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Project-level settings"
-    )
+    settings: dict[str, Any] = Field(default_factory=dict, description="Project-level settings")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -117,8 +114,7 @@ class AcceptedFinding(BaseModel):
 
     # Additional context (NO raw SQL here)
     context: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Structured context (table name, semantic tags, etc.)"
+        default_factory=dict, description="Structured context (table name, semantic tags, etc.)"
     )
 
     model_config = ConfigDict(
@@ -161,8 +157,7 @@ class KnownSafePattern(BaseModel):
 
     # Examples (structured, not raw SQL)
     examples: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Examples of this pattern (table, column, rationale)"
+        default_factory=list, description="Examples of this pattern (table, column, rationale)"
     )
 
     model_config = ConfigDict(
@@ -194,8 +189,7 @@ class BusinessRule(BaseModel):
     # Rule definition
     rule_type: str = Field(..., description="Type of rule")
     rule_config: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Rule-specific configuration"
+        default_factory=dict, description="Rule-specific configuration"
     )
 
     # Severity override
@@ -203,8 +197,7 @@ class BusinessRule(BaseModel):
 
     # Scope
     applies_to: dict[str, Any] = Field(
-        default_factory=lambda: {"tables": ["*"]},
-        description="Which tables this applies to"
+        default_factory=lambda: {"tables": ["*"]}, description="Which tables this applies to"
     )
 
     # Documentation
@@ -243,15 +236,14 @@ class SchemaSemantics(BaseModel):
 
     # Semantic information
     semantic_tags: list[str] = Field(
-        default_factory=list,
-        description="Semantic tags (e.g., ['money', 'usd', 'immutable'])"
+        default_factory=list, description="Semantic tags (e.g., ['money', 'usd', 'immutable'])"
     )
     description: str = Field(..., description="Human description of purpose")
 
     # Constraints implied by semantics
     constraints: dict[str, Any] = Field(
         default_factory=dict,
-        description="Semantic constraints (e.g., {'currency': 'USD', 'precision': 4})"
+        description="Semantic constraints (e.g., {'currency': 'USD', 'precision': 4})",
     )
 
     updated_at: datetime = Field(default_factory=_utc_now)
@@ -287,15 +279,11 @@ class HistoricalInflectionPoint(BaseModel):
     description: str = Field(..., description="What happened")
 
     # Impact on analysis
-    impact: dict[str, Any] = Field(
-        default_factory=dict,
-        description="How this affects analysis"
-    )
+    impact: dict[str, Any] = Field(default_factory=dict, description="How this affects analysis")
 
     # Scope
     affected_tables: list[str] = Field(
-        default_factory=list,
-        description="Tables affected (empty = all)"
+        default_factory=list, description="Tables affected (empty = all)"
     )
 
     created_at: datetime = Field(default_factory=_utc_now)
@@ -338,8 +326,7 @@ class AnalysisHistory(BaseModel):
 
     # Memory usage
     memory_applied: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Which memory items were applied"
+        default_factory=list, description="Which memory items were applied"
     )
 
     # Performance
@@ -354,9 +341,7 @@ class AnalysisHistory(BaseModel):
                 "status": "pass",
                 "finding_count": 0,
                 "findings_hash": "d41d8cd98f00b204e9800998ecf8427e",
-                "memory_applied": [
-                    {"type": "accepted_finding", "id": "...", "reason": "..."}
-                ],
+                "memory_applied": [{"type": "accepted_finding", "id": "...", "reason": "..."}],
                 "duration_ms": 1234,
             }
         }

@@ -20,20 +20,20 @@ from schemint.core.context.models import (
 __all__ = [
     # Models
     "ColumnMetadata",
+    # Loaders
+    "ContextLoader",
+    # Checkers
+    "ConventionChecker",
+    "DeprecationChecker",
     "MigrationAction",
     "MigrationInfo",
+    # Parsers
+    "MigrationParser",
     "ProjectContext",
     "ProjectConventions",
     "SchemaMetadata",
     "TableMetadata",
-    # Loaders
-    "ContextLoader",
-    "load_context",
-    # Parsers
-    "MigrationParser",
-    "parse_migrations",
-    # Checkers
-    "ConventionChecker",
-    "DeprecationChecker",
     "check_conventions",
+    "load_context",
+    "parse_migrations",
 ]

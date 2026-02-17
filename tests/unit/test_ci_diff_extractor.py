@@ -2,8 +2,6 @@
 Tests for CI Diff Extractor.
 """
 
-import pytest
-
 from schemint.ci.diff_extractor import DiffExtractor
 from schemint.ci.providers.base import DiffFile
 
@@ -268,8 +266,14 @@ export class User {
         extractor = DiffExtractor()
 
         diff_files = [
-            DiffFile(path="schema/users.sql", change_type="added", content="CREATE TABLE users (id INT);"),
-            DiffFile(path="schema/orders.sql", change_type="modified", content="ALTER TABLE orders ADD status INT;"),
+            DiffFile(
+                path="schema/users.sql", change_type="added", content="CREATE TABLE users (id INT);"
+            ),
+            DiffFile(
+                path="schema/orders.sql",
+                change_type="modified",
+                content="ALTER TABLE orders ADD status INT;",
+            ),
             DiffFile(path="readme.md", change_type="modified", content="# README"),
         ]
 

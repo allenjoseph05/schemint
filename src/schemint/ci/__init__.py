@@ -44,7 +44,6 @@ from schemint.ci.models import (
     SchemaDiff,
     SQLChange,
 )
-from schemint.ci.report_builder import CIReportBuilder
 from schemint.ci.providers import (
     BaseGitProvider,
     CheckStatus,
@@ -53,40 +52,41 @@ from schemint.ci.providers import (
     GitHubProvider,
     GitLabProvider,
 )
+from schemint.ci.report_builder import CIReportBuilder
 
 __all__ = [
-    # Main entry point
-    "ingest_ci_event",
-    "CIIngestHandler",
-    # Models
-    "CIEventType",
-    "GitProvider",
-    "CIIngestRequest",
     "AnalysisDecision",
     "AnalysisFinding",
-    "CIAnnotation",
-    "CIReportScore",
-    "DecisionStatus",
-    "FindingLocation",
-    "SchemaDiff",
-    "SQLChange",
-    "FileChange",
-    # Report
-    "CIReportBuilder",
-    # Diff extraction
-    "DiffExtractor",
-    "extract_diff",
-    # File detection
-    "SQLFileDetector",
-    "DetectedFile",
-    "DetectionResult",
-    "detect_sql_files",
-    "is_sql_file",
     # Providers
     "BaseGitProvider",
+    "CIAnnotation",
+    # Models
+    "CIEventType",
+    "CIIngestHandler",
+    "CIIngestRequest",
+    # Report
+    "CIReportBuilder",
+    "CIReportScore",
+    "CheckStatus",
+    "DecisionStatus",
+    "DetectedFile",
+    "DetectionResult",
+    # Diff extraction
+    "DiffExtractor",
+    "DiffFile",
+    "FileChange",
+    "FindingLocation",
+    "GenericGitProvider",
     "GitHubProvider",
     "GitLabProvider",
-    "GenericGitProvider",
-    "DiffFile",
-    "CheckStatus",
+    "GitProvider",
+    "SQLChange",
+    # File detection
+    "SQLFileDetector",
+    "SchemaDiff",
+    "detect_sql_files",
+    "extract_diff",
+    # Main entry point
+    "ingest_ci_event",
+    "is_sql_file",
 ]

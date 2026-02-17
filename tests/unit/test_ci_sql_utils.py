@@ -2,11 +2,7 @@
 Tests for CI SQL Utilities.
 """
 
-import pytest
-
 from schemint.ci.sql_utils import (
-    SQLAnalysis,
-    DangerousPattern,
     analyze_sql_content,
     detect_dangerous_patterns,
     is_sql_content,
@@ -156,7 +152,9 @@ class TestDetectDangerousPatterns:
     def test_drop_column(self):
         sql = "ALTER TABLE users DROP COLUMN email;"
         patterns = detect_dangerous_patterns(sql)
-        destructive = [p for p in patterns if p.pattern_type == "destructive_change" and p.column_name]
+        destructive = [
+            p for p in patterns if p.pattern_type == "destructive_change" and p.column_name
+        ]
         assert len(destructive) == 1
         assert destructive[0].table_name == "users"
         assert destructive[0].column_name == "email"
@@ -164,7 +162,9 @@ class TestDetectDangerousPatterns:
     def test_drop_table(self):
         sql = "DROP TABLE users;"
         patterns = detect_dangerous_patterns(sql)
-        destructive = [p for p in patterns if p.pattern_type == "destructive_change" and not p.column_name]
+        destructive = [
+            p for p in patterns if p.pattern_type == "destructive_change" and not p.column_name
+        ]
         assert len(destructive) == 1
         assert destructive[0].table_name == "users"
 

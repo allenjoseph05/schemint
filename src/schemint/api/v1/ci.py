@@ -4,25 +4,31 @@ CI Integration API Endpoints.
 Primary interface for CI/CD integration.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
 
-from schemint.ci.ingest import CIIngestHandler, ingest_ci_event
+from schemint.ci.ingest import ingest_ci_event
 from schemint.ci.models import (
     AnalysisDecision,
     CIEventType,
     CIIngestRequest,
     GitProvider,
 )
+from schemint.config import get_settings
 
 router = APIRouter()
 
 
 @router.post("/ingest", response_model=AnalysisDecision)
-async def ingest_ci(request: CIIngestRequest) -> AnalysisDecision:
+async def ingest_ci(
+    request: CIIngestRequest,
+) -> AnalysisDecision:
     """
     Ingest a CI event for schema analysis.
 
     This is the PRIMARY entry point for CI integration.
+    Analysis is always AI-powered. Requires `CLAUDE_API_KEY`.
 
     **Triggered by:** GitHub Actions, GitLab CI, Jenkins, etc.
 
@@ -30,7 +36,7 @@ async def ingest_ci(request: CIIngestRequest) -> AnalysisDecision:
     1. Validate/register project
     2. Fetch diff from git provider
     3. Extract SQL changes
-    4. Run analysis pipeline
+    4. Run AI-powered analysis pipeline
     5. Update CI status
     6. Return decision with findings
 
@@ -59,24 +65,34 @@ async def ingest_ci(request: CIIngestRequest) -> AnalysisDecision:
     - `suppressed_count` shows how many were suppressed
     """
     try:
-        decision = await ingest_ci_event(request)
-        return decision
+        # Validate AI availability
+        settings = get_settings()
+        if not settings.ai_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="CLAUDE_API_KEY is not configured. AI analysis requires a valid API key.",
+            )
+
+        return await ingest_ci_event(request)
+
+    except HTTPException:
+        raise
 
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"CI ingestion failed: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/webhook/github")
-async def github_webhook(payload: dict) -> dict:
+async def github_webhook(payload: dict[str, Any]) -> dict[str, Any]:
     """
     GitHub webhook endpoint for automated triggers.
 
@@ -95,7 +111,7 @@ async def github_webhook(payload: dict) -> dict:
     # TODO: Implement webhook signature verification
     # TODO: Parse GitHub webhook payload format
 
-    event_type = payload.get("action", "push")
+    payload.get("action", "push")
     repo = payload.get("repository", {}).get("full_name", "")
 
     if not repo:
@@ -127,7 +143,7 @@ async def github_webhook(payload: dict) -> dict:
 
 
 @router.post("/webhook/gitlab")
-async def gitlab_webhook(payload: dict) -> dict:
+async def gitlab_webhook(payload: dict[str, Any]) -> dict[str, Any]:
     """
     GitLab webhook endpoint for automated triggers.
 
@@ -182,7 +198,7 @@ async def gitlab_webhook(payload: dict) -> dict:
 
 
 @router.get("/status/{decision_id}")
-async def get_decision_status(decision_id: str) -> dict:
+async def get_decision_status(decision_id: str) -> dict[str, Any]:
     """
     Get status of a previous analysis decision.
 

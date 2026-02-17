@@ -20,10 +20,10 @@ from schemint.ci.providers.gitlab import GitLabProvider
 __all__ = [
     # Base classes
     "BaseGitProvider",
-    "DiffFile",
     "CheckStatus",
+    "DiffFile",
+    "GenericGitProvider",
     # Implementations
     "GitHubProvider",
     "GitLabProvider",
-    "GenericGitProvider",
 ]

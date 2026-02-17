@@ -22,15 +22,18 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Server
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # nosec B104
     port: int = 8000
 
     # API
     api_v1_prefix: str = "/api/v1"
 
-    # AI (Claude)
+    # Claude AI settings
     claude_api_key: str | None = None
     claude_model: str = "claude-sonnet-4-20250514"
+    claude_model_simple: str = "claude-haiku-4-5-20251001"  # 1-3 tables
+    claude_model_complex: str = "claude-sonnet-4-5-20250929"  # 16+ tables
+    claude_max_agent_turns: int = 10  # Max tool-use round trips for agent
 
     # Analysis
     max_sql_length: int = 100000  # 100KB

@@ -13,9 +13,10 @@ Usage:
 from __future__ import annotations
 
 import json
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Generator
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import psycopg2
@@ -71,7 +72,7 @@ class MemoryStore:
         finally:
             conn.close()
 
-    def _get_cursor(self, conn: psycopg2.extensions.connection):
+    def _get_cursor(self, conn: psycopg2.extensions.connection) -> Any:
         """Get a cursor that returns dictionaries."""
         return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -170,9 +171,8 @@ class MemoryStore:
             CREATE INDEX IF NOT EXISTS idx_history_project ON analysis_history(project_id, created_at DESC);
         """
 
-        with self._get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(create_tables_sql)
+        with self._get_connection() as conn, conn.cursor() as cur:
+            cur.execute(create_tables_sql)
 
     # =========================================================================
     # Project Operations
@@ -207,33 +207,31 @@ class MemoryStore:
             settings=settings or {},
         )
 
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     INSERT INTO projects (id, external_id, name, created_at, settings)
                     VALUES (%s, %s, %s, %s, %s)
                     """,
-                    (
-                        str(project.id),
-                        project.external_id,
-                        project.name,
-                        project.created_at,
-                        json.dumps(project.settings),
-                    ),
-                )
+                (
+                    str(project.id),
+                    project.external_id,
+                    project.name,
+                    project.created_at,
+                    json.dumps(project.settings),
+                ),
+            )
 
         return project
 
     def get_project(self, project_id: UUID) -> Project | None:
         """Get project by ID."""
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    "SELECT * FROM projects WHERE id = %s",
-                    (str(project_id),),
-                )
-                row = cur.fetchone()
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                "SELECT * FROM projects WHERE id = %s",
+                (str(project_id),),
+            )
+            row = cur.fetchone()
 
         if not row:
             return None
@@ -242,13 +240,12 @@ class MemoryStore:
 
     def get_project_by_external_id(self, external_id: str) -> Project | None:
         """Get project by external ID."""
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    "SELECT * FROM projects WHERE external_id = %s",
-                    (external_id,),
-                )
-                row = cur.fetchone()
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                "SELECT * FROM projects WHERE external_id = %s",
+                (external_id,),
+            )
+            row = cur.fetchone()
 
         if not row:
             return None
@@ -257,21 +254,22 @@ class MemoryStore:
 
     def list_projects(self) -> list[Project]:
         """List all registered projects."""
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute("SELECT * FROM projects ORDER BY created_at DESC")
-                rows = cur.fetchall()
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute("SELECT * FROM projects ORDER BY created_at DESC")
+            rows = cur.fetchall()
 
         return [self._row_to_project(row) for row in rows]
 
-    def _row_to_project(self, row: dict) -> Project:
+    def _row_to_project(self, row: dict[str, Any]) -> Project:
         """Convert database row to Project."""
         return Project(
             id=UUID(row["id"]),
             external_id=row["external_id"],
             name=row["name"],
             created_at=row["created_at"],
-            settings=row["settings"] if isinstance(row["settings"], dict) else json.loads(row["settings"]),
+            settings=row["settings"]
+            if isinstance(row["settings"], dict)
+            else json.loads(row["settings"]),
         )
 
     # =========================================================================
@@ -281,7 +279,7 @@ class MemoryStore:
     def accept_finding(
         self,
         project_id: UUID,
-        finding: "Issue",
+        finding: Issue,
         reason: str,
         accepted_by: str,
         scope: FeedbackScope = FeedbackScope.ONCE,
@@ -302,16 +300,16 @@ class MemoryStore:
             reason=reason,
             accepted_by=accepted_by,
             expires_at=expires_at,
-            context=context or {
+            context=context
+            or {
                 "table": finding.table_name,
                 "column": finding.column_name,
             },
         )
 
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     INSERT INTO accepted_findings
                     (id, project_id, finding_type, pattern_hash, scope, reason,
                      accepted_by, accepted_at, expires_at, context)
@@ -324,34 +322,33 @@ class MemoryStore:
                         expires_at = EXCLUDED.expires_at,
                         context = EXCLUDED.context
                     """,
-                    (
-                        str(accepted.id),
-                        str(accepted.project_id),
-                        accepted.finding_type,
-                        accepted.pattern_hash,
-                        accepted.scope.value,
-                        accepted.reason,
-                        accepted.accepted_by,
-                        accepted.accepted_at,
-                        accepted.expires_at,
-                        json.dumps(accepted.context),
-                    ),
-                )
+                (
+                    str(accepted.id),
+                    str(accepted.project_id),
+                    accepted.finding_type,
+                    accepted.pattern_hash,
+                    accepted.scope.value,
+                    accepted.reason,
+                    accepted.accepted_by,
+                    accepted.accepted_at,
+                    accepted.expires_at,
+                    json.dumps(accepted.context),
+                ),
+            )
 
         return accepted
 
     def check_finding_accepted(
         self,
         project_id: UUID,
-        finding: "Issue",
+        finding: Issue,
     ) -> AcceptedFinding | None:
         """Check if a finding is accepted in project memory."""
         pattern_hash = compute_finding_hash(finding)
 
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     SELECT * FROM accepted_findings
                     WHERE project_id = %s
                       AND (
@@ -363,14 +360,14 @@ class MemoryStore:
                     ORDER BY accepted_at DESC
                     LIMIT 1
                     """,
-                    (
-                        str(project_id),
-                        pattern_hash,
-                        pattern_hash,
-                        finding.category.value,
-                    ),
-                )
-                row = cur.fetchone()
+                (
+                    str(project_id),
+                    pattern_hash,
+                    pattern_hash,
+                    finding.category.value,
+                ),
+            )
+            row = cur.fetchone()
 
         if not row:
             return None
@@ -379,32 +376,30 @@ class MemoryStore:
 
     def get_accepted_findings(self, project_id: UUID) -> list[AcceptedFinding]:
         """Get all accepted findings for a project."""
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     SELECT * FROM accepted_findings
                     WHERE project_id = %s
                       AND (expires_at IS NULL OR expires_at > NOW())
                     ORDER BY accepted_at DESC
                     """,
-                    (str(project_id),),
-                )
-                rows = cur.fetchall()
+                (str(project_id),),
+            )
+            rows = cur.fetchall()
 
         return [self._row_to_accepted_finding(row) for row in rows]
 
     def delete_accepted_finding(self, project_id: UUID, finding_id: UUID) -> bool:
         """Delete an accepted finding."""
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    "DELETE FROM accepted_findings WHERE id = %s AND project_id = %s",
-                    (str(finding_id), str(project_id)),
-                )
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                "DELETE FROM accepted_findings WHERE id = %s AND project_id = %s",
+                (str(finding_id), str(project_id)),
+            )
         return True
 
-    def _row_to_accepted_finding(self, row: dict) -> AcceptedFinding:
+    def _row_to_accepted_finding(self, row: dict[str, Any]) -> AcceptedFinding:
         """Convert database row to AcceptedFinding."""
         return AcceptedFinding(
             id=UUID(row["id"]),
@@ -416,7 +411,9 @@ class MemoryStore:
             accepted_by=row["accepted_by"],
             accepted_at=row["accepted_at"],
             expires_at=row["expires_at"],
-            context=row["context"] if isinstance(row["context"], dict) else json.loads(row["context"]),
+            context=row["context"]
+            if isinstance(row["context"], dict)
+            else json.loads(row["context"]),
         )
 
     # =========================================================================
@@ -445,28 +442,27 @@ class MemoryStore:
             created_by=created_by,
         )
 
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     INSERT INTO business_rules
                     (id, project_id, rule_type, rule_config, severity, applies_to,
                      rationale, created_by, created_at, active)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    (
-                        str(rule.id),
-                        str(rule.project_id),
-                        rule.rule_type,
-                        json.dumps(rule.rule_config),
-                        rule.severity.value,
-                        json.dumps(rule.applies_to),
-                        rule.rationale,
-                        rule.created_by,
-                        rule.created_at,
-                        rule.active,
-                    ),
-                )
+                (
+                    str(rule.id),
+                    str(rule.project_id),
+                    rule.rule_type,
+                    json.dumps(rule.rule_config),
+                    rule.severity.value,
+                    json.dumps(rule.applies_to),
+                    rule.rationale,
+                    rule.created_by,
+                    rule.created_at,
+                    rule.active,
+                ),
+            )
 
         return rule
 
@@ -476,17 +472,16 @@ class MemoryStore:
         table_name: str | None = None,
     ) -> list[BusinessRule]:
         """Get active business rules for a project."""
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     SELECT * FROM business_rules
                     WHERE project_id = %s AND active = true
                     ORDER BY created_at DESC
                     """,
-                    (str(project_id),),
-                )
-                rows = cur.fetchall()
+                (str(project_id),),
+            )
+            rows = cur.fetchall()
 
         rules = []
         for row in rows:
@@ -507,7 +502,7 @@ class MemoryStore:
 
         return rules
 
-    def _row_to_business_rule(self, row: dict) -> BusinessRule:
+    def _row_to_business_rule(self, row: dict[str, Any]) -> BusinessRule:
         """Convert database row to BusinessRule."""
         from schemint.memory.models import FindingSeverity
 
@@ -556,10 +551,9 @@ class MemoryStore:
             constraints=constraints or {},
         )
 
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     INSERT INTO schema_semantics
                     (id, project_id, element_type, element_path, semantic_tags,
                      description, constraints, updated_at)
@@ -572,17 +566,17 @@ class MemoryStore:
                         constraints = EXCLUDED.constraints,
                         updated_at = EXCLUDED.updated_at
                     """,
-                    (
-                        str(semantics.id),
-                        str(semantics.project_id),
-                        semantics.element_type.value,
-                        semantics.element_path,
-                        json.dumps(semantics.semantic_tags),
-                        semantics.description,
-                        json.dumps(semantics.constraints),
-                        semantics.updated_at,
-                    ),
-                )
+                (
+                    str(semantics.id),
+                    str(semantics.project_id),
+                    semantics.element_type.value,
+                    semantics.element_path,
+                    json.dumps(semantics.semantic_tags),
+                    semantics.description,
+                    json.dumps(semantics.constraints),
+                    semantics.updated_at,
+                ),
+            )
 
         return semantics
 
@@ -592,26 +586,25 @@ class MemoryStore:
         element_path: str | None = None,
     ) -> list[SchemaSemantics]:
         """Get schema semantics, optionally filtered by element path."""
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                if element_path:
-                    cur.execute(
-                        """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            if element_path:
+                cur.execute(
+                    """
                         SELECT * FROM schema_semantics
                         WHERE project_id = %s AND element_path = %s
                         """,
-                        (str(project_id), element_path),
-                    )
-                else:
-                    cur.execute(
-                        "SELECT * FROM schema_semantics WHERE project_id = %s",
-                        (str(project_id),),
-                    )
-                rows = cur.fetchall()
+                    (str(project_id), element_path),
+                )
+            else:
+                cur.execute(
+                    "SELECT * FROM schema_semantics WHERE project_id = %s",
+                    (str(project_id),),
+                )
+            rows = cur.fetchall()
 
         return [self._row_to_schema_semantics(row) for row in rows]
 
-    def _row_to_schema_semantics(self, row: dict) -> SchemaSemantics:
+    def _row_to_schema_semantics(self, row: dict[str, Any]) -> SchemaSemantics:
         """Convert database row to SchemaSemantics."""
         from schemint.memory.models import ElementType
 
@@ -644,47 +637,46 @@ class MemoryStore:
         if not project:
             return None
 
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    "SELECT COUNT(*) as cnt FROM accepted_findings WHERE project_id = %s",
-                    (str(project_id),),
-                )
-                accepted_count = cur.fetchone()["cnt"]
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM accepted_findings WHERE project_id = %s",
+                (str(project_id),),
+            )
+            accepted_count = cur.fetchone()["cnt"]
 
-                cur.execute(
-                    "SELECT COUNT(*) as cnt FROM known_safe_patterns WHERE project_id = %s",
-                    (str(project_id),),
-                )
-                patterns_count = cur.fetchone()["cnt"]
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM known_safe_patterns WHERE project_id = %s",
+                (str(project_id),),
+            )
+            patterns_count = cur.fetchone()["cnt"]
 
-                cur.execute(
-                    "SELECT COUNT(*) as cnt FROM business_rules WHERE project_id = %s AND active = true",
-                    (str(project_id),),
-                )
-                rules_count = cur.fetchone()["cnt"]
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM business_rules WHERE project_id = %s AND active = true",
+                (str(project_id),),
+            )
+            rules_count = cur.fetchone()["cnt"]
 
-                cur.execute(
-                    "SELECT COUNT(*) as cnt FROM schema_semantics WHERE project_id = %s",
-                    (str(project_id),),
-                )
-                semantics_count = cur.fetchone()["cnt"]
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM schema_semantics WHERE project_id = %s",
+                (str(project_id),),
+            )
+            semantics_count = cur.fetchone()["cnt"]
 
-                cur.execute(
-                    "SELECT COUNT(*) as cnt FROM historical_inflection_points WHERE project_id = %s",
-                    (str(project_id),),
-                )
-                inflection_count = cur.fetchone()["cnt"]
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM historical_inflection_points WHERE project_id = %s",
+                (str(project_id),),
+            )
+            inflection_count = cur.fetchone()["cnt"]
 
-                cur.execute(
-                    """
-                    SELECT MAX(created_at) as last_created, COUNT(*) as total
-                    FROM analysis_history
-                    WHERE project_id = %s
-                    """,
-                    (str(project_id),),
-                )
-                history_row = cur.fetchone()
+            cur.execute(
+                """
+                SELECT MAX(created_at) as last_created, COUNT(*) as total
+                FROM analysis_history
+                WHERE project_id = %s
+                """,
+                (str(project_id),),
+            )
+            history_row = cur.fetchone()
 
         return MemorySummary(
             project_id=project_id,
@@ -694,7 +686,9 @@ class MemoryStore:
             business_rules_count=rules_count,
             semantic_entries_count=semantics_count,
             inflection_points_count=inflection_count,
-            last_analysis=history_row["last_created"] if history_row and history_row["last_created"] else None,
+            last_analysis=history_row["last_created"]
+            if history_row and history_row["last_created"]
+            else None,
             total_analyses=history_row["total"] if history_row else 0,
         )
 
@@ -726,28 +720,27 @@ class MemoryStore:
             duration_ms=duration_ms,
         )
 
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     INSERT INTO analysis_history
                     (id, project_id, ref, event_type, status, finding_count,
                      findings_hash, memory_applied, duration_ms, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    (
-                        str(history.id),
-                        str(history.project_id),
-                        history.ref,
-                        history.event_type,
-                        history.status,
-                        history.finding_count,
-                        history.findings_hash,
-                        json.dumps(history.memory_applied),
-                        history.duration_ms,
-                        history.created_at,
-                    ),
-                )
+                (
+                    str(history.id),
+                    str(history.project_id),
+                    history.ref,
+                    history.event_type,
+                    history.status,
+                    history.finding_count,
+                    history.findings_hash,
+                    json.dumps(history.memory_applied),
+                    history.duration_ms,
+                    history.created_at,
+                ),
+            )
 
         return history
 
@@ -757,18 +750,17 @@ class MemoryStore:
         limit: int = 50,
     ) -> list[AnalysisHistory]:
         """Get recent analysis history for a project."""
-        with self._get_connection() as conn:
-            with self._get_cursor(conn) as cur:
-                cur.execute(
-                    """
+        with self._get_connection() as conn, self._get_cursor(conn) as cur:
+            cur.execute(
+                """
                     SELECT * FROM analysis_history
                     WHERE project_id = %s
                     ORDER BY created_at DESC
                     LIMIT %s
                     """,
-                    (str(project_id), limit),
-                )
-                rows = cur.fetchall()
+                (str(project_id), limit),
+            )
+            rows = cur.fetchall()
 
         results = []
         for row in rows:
@@ -776,18 +768,20 @@ class MemoryStore:
             if isinstance(memory_applied, str):
                 memory_applied = json.loads(memory_applied)
 
-            results.append(AnalysisHistory(
-                id=UUID(row["id"]),
-                project_id=UUID(row["project_id"]),
-                ref=row["ref"],
-                event_type=row["event_type"],
-                status=row["status"],
-                finding_count=row["finding_count"],
-                findings_hash=row["findings_hash"],
-                memory_applied=memory_applied,
-                duration_ms=row["duration_ms"],
-                created_at=row["created_at"],
-            ))
+            results.append(
+                AnalysisHistory(
+                    id=UUID(row["id"]),
+                    project_id=UUID(row["project_id"]),
+                    ref=row["ref"],
+                    event_type=row["event_type"],
+                    status=row["status"],
+                    finding_count=row["finding_count"],
+                    findings_hash=row["findings_hash"],
+                    memory_applied=memory_applied,
+                    duration_ms=row["duration_ms"],
+                    created_at=row["created_at"],
+                )
+            )
 
         return results
 
@@ -810,7 +804,7 @@ def get_memory_store() -> MemoryStore:
         from schemint.config import get_settings
 
         settings = get_settings()
-        _store = MemoryStore(database_url=settings.database_url)
+        _store = MemoryStore(database_url=settings.database_url or "")
     return _store
 
 

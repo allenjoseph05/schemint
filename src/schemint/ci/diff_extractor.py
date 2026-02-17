@@ -11,7 +11,11 @@ from dataclasses import dataclass, field
 from schemint.ci.file_detector import DetectedFile, DetectionResult, SQLFileDetector
 from schemint.ci.models import FileChange, SchemaDiff, SQLChange
 from schemint.ci.providers.base import BaseGitProvider, DiffFile
-from schemint.ci.sql_utils import analyze_sql_content, parse_alembic_migration, parse_sqlalchemy_models
+from schemint.ci.sql_utils import (
+    analyze_sql_content,
+    parse_alembic_migration,
+    parse_sqlalchemy_models,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,16 +88,22 @@ class DiffExtractor:
         for df in diff_files:
             has_content = bool(df.content)
             content_len = len(df.content) if df.content else 0
-            logger.debug(f"  - {df.path} ({df.change_type}): content={has_content}, len={content_len}")
+            logger.debug(
+                f"  - {df.path} ({df.change_type}): content={has_content}, len={content_len}"
+            )
 
         # Detect SQL-related files
         detection = self.file_detector.detect(diff_files)
 
-        logger.info(f"Detected {detection.sql_files_found} SQL files out of {detection.total_files_scanned}")
+        logger.info(
+            f"Detected {detection.sql_files_found} SQL files out of {detection.total_files_scanned}"
+        )
         for detected in detection.files:
             has_content = bool(detected.content)
             content_len = len(detected.content) if detected.content else 0
-            logger.info(f"  [SQL] {detected.path} (type={detected.file_type}, pattern={detected.matched_pattern})")
+            logger.info(
+                f"  [SQL] {detected.path} (type={detected.file_type}, pattern={detected.matched_pattern})"
+            )
             logger.debug(f"         content={has_content}, len={content_len}")
 
         # Build the SchemaDiff

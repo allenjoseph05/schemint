@@ -126,18 +126,17 @@ class MigrationInfo(BaseModel):
     tables_affected: list[str] = Field(default_factory=list, description="Tables modified")
 
     # Deprecation/rename tracking
-    deprecated_tables: list[str] = Field(default_factory=list, description="Tables deprecated in this migration")
+    deprecated_tables: list[str] = Field(
+        default_factory=list, description="Tables deprecated in this migration"
+    )
     deprecated_columns: list[str] = Field(
-        default_factory=list,
-        description="Columns deprecated (format: table.column)"
+        default_factory=list, description="Columns deprecated (format: table.column)"
     )
     renamed_tables: dict[str, str] = Field(
-        default_factory=dict,
-        description="Table renames (old_name -> new_name)"
+        default_factory=dict, description="Table renames (old_name -> new_name)"
     )
     renamed_columns: dict[str, str] = Field(
-        default_factory=dict,
-        description="Column renames (table.old_col -> table.new_col)"
+        default_factory=dict, description="Column renames (table.old_col -> table.new_col)"
     )
 
     # Raw SQL if available
@@ -150,42 +149,37 @@ class ProjectConventions(BaseModel):
 
     # Naming conventions
     naming_conventions: dict[str, str] = Field(
-        default_factory=dict,
-        description="Naming rules (e.g., table_case: snake_case)"
+        default_factory=dict, description="Naming rules (e.g., table_case: snake_case)"
     )
 
     # Required elements
     required_columns: list[str] = Field(
         default_factory=list,
-        description="Columns required in all tables (e.g., created_at, updated_at)"
+        description="Columns required in all tables (e.g., created_at, updated_at)",
     )
     required_indexes: list[str] = Field(
-        default_factory=list,
-        description="Columns that must be indexed"
+        default_factory=list, description="Columns that must be indexed"
     )
 
     # Forbidden elements
     forbidden_column_names: list[str] = Field(
-        default_factory=list,
-        description="Column names that should not be used"
+        default_factory=list, description="Column names that should not be used"
     )
     forbidden_data_types: list[str] = Field(
-        default_factory=list,
-        description="Data types that should not be used"
+        default_factory=list, description="Data types that should not be used"
     )
 
     # Preferred patterns
     preferred_types: dict[str, str] = Field(
         default_factory=dict,
-        description="Preferred types for use cases (e.g., money: DECIMAL(19,4))"
+        description="Preferred types for use cases (e.g., money: DECIMAL(19,4))",
     )
     preferred_id_type: str = Field("BIGINT", description="Preferred type for ID columns")
     preferred_timestamp_type: str = Field("DATETIME", description="Preferred type for timestamps")
 
     # Foreign key conventions
     fk_naming_pattern: str | None = Field(
-        None,
-        description="FK naming pattern (e.g., fk_{table}_{column})"
+        None, description="FK naming pattern (e.g., fk_{table}_{column})"
     )
     require_fk_indexes: bool = Field(True, description="Require indexes on FK columns")
     require_cascade_actions: bool = Field(False, description="Require ON DELETE/UPDATE actions")
@@ -206,27 +200,19 @@ class ProjectContext(BaseModel):
     description: str | None = Field(None, description="Project description")
 
     # Schema information
-    schema_metadata: SchemaMetadata | None = Field(
-        None,
-        description="Current schema metadata"
-    )
+    schema_metadata: SchemaMetadata | None = Field(None, description="Current schema metadata")
 
     # Migration history
     migrations: list[MigrationInfo] = Field(
-        default_factory=list,
-        description="Migration history (oldest to newest)"
+        default_factory=list, description="Migration history (oldest to newest)"
     )
 
     # Conventions
-    conventions: ProjectConventions | None = Field(
-        None,
-        description="Project-specific conventions"
-    )
+    conventions: ProjectConventions | None = Field(None, description="Project-specific conventions")
 
     # Additional metadata
     metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional project metadata"
+        default_factory=dict, description="Additional project metadata"
     )
 
     def get_deprecated_elements(self) -> dict[str, list[str]]:
@@ -262,7 +248,9 @@ class ProjectContext(BaseModel):
 
         return result
 
-    def check_deprecated_usage(self, table_name: str, column_name: str | None = None) -> dict | None:
+    def check_deprecated_usage(
+        self, table_name: str, column_name: str | None = None
+    ) -> dict[str, Any] | None:
         """Check if a table or column is deprecated."""
         if not self.schema_metadata:
             return None

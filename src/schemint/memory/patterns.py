@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from schemint.models.issue import Issue
 
 
-def normalize_pattern(finding: "Issue") -> dict[str, Any]:
+def normalize_pattern(finding: Issue) -> dict[str, Any]:
     """
     Extract a normalized pattern from a finding.
 
@@ -51,11 +51,9 @@ def normalize_pattern(finding: "Issue") -> dict[str, Any]:
         # Core identifiers
         "category": finding.category.value,
         "severity": finding.severity.value,
-
-        # Location (structural, not positional)
+        # Structural location fields
         "table": finding.table_name.lower() if finding.table_name else None,
         "column": finding.column_name.lower() if finding.column_name else None,
-
         # Semantic context
         "semantic_markers": sorted(semantic_markers),
     }
@@ -69,7 +67,7 @@ def normalize_pattern(finding: "Issue") -> dict[str, Any]:
     return pattern
 
 
-def compute_finding_hash(finding: "Issue") -> str:
+def compute_finding_hash(finding: Issue) -> str:
     """
     Compute a deterministic SHA256 hash for a finding pattern.
 
@@ -119,7 +117,10 @@ def _extract_semantic_markers(
         col_lower = column_name.lower()
 
         # Money-related
-        if any(kw in col_lower for kw in ["price", "cost", "amount", "total", "balance", "fee", "payment"]):
+        if any(
+            kw in col_lower
+            for kw in ["price", "cost", "amount", "total", "balance", "fee", "payment"]
+        ):
             markers.append("money")
 
         # Date/time-related
@@ -135,7 +136,10 @@ def _extract_semantic_markers(
             markers.append("categorical")
 
         # Metrics-related
-        if any(kw in col_lower for kw in ["count", "total", "avg", "sum", "metric", "rate", "percentage"]):
+        if any(
+            kw in col_lower
+            for kw in ["count", "total", "avg", "sum", "metric", "rate", "percentage"]
+        ):
             markers.append("metric")
 
         # PII-related
@@ -169,7 +173,17 @@ def _extract_type_info(description: str) -> str | None:
     description_upper = description.upper()
 
     # Common types to look for
-    types = ["FLOAT", "DOUBLE", "DECIMAL", "INT", "BIGINT", "VARCHAR", "TEXT", "DATETIME", "TIMESTAMP"]
+    types = [
+        "FLOAT",
+        "DOUBLE",
+        "DECIMAL",
+        "INT",
+        "BIGINT",
+        "VARCHAR",
+        "TEXT",
+        "DATETIME",
+        "TIMESTAMP",
+    ]
 
     for dtype in types:
         if dtype in description_upper:
@@ -204,10 +218,7 @@ def patterns_match(pattern1: dict[str, Any], pattern2: dict[str, Any]) -> bool:
         return False
 
     # Must have same data type (if specified)
-    if pattern1.get("data_type") != pattern2.get("data_type"):
-        return False
-
-    return True
+    return pattern1.get("data_type") == pattern2.get("data_type")
 
 
 def create_rule_pattern(finding_type: str) -> dict[str, Any]:

@@ -4,18 +4,14 @@ This test demonstrates that the same SQL query produces meaningfully different
 explanations and warnings when run against two different project schemas.
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
 
 from schemint.core.analyzer import analyze_sql
 from schemint.core.context import (
-    ColumnMetadata,
     ProjectContext,
     ProjectConventions,
-    SchemaMetadata,
-    TableMetadata,
     load_context,
 )
-
 
 # Test SQL that we'll analyze with different contexts
 TEST_SQL = """
@@ -41,225 +37,266 @@ CREATE TABLE user_activity (
 
 def create_ecommerce_context() -> ProjectContext:
     """Create an e-commerce project context."""
-    return load_context({
-        "project_name": "E-Commerce Platform",
-        "description": "Online shopping platform with strict financial requirements",
-        "schema": {
-            "tables": [
-                {
-                    "name": "customers",
-                    "description": "Customer accounts",
-                    "columns": [
-                        {"name": "id", "type": "INT", "description": "Primary key"},
-                        {"name": "email", "type": "VARCHAR(255)"},
-                    ],
-                },
-                {
-                    "name": "orders",
-                    "description": "Customer orders - financial data",
-                    "columns": [
-                        {"name": "id", "type": "INT"},
-                        {"name": "customer_id", "type": "INT", "foreign_key_to": "customers.id"},
-                        {"name": "total", "type": "DECIMAL(19,4)", "description": "Order total - must use DECIMAL for money"},
-                        {"name": "status", "type": "VARCHAR(20)"},
-                        {"name": "created_at", "type": "DATETIME"},
-                        {"name": "updated_at", "type": "DATETIME"},
-                    ],
-                },
-            ],
-            "database_type": "mysql",
-        },
-        "conventions": {
-            "naming_conventions": {"case": "snake_case"},
-            "required_columns": ["created_at", "updated_at"],
-            "preferred_types": {"money": "DECIMAL(19,4)"},
-            "require_soft_delete": True,
-            "soft_delete_column": "deleted_at",
-        },
-    })
+    return load_context(
+        {
+            "project_name": "E-Commerce Platform",
+            "description": "Online shopping platform with strict financial requirements",
+            "schema": {
+                "tables": [
+                    {
+                        "name": "customers",
+                        "description": "Customer accounts",
+                        "columns": [
+                            {"name": "id", "type": "INT", "description": "Primary key"},
+                            {"name": "email", "type": "VARCHAR(255)"},
+                        ],
+                    },
+                    {
+                        "name": "orders",
+                        "description": "Customer orders - financial data",
+                        "columns": [
+                            {"name": "id", "type": "INT"},
+                            {
+                                "name": "customer_id",
+                                "type": "INT",
+                                "foreign_key_to": "customers.id",
+                            },
+                            {
+                                "name": "total",
+                                "type": "DECIMAL(19,4)",
+                                "description": "Order total - must use DECIMAL for money",
+                            },
+                            {"name": "status", "type": "VARCHAR(20)"},
+                            {"name": "created_at", "type": "DATETIME"},
+                            {"name": "updated_at", "type": "DATETIME"},
+                        ],
+                    },
+                ],
+                "database_type": "mysql",
+            },
+            "conventions": {
+                "naming_conventions": {"case": "snake_case"},
+                "required_columns": ["created_at", "updated_at"],
+                "preferred_types": {"money": "DECIMAL(19,4)"},
+                "require_soft_delete": True,
+                "soft_delete_column": "deleted_at",
+            },
+        }
+    )
 
 
 def create_blog_context() -> ProjectContext:
     """Create a simple blog project context (less strict requirements)."""
-    return load_context({
-        "project_name": "Personal Blog",
-        "description": "Simple blog with minimal requirements",
-        "schema": {
-            "tables": [
-                {
-                    "name": "posts",
-                    "description": "Blog posts",
-                    "columns": [
-                        {"name": "id", "type": "INT"},
-                        {"name": "title", "type": "VARCHAR(255)"},
-                        {"name": "content", "type": "TEXT"},
-                    ],
-                },
-            ],
-            "database_type": "mysql",
-        },
-        "conventions": {
-            "naming_conventions": {"case": "snake_case"},
-            # No required columns, no soft delete, simpler requirements
-        },
-    })
+    return load_context(
+        {
+            "project_name": "Personal Blog",
+            "description": "Simple blog with minimal requirements",
+            "schema": {
+                "tables": [
+                    {
+                        "name": "posts",
+                        "description": "Blog posts",
+                        "columns": [
+                            {"name": "id", "type": "INT"},
+                            {"name": "title", "type": "VARCHAR(255)"},
+                            {"name": "content", "type": "TEXT"},
+                        ],
+                    },
+                ],
+                "database_type": "mysql",
+            },
+            "conventions": {
+                "naming_conventions": {"case": "snake_case"},
+                # No required columns, no soft delete, simpler requirements
+            },
+        }
+    )
 
 
 def create_context_with_deprecations() -> ProjectContext:
     """Create a context with deprecated columns."""
-    return load_context({
-        "project_name": "Legacy Migration Project",
-        "description": "Project undergoing schema migration",
-        "schema": {
-            "tables": [
-                {
-                    "name": "user_activity",
-                    "description": "User activity tracking",
-                    "columns": [
-                        {"name": "id", "type": "INT"},
-                        {"name": "user_id", "type": "INT"},
-                        {
-                            "name": "legacy_status",
-                            "type": "INT",
-                            "deprecated": True,
-                            "deprecated_reason": "Use activity_type enum instead",
-                            "deprecated_since": "v2.0",
-                            "renamed_to": "activity_type",
-                        },
-                        {
-                            "name": "activity_type",
-                            "type": "VARCHAR(50)",
-                            "renamed_from": "legacy_status",
-                            "description": "New activity type field",
-                        },
-                        {"name": "created_at", "type": "DATETIME"},
-                    ],
-                },
-            ],
-        },
-        "conventions": {},
-    })
+    return load_context(
+        {
+            "project_name": "Legacy Migration Project",
+            "description": "Project undergoing schema migration",
+            "schema": {
+                "tables": [
+                    {
+                        "name": "user_activity",
+                        "description": "User activity tracking",
+                        "columns": [
+                            {"name": "id", "type": "INT"},
+                            {"name": "user_id", "type": "INT"},
+                            {
+                                "name": "legacy_status",
+                                "type": "INT",
+                                "deprecated": True,
+                                "deprecated_reason": "Use activity_type enum instead",
+                                "deprecated_since": "v2.0",
+                                "renamed_to": "activity_type",
+                            },
+                            {
+                                "name": "activity_type",
+                                "type": "VARCHAR(50)",
+                                "renamed_from": "legacy_status",
+                                "description": "New activity type field",
+                            },
+                            {"name": "created_at", "type": "DATETIME"},
+                        ],
+                    },
+                ],
+            },
+            "conventions": {},
+        }
+    )
 
 
 class TestContextAwareAnalysis:
-    """Test that analysis differs based on project context."""
+    """Test that project context is passed through to AI agent analysis."""
 
-    def test_same_sql_different_contexts_ecommerce_vs_blog(self):
-        """
-        The same SQL produces different warnings in e-commerce vs blog contexts.
+    @patch("schemint.services.agent.get_agent_analyzer")
+    @patch("schemint.core.analyzer.analyzer.get_settings")
+    def test_project_context_passed_to_agent(self, mock_settings, mock_get_agent):
+        """Project context should be passed to the agent."""
+        mock_settings.return_value = MagicMock(ai_enabled=True)
 
-        E-commerce context should:
-        - Flag FLOAT for money as CRITICAL (financial precision matters)
-        - Require soft delete column
-        - Require created_at/updated_at
+        mock_agent = MagicMock()
+        mock_agent.analyze.return_value = {
+            "summary": "E-commerce schema analysis.",
+            "findings": [],
+            "issues": [],
+            "good_practices": ["Primary keys present"],
+            "recommendations": [],
+            "score": {
+                "total": 85,
+                "structural": 90,
+                "performance": 80,
+                "naming": 85,
+                "best_practices": 80,
+            },
+        }
+        mock_get_agent.return_value = mock_agent
 
-        Blog context should:
-        - Still flag FLOAT for money (basic rule)
-        - NOT require soft delete
-        - NOT require updated_at
-        """
-        # Analyze with e-commerce context
-        ecommerce_result = analyze_sql(
+        result = analyze_sql(
             TEST_SQL,
             project_context=create_ecommerce_context(),
         )
 
-        # Analyze with blog context
-        blog_result = analyze_sql(
-            TEST_SQL,
-            project_context=create_blog_context(),
-        )
+        # Agent should have been called with the project context
+        call_args = mock_agent.analyze.call_args
+        assert call_args[0][2] is not None  # project_context arg
+        assert call_args[0][2].project_name == "E-Commerce Platform"
 
-        # Analyze without any context
-        no_context_result = analyze_sql(TEST_SQL)
+        # Context name should appear in summary
+        assert "E-Commerce Platform" in (result.ai_summary or "")
 
-        # E-commerce should have MORE issues due to stricter requirements
-        assert ecommerce_result.critical_count + ecommerce_result.warning_count > 0
+    @patch("schemint.services.agent.get_agent_analyzer")
+    @patch("schemint.core.analyzer.analyzer.get_settings")
+    def test_deprecated_column_detection_via_agent(self, mock_settings, mock_get_agent):
+        """Agent should receive project context with deprecated columns."""
+        mock_settings.return_value = MagicMock(ai_enabled=True)
 
-        # E-commerce context should flag missing soft delete
-        ecommerce_issue_titles = [i.title.lower() for i in ecommerce_result.issues]
-        assert any("soft delete" in t for t in ecommerce_issue_titles), \
-            "E-commerce context should require soft delete column"
+        mock_agent = MagicMock()
+        mock_agent.analyze.return_value = {
+            "summary": "Legacy schema analysis.",
+            "findings": [
+                {
+                    "severity": "warning",
+                    "category": "domain",
+                    "title": "Deprecated column 'legacy_status' used",
+                    "description": "Column legacy_status is deprecated. Use activity_type instead.",
+                    "impact": "Schema drift risk",
+                    "reasoning": "Project context marks this column as deprecated",
+                },
+            ],
+            "issues": [
+                {
+                    "severity": "warning",
+                    "category": "domain",
+                    "title": "Deprecated column 'legacy_status' used",
+                    "description": "Column legacy_status is deprecated. Use activity_type instead.",
+                    "impact": "Schema drift risk",
+                    "reasoning": "Project context marks this column as deprecated",
+                },
+            ],
+            "good_practices": [],
+            "recommendations": ["Rename legacy_status to activity_type"],
+            "score": {
+                "total": 75,
+                "structural": 80,
+                "performance": 90,
+                "naming": 70,
+                "best_practices": 60,
+            },
+        }
+        mock_get_agent.return_value = mock_agent
 
-        # E-commerce context should flag missing timestamps
-        assert any("created_at" in t or "updated_at" in t or "timestamp" in t
-                   for t in ecommerce_issue_titles), \
-            "E-commerce context should require timestamp columns"
-
-        # Blog context should not have context-specific soft delete issues
-        # Note: The rule analyzer now flags no_soft_delete as a SUGGESTION
-        # for all tables, so we only check that blog doesn't add *extra*
-        # context-driven soft delete issues beyond what rules produce.
-        blog_issue_titles = [i.title.lower() for i in blog_result.issues]
-        no_context_titles = [i.title.lower() for i in no_context_result.issues]
-        blog_soft_delete = [t for t in blog_issue_titles if "soft delete" in t]
-        no_ctx_soft_delete = [t for t in no_context_titles if "soft delete" in t]
-        assert len(blog_soft_delete) <= len(no_ctx_soft_delete), \
-            "Blog context should NOT add extra soft delete requirements beyond rules"
-
-        # Both should flag FLOAT for money (this is a basic rule)
-        assert any("float" in t or "money" in t or "decimal" in t
-                   for t in ecommerce_issue_titles)
-
-        # E-commerce should have lower score due to more violations
-        # (Note: This might not always be true depending on issue weights)
-        print(f"\nE-commerce score: {ecommerce_result.score.total}")
-        print(f"Blog score: {blog_result.score.total}")
-        print(f"No context score: {no_context_result.score.total}")
-
-        # Verify context names are in summary
-        assert "E-Commerce Platform" in (ecommerce_result.ai_summary or "")
-        assert "Personal Blog" in (blog_result.ai_summary or "")
-
-    def test_deprecated_column_detection(self):
-        """Test that deprecated columns are flagged when context is provided."""
         context = create_context_with_deprecations()
-
-        # Analyze SQL that uses the deprecated column
         result = analyze_sql(
             TEST_SQL_WITH_DEPRECATED,
             project_context=context,
         )
 
-        # Should flag the deprecated column usage
+        # Agent should flag deprecated column
         deprecated_issues = [
-            i for i in result.issues
+            i
+            for i in result.issues
             if "deprecated" in i.title.lower() or "deprecated" in (i.description or "").lower()
         ]
+        assert len(deprecated_issues) > 0
 
-        assert len(deprecated_issues) > 0, \
-            "Should flag usage of deprecated column 'legacy_status'"
+    @patch("schemint.services.agent.get_agent_analyzer")
+    @patch("schemint.core.analyzer.analyzer.get_settings")
+    def test_conventions_passed_to_agent(self, mock_settings, mock_get_agent):
+        """Project conventions should be passed to the agent for enforcement."""
+        mock_settings.return_value = MagicMock(ai_enabled=True)
 
-        # The fix suggestion should mention the new column name
-        deprecated_issue = deprecated_issues[0]
-        assert "activity_type" in (deprecated_issue.fix_description or "") or \
-               "activity_type" in (deprecated_issue.description or ""), \
-            "Should suggest using 'activity_type' instead"
+        mock_agent = MagicMock()
+        mock_agent.analyze.return_value = {
+            "summary": "Schema with convention violations.",
+            "findings": [
+                {
+                    "severity": "warning",
+                    "category": "naming",
+                    "title": "Forbidden column name 'type'",
+                    "description": "Column 'type' is in the forbidden list.",
+                    "impact": "Convention violation",
+                    "reasoning": "Project conventions forbid this name",
+                },
+            ],
+            "issues": [
+                {
+                    "severity": "warning",
+                    "category": "naming",
+                    "title": "Forbidden column name 'type'",
+                    "description": "Column 'type' is in the forbidden list.",
+                    "impact": "Convention violation",
+                    "reasoning": "Project conventions forbid this name",
+                },
+            ],
+            "good_practices": [],
+            "recommendations": [],
+            "score": {
+                "total": 70,
+                "structural": 90,
+                "performance": 80,
+                "naming": 50,
+                "best_practices": 60,
+            },
+        }
+        mock_get_agent.return_value = mock_agent
 
-    def test_context_provides_good_practices(self):
-        """Test that having context adds appropriate good practices."""
-        result = analyze_sql(
-            TEST_SQL,
-            project_context=create_ecommerce_context(),
+        strict_context = load_context(
+            {
+                "project_name": "Strict Naming Project",
+                "conventions": {
+                    "naming_conventions": {"case": "snake_case"},
+                    "forbidden_column_names": ["type", "status", "data"],
+                    "require_fk_indexes": True,
+                },
+            }
         )
 
-        # Should mention that project context was loaded
-        assert any("context" in gp.lower() for gp in result.good_practices), \
-            "Should note that project context was used"
-
-    def test_conventions_enforcement(self):
-        """Test that project conventions are enforced."""
-        # Create context with specific conventions
-        strict_context = load_context({
-            "project_name": "Strict Naming Project",
-            "conventions": {
-                "naming_conventions": {"case": "snake_case"},
-                "forbidden_column_names": ["type", "status", "data"],
-                "require_fk_indexes": True,
-            },
-        })
-
-        # SQL with a forbidden column name
         sql_with_forbidden = """
         CREATE TABLE items (
             id INT PRIMARY KEY,
@@ -268,30 +305,23 @@ class TestContextAwareAnalysis:
         );
         """
 
-        result = analyze_sql(sql_with_forbidden, project_context=strict_context)
+        analyze_sql(sql_with_forbidden, project_context=strict_context)
 
-        # Should flag forbidden column names
-        issue_descriptions = [
-            f"{i.title}: {i.description}".lower()
-            for i in result.issues
-        ]
+        # Agent should have received the project context
+        call_args = mock_agent.analyze.call_args
+        assert call_args[0][2] is not None
+        assert call_args[0][2].project_name == "Strict Naming Project"
 
-        assert any("forbidden" in desc or "type" in desc for desc in issue_descriptions), \
-            "Should flag forbidden column name 'type'"
+    @patch("schemint.core.analyzer.analyzer.get_settings")
+    def test_no_context_still_works(self, mock_settings):
+        """Analysis without context should still return a result."""
+        mock_settings.return_value = MagicMock(ai_enabled=False)
 
-    def test_no_context_baseline(self):
-        """Test that analysis still works without context."""
         result = analyze_sql(TEST_SQL)
 
-        # Should still detect basic issues
-        assert result.critical_count > 0 or result.warning_count > 0
-
-        # Should detect FLOAT for money
-        assert any(
-            "float" in i.title.lower() or "money" in i.description.lower()
-            for i in result.issues
-            if i.description
-        )
+        # Should return a result (with error since no AI key)
+        assert result is not None
+        assert result.ai_summary is not None
 
 
 class TestProjectContextModels:
@@ -299,21 +329,23 @@ class TestProjectContextModels:
 
     def test_load_context_from_dict(self):
         """Test loading context from a dictionary."""
-        context = load_context({
-            "project_name": "Test Project",
-            "description": "A test project",
-            "schema": {
-                "tables": [
-                    {
-                        "name": "users",
-                        "columns": [
-                            {"name": "id", "type": "INT"},
-                            {"name": "email", "type": "VARCHAR(255)"},
-                        ],
-                    },
-                ],
-            },
-        })
+        context = load_context(
+            {
+                "project_name": "Test Project",
+                "description": "A test project",
+                "schema": {
+                    "tables": [
+                        {
+                            "name": "users",
+                            "columns": [
+                                {"name": "id", "type": "INT"},
+                                {"name": "email", "type": "VARCHAR(255)"},
+                            ],
+                        },
+                    ],
+                },
+            }
+        )
 
         assert context.project_name == "Test Project"
         assert context.description == "A test project"
@@ -428,7 +460,9 @@ def demonstrate_context_difference():
     print("=" * 70)
     ecommerce_result = analyze_sql(TEST_SQL, project_context=create_ecommerce_context())
     print(f"\nScore: {ecommerce_result.score.total}/100 ({ecommerce_result.score.grade})")
-    print(f"Critical: {ecommerce_result.critical_count}, Warning: {ecommerce_result.warning_count}, Suggestion: {ecommerce_result.suggestion_count}")
+    print(
+        f"Critical: {ecommerce_result.critical_count}, Warning: {ecommerce_result.warning_count}, Suggestion: {ecommerce_result.suggestion_count}"
+    )
     print("\nIssues:")
     for issue in ecommerce_result.issues:
         print(f"  [{issue.severity.value}] {issue.title}")
@@ -441,7 +475,9 @@ def demonstrate_context_difference():
     print("=" * 70)
     blog_result = analyze_sql(TEST_SQL, project_context=create_blog_context())
     print(f"\nScore: {blog_result.score.total}/100 ({blog_result.score.grade})")
-    print(f"Critical: {blog_result.critical_count}, Warning: {blog_result.warning_count}, Suggestion: {blog_result.suggestion_count}")
+    print(
+        f"Critical: {blog_result.critical_count}, Warning: {blog_result.warning_count}, Suggestion: {blog_result.suggestion_count}"
+    )
     print("\nIssues:")
     for issue in blog_result.issues:
         print(f"  [{issue.severity.value}] {issue.title}")
@@ -452,7 +488,9 @@ def demonstrate_context_difference():
     print("=" * 70)
     no_context_result = analyze_sql(TEST_SQL)
     print(f"\nScore: {no_context_result.score.total}/100 ({no_context_result.score.grade})")
-    print(f"Critical: {no_context_result.critical_count}, Warning: {no_context_result.warning_count}, Suggestion: {no_context_result.suggestion_count}")
+    print(
+        f"Critical: {no_context_result.critical_count}, Warning: {no_context_result.warning_count}, Suggestion: {no_context_result.suggestion_count}"
+    )
     print("\nIssues:")
     for issue in no_context_result.issues:
         print(f"  [{issue.severity.value}] {issue.title}")

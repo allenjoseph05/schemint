@@ -11,15 +11,9 @@ from typing import Any
 from uuid import UUID
 
 from schemint.ci.diff_extractor import DiffExtractor
-
-logger = logging.getLogger(__name__)
-from schemint.ci.file_detector import SQLFileDetector
-from schemint.ci.report_builder import CIReportBuilder
-from schemint.ci.sql_utils import detect_dangerous_patterns, is_sql_content
 from schemint.ci.models import (
     AnalysisDecision,
     AnalysisFinding,
-    CIEventType,
     CIIngestRequest,
     DecisionStatus,
     FindingLocation,
@@ -30,15 +24,17 @@ from schemint.ci.providers.base import BaseGitProvider, CheckStatus
 from schemint.ci.providers.generic import GenericGitProvider
 from schemint.ci.providers.github import GitHubProvider
 from schemint.ci.providers.gitlab import GitLabProvider
+from schemint.ci.report_builder import CIReportBuilder
+from schemint.ci.sql_utils import detect_dangerous_patterns, is_sql_content
 from schemint.core.analyzer import analyze_sql
-from schemint.models.analysis import AnalysisResult
 from schemint.memory import MemoryStore, get_memory_store
+from schemint.models.analysis import AnalysisResult
+
+logger = logging.getLogger(__name__)
 
 
 class CIIngestError(Exception):
     """Error during CI ingestion."""
-
-    pass
 
 
 class CIIngestHandler:
@@ -78,10 +74,9 @@ class CIIngestHandler:
         """Create git provider based on request."""
         if request.provider == GitProvider.GITHUB:
             return GitHubProvider(token=request.provider_token)
-        elif request.provider == GitProvider.GITLAB:
+        if request.provider == GitProvider.GITLAB:
             return GitLabProvider(token=request.provider_token)
-        else:
-            return GenericGitProvider(token=request.provider_token)
+        return GenericGitProvider(token=request.provider_token)
 
     async def ingest(self, request: CIIngestRequest) -> AnalysisDecision:
         """
@@ -122,9 +117,7 @@ class CIIngestHandler:
             )
 
             # Run analysis on SQL changes
-            findings, analysis_results = await self._analyze_diff(
-                schema_diff, project.id, store
-            )
+            findings, analysis_results = await self._analyze_diff(schema_diff, project.id, store)
 
             # Calculate decision status
             status = self._determine_status(findings)
@@ -221,7 +214,9 @@ class CIIngestHandler:
                 logger.info(f"Analyzing SQL content for {sql_change.file_path}")
 
                 # First, check for dangerous patterns (ALTER TABLE issues, etc.)
-                dangerous_findings = self._check_dangerous_patterns(file_content, sql_change.file_path)
+                dangerous_findings = self._check_dangerous_patterns(
+                    file_content, sql_change.file_path
+                )
                 for finding in dangerous_findings:
                     logger.info(f"  Dangerous pattern: {finding.type} - {finding.title}")
                     findings.append(finding)
@@ -231,12 +226,14 @@ class CIIngestHandler:
                     result = analyze_sql(
                         sql=file_content,
                         database_type="mysql",  # TODO: detect from project settings
-                        use_ai=False,  # Don't use AI for CI (too slow)
+                        project_id=str(project_id),
                     )
 
                     analysis_results.append(result)
 
-                    logger.info(f"Analysis result for {sql_change.file_path}: {len(result.issues)} issues found")
+                    logger.info(
+                        f"Analysis result for {sql_change.file_path}: {len(result.issues)} issues found"
+                    )
 
                     # Convert issues to findings
                     for issue in result.issues:
@@ -254,9 +251,7 @@ class CIIngestHandler:
                         )
 
                         # Check memory for suppression
-                        suppressed = self._check_memory_suppression(
-                            store, project_id, issue
-                        )
+                        suppressed = self._check_memory_suppression(store, project_id, issue)
                         if suppressed:
                             finding.suppressed_by_memory = True
                             finding.memory_context = suppressed.get("reason")
@@ -287,7 +282,7 @@ class CIIngestHandler:
         store: MemoryStore,
         project_id: UUID,
         issue: Any,
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Check if finding should be suppressed by memory."""
         try:
             accepted = store.check_finding_accepted(project_id, issue)

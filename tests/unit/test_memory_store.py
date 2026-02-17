@@ -13,13 +13,12 @@ Set DATABASE_URL environment variable or tests will be skipped.
 """
 
 import os
-from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
 
 from schemint.memory.models import FindingSeverity
-from schemint.memory.patterns import compute_pattern_hash, patterns_match
+from schemint.memory.patterns import patterns_match
 from schemint.models.issue import Issue, IssueCategory, IssueSeverity
 
 # Check if DATABASE_URL is set
@@ -43,28 +42,50 @@ def store():
     store = MemoryStore(database_url=DATABASE_URL)
 
     # Clean up test data before each test
-    with store._get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM analysis_history WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM schema_semantics WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM business_rules WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM accepted_findings WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM known_safe_patterns WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM historical_inflection_points WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM projects WHERE external_id LIKE 'test:%'")
+    with store._get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM analysis_history WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM schema_semantics WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM business_rules WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM accepted_findings WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM known_safe_patterns WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM historical_inflection_points WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute("DELETE FROM projects WHERE external_id LIKE 'test:%'")
 
     yield store
 
     # Clean up after test
-    with store._get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM analysis_history WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM schema_semantics WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM business_rules WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM accepted_findings WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM known_safe_patterns WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM historical_inflection_points WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM projects WHERE external_id LIKE 'test:%'")
+    with store._get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM analysis_history WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM schema_semantics WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM business_rules WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM accepted_findings WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM known_safe_patterns WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM historical_inflection_points WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute("DELETE FROM projects WHERE external_id LIKE 'test:%'")
 
 
 @pytest.fixture
@@ -224,7 +245,6 @@ class TestAcceptedFindings:
 
     def test_get_all_accepted_findings(self, store, sample_project, sample_finding):
         """Test retrieving all accepted findings for a project."""
-        from schemint.memory import FeedbackScope
 
         # Accept multiple findings
         store.accept_finding(
@@ -422,7 +442,6 @@ class TestMemorySummary:
 
     def test_get_memory_summary(self, store, sample_project, sample_finding):
         """Test getting memory summary."""
-        from schemint.memory import FeedbackScope
 
         # Add some data
         store.accept_finding(

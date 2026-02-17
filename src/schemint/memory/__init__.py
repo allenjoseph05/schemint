@@ -26,19 +26,19 @@ from schemint.memory.patterns import compute_finding_hash, normalize_pattern
 from schemint.memory.store import MemoryStore, get_memory_store
 
 __all__ = [
-    # Models
-    "Project",
     "AcceptedFinding",
-    "KnownSafePattern",
-    "BusinessRule",
-    "SchemaSemantics",
-    "HistoricalInflectionPoint",
     "AnalysisHistory",
+    "BusinessRule",
     "FeedbackScope",
+    "HistoricalInflectionPoint",
+    "KnownSafePattern",
     # Store
     "MemoryStore",
-    "get_memory_store",
+    # Models
+    "Project",
+    "SchemaSemantics",
     # Utilities
     "compute_finding_hash",
+    "get_memory_store",
     "normalize_pattern",
 ]

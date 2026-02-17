@@ -1,6 +1,6 @@
 """Unit tests for CIReportBuilder."""
 
-import pytest
+from uuid import uuid4
 
 from schemint.ci.models import (
     AnalysisDecision,
@@ -10,7 +10,33 @@ from schemint.ci.models import (
     FindingLocation,
 )
 from schemint.ci.report_builder import CIReportBuilder
-from schemint.core.analyzer import analyze_sql
+from schemint.models.analysis import AnalysisResult, AnalysisScore
+
+
+def _make_analysis_result(
+    ai_summary: str | None = None,
+    total: int = 85,
+    structural: int = 90,
+    performance: int = 80,
+    naming: int = 85,
+    best_practices: int = 75,
+    issues: list | None = None,
+    table_count: int = 1,
+) -> AnalysisResult:
+    """Create a minimal AnalysisResult for testing."""
+    return AnalysisResult(
+        id=f"ana_{uuid4().hex[:12]}",
+        score=AnalysisScore(
+            total=total,
+            structural=structural,
+            performance=performance,
+            naming=naming,
+            best_practices=best_practices,
+        ),
+        table_count=table_count,
+        issues=issues or [],
+        ai_summary=ai_summary,
+    )
 
 
 class TestBuildSummary:
@@ -57,9 +83,7 @@ class TestBuildSummary:
                 severity="critical",
                 title="Plaintext password",
                 description="password column stores plaintext",
-                location=FindingLocation(
-                    file="schema.sql", table="users", column="password"
-                ),
+                location=FindingLocation(file="schema.sql", table="users", column="password"),
             ),
             AnalysisFinding(
                 type="missing_timestamps",
@@ -117,9 +141,7 @@ class TestBuildAnnotations:
                 severity="critical",
                 title="Missing PK on users",
                 description="Table users has no primary key",
-                location=FindingLocation(
-                    file="migrations/001.sql", table="users"
-                ),
+                location=FindingLocation(file="migrations/001.sql", table="users"),
             ),
         ]
 
@@ -168,20 +190,33 @@ class TestBuildAnnotations:
 class TestBuildScore:
     """Tests for build_score."""
 
-    def test_score_from_analysis_results(self):
-        """Score aggregation from AnalysisResult objects."""
+    def test_score_averages_results(self):
+        """Score aggregation averages across all results."""
         builder = CIReportBuilder()
 
-        # Analyze a simple schema
-        result = analyze_sql(
-            "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, "
-            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
-        )
+        results = [
+            _make_analysis_result(
+                ai_summary="Analysis 1",
+                total=80,
+                structural=90,
+                performance=70,
+                naming=80,
+                best_practices=60,
+            ),
+            _make_analysis_result(
+                ai_summary="Analysis 2",
+                total=60,
+                structural=70,
+                performance=50,
+                naming=60,
+                best_practices=40,
+            ),
+        ]
 
-        score = builder.build_score([result])
-        assert 0 <= score.total <= 100
-        assert score.grade in ("A", "B", "C", "D", "F")
-        assert score.label in ("Excellent", "Good", "Decent", "Needs Work", "Poor")
+        score = builder.build_score(results)
+        assert score.total == 70
+        assert score.structural == 80
+        assert score.performance == 60
 
     def test_empty_results_perfect_score(self):
         """No results gives perfect score."""
@@ -191,12 +226,20 @@ class TestBuildScore:
         assert score.total == 100
         assert score.grade == "A"
 
-    def test_bad_schema_low_score(self):
-        """Bad schema produces low score."""
+    def test_single_result_score(self):
+        """Single result uses its scores directly."""
         builder = CIReportBuilder()
 
-        result = analyze_sql("CREATE TABLE bad (id INT, price FLOAT);")
+        results = [
+            _make_analysis_result(
+                total=75,
+                structural=80,
+                performance=70,
+                naming=75,
+                best_practices=65,
+            ),
+        ]
 
-        score = builder.build_score([result])
-        assert score.total < 70
-        assert score.grade in ("D", "F")
+        score = builder.build_score(results)
+        assert score.total == 75
+        assert score.grade in ("C", "B")

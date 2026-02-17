@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import ClassVar
 
 from schemint.core.context.models import MigrationAction, MigrationInfo
 
@@ -13,19 +14,19 @@ class MigrationParser:
     """Parses migration files to extract schema evolution history."""
 
     # Patterns for common migration naming conventions
-    MIGRATION_PATTERNS = [
+    MIGRATION_PATTERNS: ClassVar[list[str]] = [
         # Numbered: 001_create_users.sql, V001__create_users.sql
         r"^(?:V)?(\d+)(?:_+|__)(.+?)\.sql$",
         # Timestamped: 20240101120000_create_users.sql
         r"^(\d{14})_(.+?)\.sql$",
         # Rails-style: 20240101120000_create_users.rb
         r"^(\d{14})_(.+?)\.rb$",
-        # Alembic: abc123_create_users.py
+        # Alembic-style: abc123_create_users.py
         r"^([a-f0-9]+)_(.+?)\.py$",
     ]
 
     # SQL patterns for detecting actions
-    SQL_PATTERNS = {
+    SQL_PATTERNS: ClassVar[dict[MigrationAction, list[str]]] = {
         MigrationAction.CREATE_TABLE: [
             r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`\"]?(\w+)[`\"]?",
         ],
@@ -65,7 +66,7 @@ class MigrationParser:
     }
 
     # Patterns for detecting deprecation comments
-    DEPRECATION_PATTERNS = [
+    DEPRECATION_PATTERNS: ClassVar[list[str]] = [
         r"--\s*@deprecated\s*:?\s*(.+)",
         r"--\s*DEPRECATED\s*:?\s*(.+)",
         r"/\*\s*@deprecated\s*:?\s*(.+?)\s*\*/",
@@ -155,7 +156,9 @@ class MigrationParser:
             match = re.match(pattern, filename, re.IGNORECASE)
             if match:
                 version = match.group(1)
-                description = match.group(2).replace("_", " ") if match.lastindex >= 2 else None
+                description = (
+                    match.group(2).replace("_", " ") if (match.lastindex or 0) >= 2 else None
+                )
                 return version, description
 
         return None, None
@@ -187,9 +190,10 @@ class MigrationParser:
                         actions.append(action)
 
                     # Extract table names
-                    if action == MigrationAction.CREATE_TABLE:
-                        tables.add(match.group(1).lower())
-                    elif action == MigrationAction.DROP_TABLE:
+                    if (
+                        action == MigrationAction.CREATE_TABLE
+                        or action == MigrationAction.DROP_TABLE
+                    ):
                         tables.add(match.group(1).lower())
                     elif action == MigrationAction.ALTER_TABLE:
                         current_table = match.group(1).lower()
@@ -238,13 +242,13 @@ class MigrationParser:
         # Try common timestamp formats
         formats = [
             "%Y%m%d%H%M%S",  # 20240101120000
-            "%Y%m%d%H%M",    # 202401011200
-            "%Y%m%d",        # 20240101
+            "%Y%m%d%H%M",  # 202401011200
+            "%Y%m%d",  # 20240101
         ]
 
         for fmt in formats:
             try:
-                return datetime.strptime(version, fmt)
+                return datetime.strptime(version, fmt).replace(tzinfo=timezone.utc)
             except ValueError:
                 continue
 

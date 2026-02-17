@@ -1,7 +1,5 @@
 """Unit tests for identifier normalization in the SQL parser."""
 
-import pytest
-
 from schemint.core.parser import parse_sql
 
 

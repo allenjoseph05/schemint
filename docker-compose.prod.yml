@@ -1,0 +1,12 @@
+services:
+  app:
+    environment:
+      ENV: production
+      DEBUG: "false"
+    volumes: []
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"

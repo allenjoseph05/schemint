@@ -13,7 +13,6 @@ from schemint.ci.models import (
     CIAnnotation,
     CIReportScore,
 )
-from schemint.core.analyzer.analyzer import calculate_score
 from schemint.models.analysis import AnalysisResult
 
 
@@ -39,22 +38,36 @@ class CIReportBuilder:
         score_total = decision.report_score.total if decision.report_score else 0
         score_label = decision.report_score.label if decision.report_score else "N/A"
 
+        # Check if any result has AI analysis
+        has_ai = any(r.ai_summary for r in analysis_results)
+        ai_badge = " | AI-Enhanced" if has_ai else ""
+
         lines = [
-            f"## Schemint Schema Analysis: {status_label} (Grade: {grade})",
+            f"## Schemint Schema Analysis: {status_label} (Grade: {grade}){ai_badge}",
             "",
             f"Score: {score_total}/100 | {score_label}",
             "",
         ]
 
         # Severity counts table
-        lines.extend([
-            "| Severity | Count |",
-            "|----------|-------|",
-            f"| Critical | {decision.critical_count} |",
-            f"| Warning | {decision.warning_count} |",
-            f"| Suggestion | {decision.suggestion_count} |",
-            "",
-        ])
+        lines.extend(
+            [
+                "| Severity | Count |",
+                "|----------|-------|",
+                f"| Critical | {decision.critical_count} |",
+                f"| Warning | {decision.warning_count} |",
+                f"| Suggestion | {decision.suggestion_count} |",
+                "",
+            ]
+        )
+
+        # AI Analysis section
+        if has_ai:
+            lines.append("### AI Analysis")
+            for result in analysis_results:
+                if result.ai_summary:
+                    lines.append(result.ai_summary)
+                    lines.append("")
 
         # Group active findings by severity
         active = [f for f in decision.findings if not f.suppressed_by_memory]
@@ -79,10 +92,12 @@ class CIReportBuilder:
 
         # Footer
         duration = decision.duration_ms
-        lines.extend([
-            "---",
-            f"_Analysis completed in {duration}ms by Schemint_",
-        ])
+        lines.extend(
+            [
+                "---",
+                f"_Analysis completed in {duration}ms by Schemint_",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -130,6 +145,9 @@ class CIReportBuilder:
     ) -> CIReportScore:
         """Aggregate scores from AnalysisResult objects.
 
+        Averages the AI-computed scores from each AnalysisResult.
+        All analysis is AI-powered — no deterministic fallback.
+
         Args:
             analysis_results: List of results from analyzed files
 
@@ -147,24 +165,32 @@ class CIReportBuilder:
                 best_practices=100,
             )
 
-        # Collect all issues across results
-        all_issues = []
-        total_tables = 0
-        for result in analysis_results:
-            all_issues.extend(result.issues)
-            total_tables += result.table_count
+        # Average scores across all results
+        n = len(analysis_results)
+        total = sum(r.score.total for r in analysis_results) // n
+        structural = sum(r.score.structural for r in analysis_results) // n
+        performance = sum(r.score.performance for r in analysis_results) // n
+        naming = sum(r.score.naming for r in analysis_results) // n
+        best_practices = sum(r.score.best_practices for r in analysis_results) // n
 
-        # Calculate aggregate score
-        score = calculate_score(all_issues, total_tables)
+        from schemint.models.analysis import AnalysisScore
+
+        avg_score = AnalysisScore(
+            total=max(0, min(100, total)),
+            structural=max(0, min(100, structural)),
+            performance=max(0, min(100, performance)),
+            naming=max(0, min(100, naming)),
+            best_practices=max(0, min(100, best_practices)),
+        )
 
         return CIReportScore(
-            total=score.total,
-            grade=score.grade,
-            label=score.label,
-            structural=score.structural,
-            performance=score.performance,
-            naming=score.naming,
-            best_practices=score.best_practices,
+            total=avg_score.total,
+            grade=avg_score.grade,
+            label=avg_score.label,
+            structural=avg_score.structural,
+            performance=avg_score.performance,
+            naming=avg_score.naming,
+            best_practices=avg_score.best_practices,
         )
 
     def _findings_table(self, findings: list[AnalysisFinding]) -> list[str]:

@@ -1,4 +1,6 @@
-.PHONY: help install install-dev run test lint format typecheck check clean build
+.PHONY: help install install-dev run test lint format typecheck check clean build \
+       docker-up docker-down docker-logs docker-test docker-build docker-run \
+       db-migrate db-rollback db-migration db-history
 
 # Default target
 help:
@@ -18,6 +20,18 @@ help:
 	@echo "  check        Run all checks (lint, typecheck, test)"
 	@echo "  clean        Remove build artifacts"
 	@echo "  build        Build package"
+	@echo ""
+	@echo "Docker:"
+	@echo "  docker-up    Start containers (db + app)"
+	@echo "  docker-down  Stop containers"
+	@echo "  docker-logs  Tail container logs"
+	@echo "  docker-test  Run tests against test-db container"
+	@echo ""
+	@echo "Database:"
+	@echo "  db-migrate   Run pending migrations (alembic upgrade head)"
+	@echo "  db-rollback  Rollback last migration (alembic downgrade -1)"
+	@echo "  db-migration Create new migration (usage: make db-migration msg='description')"
+	@echo "  db-history   Show migration history"
 
 # Installation
 install:
@@ -89,3 +103,29 @@ docker-build:
 
 docker-run:
 	docker run -p 8000:8000 schemint:latest
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+docker-test:
+	docker compose up -d test-db
+	DATABASE_URL=postgresql://schemint_test:schemint_test@localhost:5433/schemint_test pytest tests/ -v
+
+# Database migrations
+db-migrate:
+	alembic upgrade head
+
+db-rollback:
+	alembic downgrade -1
+
+db-migration:
+	alembic revision -m "$(msg)"
+
+db-history:
+	alembic history --verbose

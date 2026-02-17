@@ -2,9 +2,9 @@
 
 import pytest
 
-from schemint.core.parser import SQLParser, SQLParserError, parse_sql
+from schemint.core.parser import SQLParserError, parse_sql
 from schemint.models.schema import DataType
-from tests.fixtures.schemas import BAD_SCHEMA, GOOD_SCHEMA, SIMPLE_SCHEMA
+from tests.fixtures.schemas import BAD_SCHEMA, GOOD_SCHEMA
 
 
 class TestSQLParser:

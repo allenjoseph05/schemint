@@ -51,28 +51,30 @@ class ProjectContextResponse(BaseModel):
 @router.post("", response_model=AnalysisResult)
 async def analyze_schema(
     request: AnalysisRequest,
-    use_ai: bool = Query(False, description="Enable AI-powered analysis (requires CLAUDE_API_KEY)"),
+    project_id: str | None = Query(None, description="Project ID for memory-enriched analysis"),
 ) -> AnalysisResult:
     """
-    Analyze a database schema.
+    Analyze a database schema using AI.
 
     Submit SQL CREATE TABLE statements and get back:
     - Parsed table structure
     - Issues found with severity levels
     - Overall score (0-100)
     - Fix scripts for each issue
-    - AI-generated insights (if use_ai=true)
+    - AI-generated insights and recommendations
 
-    Set `use_ai=true` to enable Claude AI analysis for deeper insights.
     Requires CLAUDE_API_KEY environment variable.
+
+    Optionally provide `project_id` (UUID or external ID like "github:org/repo")
+    to enable memory-enriched analysis with suppressed findings and AI scores.
     """
     try:
-        # Check if AI is requested but not available
+        # Require AI to be available
         settings = get_settings()
-        if use_ai and not settings.ai_enabled:
+        if not settings.ai_enabled:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="AI analysis requested but CLAUDE_API_KEY is not configured",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="CLAUDE_API_KEY is not configured. AI analysis requires a valid API key.",
             )
 
         # Get app_type from context if provided
@@ -80,38 +82,47 @@ async def analyze_schema(
         if request.context:
             app_type = request.context.app_type
 
-        result = analyze_sql(
+        return analyze_sql(
             sql=request.sql,
             database_type=request.database_type,
-            use_ai=use_ai,
             app_type=app_type,
+            project_id=project_id,
         )
-        return result
 
     except SQLParserError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse SQL: {e!s}",
-        )
+        ) from e
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/quick", response_model=dict)
 async def quick_analyze(
     request: AnalysisRequest,
-    use_ai: bool = Query(False, description="Enable AI-powered analysis"),
-) -> dict:
+    project_id: str | None = Query(None, description="Project ID for memory-enriched analysis"),
+) -> dict[str, Any]:
     """
     Quick analysis - returns just score and issue counts.
 
     Useful for CI/CD pipelines where you just need pass/fail.
     """
     try:
+        settings = get_settings()
+        if not settings.ai_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="CLAUDE_API_KEY is not configured. AI analysis requires a valid API key.",
+            )
+
         app_type = None
         if request.context:
             app_type = request.context.app_type
@@ -119,8 +130,8 @@ async def quick_analyze(
         result = analyze_sql(
             sql=request.sql,
             database_type=request.database_type,
-            use_ai=use_ai,
             app_type=app_type,
+            project_id=project_id,
         )
 
         return {
@@ -131,21 +142,19 @@ async def quick_analyze(
             "warning_count": result.warning_count,
             "suggestion_count": result.suggestion_count,
             "table_count": result.table_count,
-            "ai_enabled": use_ai,
-            "ai_summary": result.ai_summary if use_ai else None,
+            "ai_summary": result.ai_summary,
         }
 
     except SQLParserError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse SQL: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/with-context", response_model=AnalysisResult)
 async def analyze_with_context(
     request: ContextAwareRequest,
-    use_ai: bool = Query(False, description="Enable AI-powered analysis"),
 ) -> AnalysisResult:
     """
     Analyze SQL with project context.
@@ -165,37 +174,38 @@ async def analyze_with_context(
     try:
         from schemint.core.context import load_context
 
-        # Check if AI is requested but not available
+        # Require AI to be available
         settings = get_settings()
-        if use_ai and not settings.ai_enabled:
+        if not settings.ai_enabled:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="AI analysis requested but CLAUDE_API_KEY is not configured",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="CLAUDE_API_KEY is not configured. AI analysis requires a valid API key.",
             )
 
         # Load project context from dict
         project_context = load_context(request.project_context)
 
-        result = analyze_sql(
+        return analyze_sql(
             sql=request.sql,
             database_type=request.database_type,
-            use_ai=use_ai,
             app_type=request.app_type,
             project_context=project_context,
         )
-        return result
 
     except SQLParserError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse SQL: {e!s}",
-        )
+        ) from e
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Context-aware analysis failed: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/validate-context", response_model=ProjectContextResponse)
@@ -232,4 +242,4 @@ async def validate_context(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid context: {e!s}",
-        )
+        ) from e

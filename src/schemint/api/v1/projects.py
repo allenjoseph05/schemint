@@ -15,12 +15,11 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from schemint.memory import (
-    FeedbackScope,
     MemoryStore,
     Project,
     get_memory_store,
 )
-from schemint.memory.models import MemorySummary, ProjectRegistration
+from schemint.memory.models import ProjectRegistration
 
 router = APIRouter()
 

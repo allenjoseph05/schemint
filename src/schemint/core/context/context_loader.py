@@ -18,11 +18,12 @@ from schemint.core.context.models import (
 
 # Try to import YAML support
 try:
-    import yaml
+    import yaml  # type: ignore[import-untyped]
+
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
-    yaml = None  # type: ignore[assignment]
+    yaml = None
 
 
 class ContextLoader:
@@ -55,9 +56,7 @@ class ContextLoader:
 
         if path.suffix in (".yaml", ".yml"):
             if not YAML_AVAILABLE:
-                raise RuntimeError(
-                    "PyYAML not installed. Install with: pip install pyyaml"
-                )
+                raise RuntimeError("PyYAML not installed. Install with: pip install pyyaml")
             data = yaml.safe_load(content)
         elif path.suffix == ".json":
             data = json.loads(content)
@@ -175,35 +174,39 @@ class ContextLoader:
         for table_data in data.get("tables", []):
             columns = []
             for col_data in table_data.get("columns", []):
-                columns.append(ColumnMetadata(
-                    name=col_data["name"],
-                    data_type=col_data.get("type", col_data.get("data_type", "UNKNOWN")),
-                    description=col_data.get("description"),
-                    nullable=col_data.get("nullable", True),
-                    default=col_data.get("default"),
-                    deprecated=col_data.get("deprecated", False),
-                    deprecated_reason=col_data.get("deprecated_reason"),
-                    deprecated_since=col_data.get("deprecated_since"),
-                    renamed_to=col_data.get("renamed_to"),
-                    renamed_from=col_data.get("renamed_from"),
-                    pii=col_data.get("pii", False),
-                    indexed=col_data.get("indexed", False),
-                    foreign_key_to=col_data.get("foreign_key_to"),
-                ))
+                columns.append(
+                    ColumnMetadata(
+                        name=col_data["name"],
+                        data_type=col_data.get("type", col_data.get("data_type", "UNKNOWN")),
+                        description=col_data.get("description"),
+                        nullable=col_data.get("nullable", True),
+                        default=col_data.get("default"),
+                        deprecated=col_data.get("deprecated", False),
+                        deprecated_reason=col_data.get("deprecated_reason"),
+                        deprecated_since=col_data.get("deprecated_since"),
+                        renamed_to=col_data.get("renamed_to"),
+                        renamed_from=col_data.get("renamed_from"),
+                        pii=col_data.get("pii", False),
+                        indexed=col_data.get("indexed", False),
+                        foreign_key_to=col_data.get("foreign_key_to"),
+                    )
+                )
 
-            tables.append(TableMetadata(
-                name=table_data["name"],
-                description=table_data.get("description"),
-                columns=columns,
-                deprecated=table_data.get("deprecated", False),
-                deprecated_reason=table_data.get("deprecated_reason"),
-                deprecated_since=table_data.get("deprecated_since"),
-                renamed_to=table_data.get("renamed_to"),
-                renamed_from=table_data.get("renamed_from"),
-                primary_key=table_data.get("primary_key", []),
-                indexes=table_data.get("indexes", []),
-                estimated_rows=table_data.get("estimated_rows"),
-            ))
+            tables.append(
+                TableMetadata(
+                    name=table_data["name"],
+                    description=table_data.get("description"),
+                    columns=columns,
+                    deprecated=table_data.get("deprecated", False),
+                    deprecated_reason=table_data.get("deprecated_reason"),
+                    deprecated_since=table_data.get("deprecated_since"),
+                    renamed_to=table_data.get("renamed_to"),
+                    renamed_from=table_data.get("renamed_from"),
+                    primary_key=table_data.get("primary_key", []),
+                    indexes=table_data.get("indexes", []),
+                    estimated_rows=table_data.get("estimated_rows"),
+                )
+            )
 
         return SchemaMetadata(
             tables=tables,
@@ -217,7 +220,9 @@ class ContextLoader:
             naming_conventions=data.get("naming_conventions", data.get("naming", {})),
             required_columns=data.get("required_columns", []),
             required_indexes=data.get("required_indexes", []),
-            forbidden_column_names=data.get("forbidden_column_names", data.get("forbidden_columns", [])),
+            forbidden_column_names=data.get(
+                "forbidden_column_names", data.get("forbidden_columns", [])
+            ),
             forbidden_data_types=data.get("forbidden_data_types", data.get("forbidden_types", [])),
             preferred_types=data.get("preferred_types", {}),
             preferred_id_type=data.get("preferred_id_type", "BIGINT"),
@@ -280,5 +285,4 @@ def load_context(source: str | Path | dict[str, Any]) -> ProjectContext:
 
     if path.is_dir():
         return loader.load_from_directory(path)
-    else:
-        return loader.load_from_file(path)
+    return loader.load_from_file(path)

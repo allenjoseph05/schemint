@@ -2,320 +2,290 @@
 
 from __future__ import annotations
 
-import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from schemint.config import get_settings
 
 if TYPE_CHECKING:
-    from schemint.core.context.models import ProjectContext
+    from schemint.memory.models import AcceptedFinding, BusinessRule, SchemaSemantics
     from schemint.models.schema import ParsedSchema
 
-# Try to import anthropic SDK
-try:
-    import anthropic
-    CLAUDE_AVAILABLE = True
-except ImportError:
-    CLAUDE_AVAILABLE = False
-    anthropic = None  # type: ignore[assignment]
 
+# ---------------------------------------------------------------------------
+# System prompt — replaces hundreds of lines of Python rule-checking code.
+# Cached via Anthropic's cache_control for 90% cost discount on repeated calls.
+# ---------------------------------------------------------------------------
 
-class ClaudeAnalyzer:
-    """Analyzes schemas using Claude AI."""
+SYSTEM_PROMPT = """\
+You are Schemint, an expert database schema analyzer. You analyze SQL schemas
+and produce structured findings about issues, risks, and improvements.
 
-    def __init__(self) -> None:
-        settings = get_settings()
+You have deep knowledge of:
+- Relational database design (MySQL, PostgreSQL, SQLite)
+- Data type selection (when to use DECIMAL vs FLOAT, VARCHAR vs TEXT, etc.)
+- Security best practices (hashing, encryption, PII handling)
+- Performance optimization (indexing strategies, query patterns)
+- Naming conventions across different ecosystems
+- Migration safety (locking, backward compatibility)
+- Domain-specific patterns (e-commerce, SaaS, fintech, healthcare)
+- Regulatory considerations (GDPR, HIPAA, PCI-DSS)
 
-        if not CLAUDE_AVAILABLE:
-            raise RuntimeError(
-                "anthropic not installed. "
-                "Install with: pip install anthropic"
-            )
+ANALYSIS DIMENSIONS:
 
-        if not settings.claude_api_key:
-            raise RuntimeError(
-                "CLAUDE_API_KEY not set. "
-                "Get your key from: https://console.anthropic.com/"
-            )
+1. STRUCTURAL: Primary keys, foreign keys, constraints, referential integrity,
+   normalization. Missing relationships between tables that should be related.
 
-        # Initialize the client
-        self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
-        self.model_name = settings.claude_model
+2. PERFORMANCE: Indexing (especially on FK columns and common query patterns),
+   data type efficiency, potential N+1 query risks from schema design.
 
-    async def analyze(
-        self,
-        schema: "ParsedSchema",
-        app_type: str | None = None,
-        project_context: "ProjectContext | None" = None,
-    ) -> dict:
-        """
-        Analyze schema using Claude AI (async).
+3. SECURITY: Plaintext sensitive data, PII without encryption markers,
+   SSRF-prone URL columns, columns that could leak data in logs.
 
-        Args:
-            schema: Parsed schema to analyze
-            app_type: Optional application type for context
-            project_context: Optional project context for schema-aware analysis
+4. NAMING: Consistency, readability, reserved word conflicts, abbreviation
+   quality, semantic clarity.
 
-        Returns:
-            Dict with AI analysis results
-        """
-        # Claude's Python SDK doesn't have native async, use sync in thread
-        return self.analyze_sync(schema, app_type, project_context)
+5. BEST PRACTICES: Timestamps, soft deletes, audit columns, cascade actions,
+   proper NULL handling for required fields.
 
-    def analyze_sync(
-        self,
-        schema: "ParsedSchema",
-        app_type: str | None = None,
-        project_context: "ProjectContext | None" = None,
-    ) -> dict:
-        """Synchronous version of analyze."""
-        prompt = self._build_prompt(schema, app_type, project_context)
+6. DOMAIN: Business logic alignment, missing domain-expected columns,
+   constraint gaps that allow invalid business states.
 
-        message = self.client.messages.create(
-            model=self.model_name,
-            max_tokens=4096,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-        )
+SEVERITY LEVELS:
+- critical: Will cause data loss, security breach, or system failure
+- warning: Performance degradation, data integrity risk, or maintenance burden
+- suggestion: Improvement that would make the schema better but isn't urgent
 
-        # Extract text from response
-        response_text = ""
-        for block in message.content:
-            if block.type == "text":
-                response_text += block.text
+SCORING RUBRIC:
+Score each dimension 0-100 (start at 100, deduct):
 
-        return self._parse_response(response_text)
+Structural: -20 missing PK, -15 missing FK where clear, -10 orphaned FK, -5 missing NOT NULL
+Performance: -15 missing index on FK, -15 FLOAT for money, -10 no indexes on 5+ col table
+Naming: -10 reserved word, -8 inconsistent convention, -5 heavy abbreviation
+Best Practices: -10 missing timestamps, -5 missing ON DELETE, -5 no soft delete
+Security deductions from best_practices: -25 plaintext password, -15 PII unencrypted
 
-    def _build_prompt(
-        self,
-        schema: "ParsedSchema",
-        app_type: str | None,
-        project_context: "ProjectContext | None" = None,
-    ) -> str:
-        """Build the analysis prompt."""
-        schema_text = self._schema_to_sql(schema)
+Total = structural*0.30 + performance*0.25 + naming*0.15 + best_practices*0.30
 
-        app_context = ""
-        if app_type:
-            app_context = f"""
-Application Type: {app_type}
-Consider industry-specific best practices for {app_type} applications.
+MEMORY RULES:
+When the input includes a "memory" section with accepted_findings, DO NOT
+report findings that match an accepted pattern. Instead, note them in a
+"suppressed" list. If the scope is "pattern", suppress similar findings
+across all tables. If the scope is "rule", suppress all findings of that type.
+
+OUTPUT:
+Use the submit_analysis tool to return your structured analysis. Do not return
+free-form text — all output must go through the tool.\
 """
 
-        project_context_section = ""
-        if project_context:
-            project_context_section = self._build_project_context_section(project_context)
 
-        return f"""You are a senior database architect with 20+ years of experience.
-Analyze this database schema and provide detailed feedback.
+# ---------------------------------------------------------------------------
+# Tool definition — forces structured output via Anthropic tool use.
+# Eliminates all JSON parsing issues; response is guaranteed to match schema.
+# ---------------------------------------------------------------------------
 
-{app_context}
-{project_context_section}
+ANALYSIS_TOOL = {
+    "name": "submit_analysis",
+    "description": "Submit the schema analysis results",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "findings": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "severity": {
+                            "type": "string",
+                            "enum": ["critical", "warning", "suggestion"],
+                        },
+                        "category": {
+                            "type": "string",
+                            "enum": [
+                                "structural",
+                                "performance",
+                                "security",
+                                "naming",
+                                "best_practices",
+                                "domain",
+                            ],
+                        },
+                        "title": {"type": "string", "maxLength": 120},
+                        "description": {"type": "string"},
+                        "table_name": {"type": ["string", "null"]},
+                        "column_name": {"type": ["string", "null"]},
+                        "impact": {"type": "string"},
+                        "fix_description": {"type": "string"},
+                        "fix_script": {"type": ["string", "null"]},
+                        "reasoning": {"type": "string"},
+                    },
+                    "required": [
+                        "severity",
+                        "category",
+                        "title",
+                        "description",
+                        "impact",
+                        "reasoning",
+                    ],
+                },
+            },
+            "suppressed": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string"},
+                        "table": {"type": "string"},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["type", "table", "reason"],
+                },
+            },
+            "score": {
+                "type": "object",
+                "properties": {
+                    "total": {"type": "integer", "minimum": 0, "maximum": 100},
+                    "structural": {"type": "integer", "minimum": 0, "maximum": 100},
+                    "performance": {"type": "integer", "minimum": 0, "maximum": 100},
+                    "naming": {"type": "integer", "minimum": 0, "maximum": 100},
+                    "best_practices": {"type": "integer", "minimum": 0, "maximum": 100},
+                },
+                "required": [
+                    "total",
+                    "structural",
+                    "performance",
+                    "naming",
+                    "best_practices",
+                ],
+            },
+            "good_practices": {"type": "array", "items": {"type": "string"}},
+            "recommendations": {"type": "array", "items": {"type": "string"}},
+            "summary": {"type": "string"},
+        },
+        "required": ["findings", "score", "good_practices", "summary"],
+    },
+}
 
-Schema to analyze:
-```sql
-{schema_text}
-```
 
-Analyze for:
-1. STRUCTURAL ISSUES: Missing primary keys, foreign keys, constraints, relationships
-2. PERFORMANCE ISSUES: Missing indexes, inefficient data types, N+1 query risks
-3. SECURITY ISSUES: PII exposure, sensitive data handling, encryption needs
-4. NAMING ISSUES: Convention violations, reserved words, clarity
-5. BEST PRACTICES: Timestamps, soft deletes, audit fields, normalization
-6. SCALABILITY: Multi-tenancy readiness, sharding considerations
+def compress_schema(schema: ParsedSchema) -> dict[str, Any]:
+    """Compress a ParsedSchema into a compact dict for the prompt.
 
-For each issue:
-- Explain WHY it matters with real-world consequences
-- Provide exact SQL fix scripts
-- Rate severity as "critical", "warning", or "suggestion"
+    Strips null/false/default fields, shortens keys, and omits redundant data.
+    Results in ~60% fewer input tokens vs reconstructed SQL.
+    """
+    tables = []
+    for table in schema.tables:
+        cols = []
+        for col in table.columns:
+            c: dict[str, Any] = {"name": col.name, "type": col.raw_type}
+            if col.is_primary_key:
+                c["pk"] = True
+            if not col.nullable:
+                c["nn"] = True
+            if col.is_auto_increment:
+                c["auto"] = True
+            if col.is_unique:
+                c["uniq"] = True
+            if col.default is not None:
+                c["default"] = col.default
+            cols.append(c)
 
-Also identify what the schema does well.
+        t: dict[str, Any] = {"name": table.name, "cols": cols}
 
-Respond with this exact JSON structure (no markdown code blocks, just raw JSON):
-{{
-    "summary": "Brief 2-3 sentence summary of the schema quality",
-    "issues": [
-        {{
-            "severity": "critical|warning|suggestion",
-            "category": "structural|performance|security|naming|best_practices|scalability",
-            "title": "Short descriptive title",
-            "description": "Detailed explanation of the issue",
-            "table_name": "affected_table or null",
-            "column_name": "affected_column or null",
-            "impact": "Real-world consequences of this issue",
-            "fix_script": "SQL to fix the issue"
-        }}
-    ],
-    "good_practices": [
-        "Things the schema does well"
-    ],
-    "recommendations": [
-        "High-level recommendations for improvement"
-    ],
-    "estimated_score": 0-100
-}}"""
+        if len(table.primary_key) > 1:
+            t["pk"] = table.primary_key
 
-    def _build_project_context_section(
-        self,
-        project_context: "ProjectContext",
-    ) -> str:
-        """Build the project context section for the prompt."""
-        sections = []
-
-        sections.append("## PROJECT CONTEXT")
-        sections.append(f"Project: {project_context.project_name}")
-
-        if project_context.description:
-            sections.append(f"Description: {project_context.description}")
-
-        # Schema metadata
-        if project_context.schema_metadata:
-            meta = project_context.schema_metadata
-            sections.append("\n### Known Schema:")
-
-            for table in meta.tables:
-                sections.append(f"\nTable: {table.name}")
-                if table.description:
-                    sections.append(f"  Purpose: {table.description}")
-
-                # Deprecated columns
-                deprecated_cols = [c for c in table.columns if c.deprecated]
-                if deprecated_cols:
-                    sections.append("  DEPRECATED COLUMNS (should not be used in new queries):")
-                    for col in deprecated_cols:
-                        msg = f"    - {col.name}"
-                        if col.deprecated_reason:
-                            msg += f": {col.deprecated_reason}"
-                        if col.renamed_to:
-                            msg += f" (renamed to: {col.renamed_to})"
-                        sections.append(msg)
-
-                # Renamed columns
-                renamed_cols = [c for c in table.columns if c.renamed_from]
-                if renamed_cols:
-                    sections.append("  RENAMED COLUMNS:")
-                    for col in renamed_cols:
-                        sections.append(f"    - {col.name} (was: {col.renamed_from})")
-
-        # Migration history highlights
-        if project_context.migrations:
-            sections.append("\n### Recent Schema Changes:")
-            # Show last 5 migrations
-            for migration in project_context.migrations[-5:]:
-                sections.append(f"  - {migration.version}: {migration.description}")
-                if migration.deprecated_columns:
-                    for dep in migration.deprecated_columns:
-                        sections.append(f"      DEPRECATED: {dep}")
-                if migration.renamed_columns:
-                    for old, new in migration.renamed_columns.items():
-                        sections.append(f"      RENAMED: {old} -> {new}")
-
-        # Conventions
-        if project_context.conventions:
-            conv = project_context.conventions
-            sections.append("\n### Project Conventions:")
-
-            if conv.naming_conventions:
-                sections.append("  Naming:")
-                for key, value in conv.naming_conventions.items():
-                    sections.append(f"    - {key}: {value}")
-
-            if conv.required_columns:
-                sections.append(f"  Required columns for all tables: {', '.join(conv.required_columns)}")
-
-            if conv.forbidden_column_names:
-                sections.append(f"  Forbidden column names: {', '.join(conv.forbidden_column_names)}")
-
-            if conv.preferred_types:
-                sections.append("  Preferred types:")
-                for purpose, dtype in conv.preferred_types.items():
-                    sections.append(f"    - {purpose}: {dtype}")
-
-        sections.append("\n### IMPORTANT:")
-        sections.append("- Flag any queries that reference deprecated columns")
-        sections.append("- Suggest using renamed columns instead of old names")
-        sections.append("- Enforce project-specific conventions")
-        sections.append("- Explain schema intent based on the context above")
-
-        return "\n".join(sections)
-
-    def _schema_to_sql(self, schema: "ParsedSchema") -> str:
-        """Convert parsed schema back to SQL for the prompt."""
-        lines = []
-
-        for table in schema.tables:
-            lines.append(f"CREATE TABLE {table.name} (")
-
-            col_defs = []
-            for col in table.columns:
-                col_def = f"    {col.name} {col.raw_type}"
-                if not col.nullable:
-                    col_def += " NOT NULL"
-                if col.default:
-                    col_def += f" DEFAULT {col.default}"
-                if col.is_auto_increment:
-                    col_def += " AUTO_INCREMENT"
-                if col.is_primary_key and len(table.primary_key) == 1:
-                    col_def += " PRIMARY KEY"
-                col_defs.append(col_def)
-
-            # Composite primary key
-            if len(table.primary_key) > 1:
-                col_defs.append(f"    PRIMARY KEY ({', '.join(table.primary_key)})")
-
-            # Foreign keys
+        if table.foreign_keys:
+            fks = []
             for fk in table.foreign_keys:
-                fk_def = f"    FOREIGN KEY ({fk.column}) REFERENCES {fk.references_table}({fk.references_column})"
+                fk_entry: dict[str, Any] = {
+                    "col": fk.column,
+                    "ref": f"{fk.references_table}.{fk.references_column}",
+                }
                 if fk.on_delete:
-                    fk_def += f" ON DELETE {fk.on_delete}"
+                    fk_entry["on_del"] = fk.on_delete
                 if fk.on_update:
-                    fk_def += f" ON UPDATE {fk.on_update}"
-                col_defs.append(fk_def)
+                    fk_entry["on_upd"] = fk.on_update
+                fks.append(fk_entry)
+            t["fks"] = fks
 
-            lines.append(",\n".join(col_defs))
-            lines.append(");")
-            lines.append("")
+        if table.indexes:
+            idxs = []
+            for idx in table.indexes:
+                idx_entry: dict[str, Any] = {"cols": idx.columns}
+                if idx.is_unique:
+                    idx_entry["uniq"] = True
+                idxs.append(idx_entry)
+            t["idxs"] = idxs
 
-        return "\n".join(lines)
+        tables.append(t)
 
-    def _parse_response(self, response_text: str) -> dict:
-        """Parse the AI response."""
-        try:
-            # Clean up response if needed
-            text = response_text.strip()
-            if text.startswith("```json"):
-                text = text[7:]
-            if text.startswith("```"):
-                text = text[3:]
-            if text.endswith("```"):
-                text = text[:-3]
-
-            return json.loads(text.strip())
-        except json.JSONDecodeError as e:
-            return {
-                "summary": "AI analysis failed to parse",
-                "issues": [],
-                "good_practices": [],
-                "recommendations": [],
-                "estimated_score": None,
-                "error": str(e),
-                "raw_response": response_text[:500],
-            }
+    return {"tables": tables, "db": schema.database_type}
 
 
-def get_claude_analyzer() -> ClaudeAnalyzer | None:
-    """Get Claude analyzer if available and configured."""
+def select_model(schema: ParsedSchema) -> str:
+    """Select Claude model tier based on schema complexity.
+
+    - Simple  (1-3 tables, <=20 cols): Haiku  (fast, cheap)
+    - Medium  (4-15 tables):           Sonnet (default)
+    - Complex (16+ tables):            Sonnet complex variant
+    """
     settings = get_settings()
+    table_count = schema.table_count
+    total_cols = sum(len(t.columns) for t in schema.tables)
 
-    if not settings.ai_enabled:
+    if table_count <= 3 and total_cols <= 20:
+        return settings.claude_model_simple
+    if table_count >= 16:
+        return settings.claude_model_complex
+    return settings.claude_model
+
+
+def build_memory_context(
+    accepted_findings: list[AcceptedFinding],
+    business_rules: list[BusinessRule],
+    schema_semantics: list[SchemaSemantics],
+) -> dict[str, Any] | None:
+    """Build memory context dict for injection into the Claude prompt.
+
+    Returns a dict with accepted_findings, business_rules, and semantics
+    formatted for the LLM, or None if all three lists are empty.
+    """
+    if not accepted_findings and not business_rules and not schema_semantics:
         return None
 
-    if not CLAUDE_AVAILABLE:
-        return None
+    context: dict[str, Any] = {}
 
-    try:
-        return ClaudeAnalyzer()
-    except Exception:
-        return None
+    if accepted_findings:
+        context["accepted_findings"] = [
+            {
+                "type": af.finding_type,
+                "table": af.context.get("table"),
+                "column": af.context.get("column"),
+                "reason": af.reason,
+                "scope": af.scope.value,
+            }
+            for af in accepted_findings
+        ]
+
+    if business_rules:
+        context["business_rules"] = [
+            {
+                "rule": br.rule_type,
+                "severity": br.severity.value,
+                "applies_to": br.applies_to,
+                "rationale": br.rationale,
+            }
+            for br in business_rules
+        ]
+
+    if schema_semantics:
+        context["semantics"] = [
+            {
+                "path": ss.element_path,
+                "tags": ss.semantic_tags,
+                "description": ss.description,
+            }
+            for ss in schema_semantics
+        ]
+
+    return context
