@@ -24,9 +24,7 @@ from schemint.drift.sql_utils import extract_aliases_from_ast, resolve_column_re
 class ColumnLineageExtractor:
     """Extract column-level lineage from SELECT clauses."""
 
-    def extract(
-        self, statement: Any, now: datetime, file_path: str | None
-    ) -> list[DependencyEdge]:
+    def extract(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Extract column-level lineage from a SQL statement."""
         edges: list[DependencyEdge] = []
 
@@ -74,9 +72,7 @@ class ColumnLineageExtractor:
         select = statement.find(sqlglot_exp.Select)
         if select and not isinstance(statement, sqlglot_exp.Insert):
             edges.extend(
-                self._extract_select_column_lineage(
-                    select, aliases, target_name, now, file_path
-                )
+                self._extract_select_column_lineage(select, aliases, target_name, now, file_path)
             )
 
         return edges
@@ -104,8 +100,12 @@ class ColumnLineageExtractor:
         return None
 
     def _extract_select_column_lineage(
-        self, select_node: Any, aliases: dict[str, str],
-        target_name: str, now: datetime, file_path: str | None,
+        self,
+        select_node: Any,
+        aliases: dict[str, str],
+        target_name: str,
+        now: datetime,
+        file_path: str | None,
     ) -> list[DependencyEdge]:
         """Extract column-level lineage from a SELECT clause."""
         edges: list[DependencyEdge] = []
@@ -116,20 +116,24 @@ class ColumnLineageExtractor:
 
             if isinstance(expr, sqlglot_exp.Star):
                 for _alias_name, real_table in aliases.items():
-                    edges.append(DependencyEdge(
-                        from_element=f"{real_table}.*",
-                        to_element=f"{target_name}.*",
-                        direction="upstream",
-                        usage_type="select",
-                        lineage_type="column",
-                        sources=[DependencySource(
-                            source_type="sql_ast",
-                            confidence=CONFIDENCE_STAR,
-                            file_path=file_path,
-                            extracted_at=now,
-                        )],
-                        final_confidence=CONFIDENCE_STAR,
-                    ))
+                    edges.append(
+                        DependencyEdge(
+                            from_element=f"{real_table}.*",
+                            to_element=f"{target_name}.*",
+                            direction="upstream",
+                            usage_type="select",
+                            lineage_type="column",
+                            sources=[
+                                DependencySource(
+                                    source_type="sql_ast",
+                                    confidence=CONFIDENCE_STAR,
+                                    file_path=file_path,
+                                    extracted_at=now,
+                                )
+                            ],
+                            final_confidence=CONFIDENCE_STAR,
+                        )
+                    )
                 continue
 
             columns = list(expr.find_all(sqlglot_exp.Column))
@@ -152,28 +156,36 @@ class ColumnLineageExtractor:
                     confidence = CONFIDENCE_COLUMN_REF if resolved else CONFIDENCE_UNRESOLVED_REF
 
                 to_element = f"{target_name}.{output_name}" if output_name else target_name
-                edges.append(DependencyEdge(
-                    from_element=ref,
-                    to_element=to_element,
-                    direction="upstream",
-                    usage_type="select",
-                    lineage_type="column",
-                    sources=[DependencySource(
-                        source_type="sql_ast",
-                        confidence=confidence,
-                        file_path=file_path,
-                        extracted_at=now,
-                        alias_resolved=resolved,
-                    )],
-                    final_confidence=confidence,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=ref,
+                        to_element=to_element,
+                        direction="upstream",
+                        usage_type="select",
+                        lineage_type="column",
+                        sources=[
+                            DependencySource(
+                                source_type="sql_ast",
+                                confidence=confidence,
+                                file_path=file_path,
+                                extracted_at=now,
+                                alias_resolved=resolved,
+                            )
+                        ],
+                        final_confidence=confidence,
+                    )
+                )
 
         return edges
 
     def _extract_insert_column_lineage(
-        self, select_node: Any, aliases: dict[str, str],
-        target_table: str, insert_cols: list[str],
-        now: datetime, file_path: str | None,
+        self,
+        select_node: Any,
+        aliases: dict[str, str],
+        target_table: str,
+        insert_cols: list[str],
+        now: datetime,
+        file_path: str | None,
     ) -> list[DependencyEdge]:
         """Extract column-level lineage from INSERT ... SELECT."""
         edges: list[DependencyEdge] = []
@@ -192,21 +204,25 @@ class ColumnLineageExtractor:
                     continue
 
                 confidence = CONFIDENCE_COLUMN_REF if resolved else CONFIDENCE_UNRESOLVED_REF
-                edges.append(DependencyEdge(
-                    from_element=ref,
-                    to_element=f"{target_table}.{target_col}",
-                    direction="upstream",
-                    usage_type="transform",
-                    lineage_type="column",
-                    sources=[DependencySource(
-                        source_type="sql_ast",
-                        confidence=confidence,
-                        file_path=file_path,
-                        extracted_at=now,
-                        alias_resolved=resolved,
-                    )],
-                    final_confidence=confidence,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=ref,
+                        to_element=f"{target_table}.{target_col}",
+                        direction="upstream",
+                        usage_type="transform",
+                        lineage_type="column",
+                        sources=[
+                            DependencySource(
+                                source_type="sql_ast",
+                                confidence=confidence,
+                                file_path=file_path,
+                                extracted_at=now,
+                                alias_resolved=resolved,
+                            )
+                        ],
+                        final_confidence=confidence,
+                    )
+                )
 
         return edges
 

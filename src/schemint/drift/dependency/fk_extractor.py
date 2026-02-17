@@ -45,23 +45,35 @@ class FKEdgeExtractor:
         for table_name, table in schema.tables.items():
             for fk in table.foreign_keys:
                 col = fk.column if hasattr(fk, "column") else fk.get("column", "")
-                ref_table = fk.references_table if hasattr(fk, "references_table") else fk.get("references_table", "")
-                ref_col = fk.references_column if hasattr(fk, "references_column") else fk.get("references_column", "")
+                ref_table = (
+                    fk.references_table
+                    if hasattr(fk, "references_table")
+                    else fk.get("references_table", "")
+                )
+                ref_col = (
+                    fk.references_column
+                    if hasattr(fk, "references_column")
+                    else fk.get("references_column", "")
+                )
 
                 if not col or not ref_table or not ref_col:
                     continue
 
-                edges.append(DependencyEdge(
-                    from_element=f"{ref_table}.{ref_col}",
-                    to_element=f"{table_name}.{col}",
-                    direction="downstream",
-                    usage_type="fk",
-                    sources=[DependencySource(
-                        source_type="fk_constraint",
-                        confidence=CONFIDENCE_FK,
-                        extracted_at=now,
-                    )],
-                    final_confidence=CONFIDENCE_FK,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=f"{ref_table}.{ref_col}",
+                        to_element=f"{table_name}.{col}",
+                        direction="downstream",
+                        usage_type="fk",
+                        sources=[
+                            DependencySource(
+                                source_type="fk_constraint",
+                                confidence=CONFIDENCE_FK,
+                                extracted_at=now,
+                            )
+                        ],
+                        final_confidence=CONFIDENCE_FK,
+                    )
+                )
 
         return edges

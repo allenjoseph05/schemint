@@ -5,7 +5,6 @@ extension, permission, policy, partition) produces the correct BFS seed
 elements for downstream/upstream traversal.
 """
 
-
 from schemint.drift.context_assembler import ContextAssembler
 from schemint.drift.models import (
     ColumnSnapshot,
@@ -38,7 +37,9 @@ class TestAffectedElementsRouting:
                 "users": TableSnapshot(
                     name="users",
                     columns={
-                        "id": ColumnSnapshot(name="id", type="integer", default="nextval('users_id_seq')"),
+                        "id": ColumnSnapshot(
+                            name="id", type="integer", default="nextval('users_id_seq')"
+                        ),
                         "name": ColumnSnapshot(name="name", type="text"),
                     },
                 ),
@@ -120,10 +121,12 @@ class TestAffectedElementsRouting:
 
     def test_extension_change_seeds_table(self):
         schema = _make_schema(
-            tables={"users": TableSnapshot(
-                name="users",
-                columns={"id": ColumnSnapshot(name="id", type="integer")},
-            )},
+            tables={
+                "users": TableSnapshot(
+                    name="users",
+                    columns={"id": ColumnSnapshot(name="id", type="integer")},
+                )
+            },
         )
         change = _make_change("extension_dropped", "users")
         elements = self.assembler._get_affected_elements(change, schema)
@@ -132,10 +135,12 @@ class TestAffectedElementsRouting:
 
     def test_permission_change_seeds_table(self):
         schema = _make_schema(
-            tables={"orders": TableSnapshot(
-                name="orders",
-                columns={"id": ColumnSnapshot(name="id", type="integer")},
-            )},
+            tables={
+                "orders": TableSnapshot(
+                    name="orders",
+                    columns={"id": ColumnSnapshot(name="id", type="integer")},
+                )
+            },
         )
         change = _make_change("permission_revoked", "orders")
         elements = self.assembler._get_affected_elements(change, schema)
@@ -178,10 +183,12 @@ class TestAffectedElementsRouting:
 
     def test_partition_change_seeds_table(self):
         schema = _make_schema(
-            tables={"events": TableSnapshot(
-                name="events",
-                columns={"id": ColumnSnapshot(name="id", type="integer")},
-            )},
+            tables={
+                "events": TableSnapshot(
+                    name="events",
+                    columns={"id": ColumnSnapshot(name="id", type="integer")},
+                )
+            },
         )
         change = _make_change("partition_added", "events")
         elements = self.assembler._get_affected_elements(change, schema)

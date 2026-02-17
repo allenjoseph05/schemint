@@ -283,14 +283,16 @@ class TestJudgeFlow:
         mock_client = MagicMock()
         mock_anthropic.Anthropic.return_value = mock_client
 
-        ai_response = _mock_claude_response({
-            "severity": "medium",
-            "confidence_in_decision": 0.8,
-            "requires_human_review": False,
-            "rationale": ["Moderate downstream impact"],
-            "recommended_action_categories": ["monitor_only"],
-            "context_quality": "complete",
-        })
+        ai_response = _mock_claude_response(
+            {
+                "severity": "medium",
+                "confidence_in_decision": 0.8,
+                "requires_human_review": False,
+                "rationale": ["Moderate downstream impact"],
+                "recommended_action_categories": ["monitor_only"],
+                "context_quality": "complete",
+            }
+        )
         mock_client.messages.create.return_value = ai_response
 
         with patch("schemint.drift.agent_brain.get_settings") as mock_settings:

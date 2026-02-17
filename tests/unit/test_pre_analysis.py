@@ -26,6 +26,7 @@ from schemint.models.schema import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_table(
     name: str,
     columns: list[Column] | None = None,
@@ -36,8 +37,13 @@ def _make_table(
     """Helper to create a Table with sensible defaults."""
     if columns is None:
         columns = [
-            Column(name="id", data_type=DataType.INT, raw_type="INT",
-                   is_primary_key=True, nullable=False),
+            Column(
+                name="id",
+                data_type=DataType.INT,
+                raw_type="INT",
+                is_primary_key=True,
+                nullable=False,
+            ),
             Column(name="name", data_type=DataType.VARCHAR, raw_type="VARCHAR(100)"),
         ]
     return Table(
@@ -54,8 +60,13 @@ def _ecommerce_schema() -> ParsedSchema:
     users = _make_table(
         "users",
         columns=[
-            Column(name="id", data_type=DataType.INT, raw_type="INT",
-                   is_primary_key=True, nullable=False),
+            Column(
+                name="id",
+                data_type=DataType.INT,
+                raw_type="INT",
+                is_primary_key=True,
+                nullable=False,
+            ),
             Column(name="email", data_type=DataType.VARCHAR, raw_type="VARCHAR(255)"),
             Column(name="password", data_type=DataType.VARCHAR, raw_type="VARCHAR(255)"),
             Column(name="created_at", data_type=DataType.TIMESTAMP, raw_type="TIMESTAMP"),
@@ -66,8 +77,13 @@ def _ecommerce_schema() -> ParsedSchema:
     products = _make_table(
         "products",
         columns=[
-            Column(name="id", data_type=DataType.INT, raw_type="INT",
-                   is_primary_key=True, nullable=False),
+            Column(
+                name="id",
+                data_type=DataType.INT,
+                raw_type="INT",
+                is_primary_key=True,
+                nullable=False,
+            ),
             Column(name="name", data_type=DataType.VARCHAR, raw_type="VARCHAR(100)"),
             Column(name="price", data_type=DataType.FLOAT, raw_type="FLOAT"),
             Column(name="category_id", data_type=DataType.INT, raw_type="INT"),
@@ -75,41 +91,47 @@ def _ecommerce_schema() -> ParsedSchema:
             Column(name="updated_at", data_type=DataType.TIMESTAMP, raw_type="TIMESTAMP"),
         ],
         foreign_keys=[
-            ForeignKey(column="category_id", references_table="categories",
-                       references_column="id"),
+            ForeignKey(column="category_id", references_table="categories", references_column="id"),
         ],
     )
 
     orders = _make_table(
         "orders",
         columns=[
-            Column(name="id", data_type=DataType.INT, raw_type="INT",
-                   is_primary_key=True, nullable=False),
+            Column(
+                name="id",
+                data_type=DataType.INT,
+                raw_type="INT",
+                is_primary_key=True,
+                nullable=False,
+            ),
             Column(name="user_id", data_type=DataType.INT, raw_type="INT"),
             Column(name="total", data_type=DataType.FLOAT, raw_type="FLOAT"),
             Column(name="status", data_type=DataType.VARCHAR, raw_type="VARCHAR(20)"),
             Column(name="created_at", data_type=DataType.TIMESTAMP, raw_type="TIMESTAMP"),
         ],
         foreign_keys=[
-            ForeignKey(column="user_id", references_table="users",
-                       references_column="id"),
+            ForeignKey(column="user_id", references_table="users", references_column="id"),
         ],
     )
 
     order_items = _make_table(
         "order_items",
         columns=[
-            Column(name="id", data_type=DataType.INT, raw_type="INT",
-                   is_primary_key=True, nullable=False),
+            Column(
+                name="id",
+                data_type=DataType.INT,
+                raw_type="INT",
+                is_primary_key=True,
+                nullable=False,
+            ),
             Column(name="order_id", data_type=DataType.INT, raw_type="INT"),
             Column(name="product_id", data_type=DataType.INT, raw_type="INT"),
             Column(name="quantity", data_type=DataType.INT, raw_type="INT"),
         ],
         foreign_keys=[
-            ForeignKey(column="order_id", references_table="orders",
-                       references_column="id"),
-            ForeignKey(column="product_id", references_table="products",
-                       references_column="id"),
+            ForeignKey(column="order_id", references_table="orders", references_column="id"),
+            ForeignKey(column="product_id", references_table="products", references_column="id"),
         ],
     )
 
@@ -122,6 +144,7 @@ def _ecommerce_schema() -> ParsedSchema:
 # ---------------------------------------------------------------------------
 # Domain Resolution
 # ---------------------------------------------------------------------------
+
 
 class TestResolveDomain:
     def test_resolve_domain_ecommerce(self):
@@ -145,24 +168,28 @@ class TestResolveDomain:
 # Topology
 # ---------------------------------------------------------------------------
 
+
 class TestBuildTopology:
     def test_hub_table_detected(self):
         """Table with 3+ incoming FKs is classified as HUB."""
         hub = _make_table("hub_table")
         ref1 = _make_table(
             "ref1",
-            foreign_keys=[ForeignKey(column="hub_id", references_table="hub_table",
-                                     references_column="id")],
+            foreign_keys=[
+                ForeignKey(column="hub_id", references_table="hub_table", references_column="id")
+            ],
         )
         ref2 = _make_table(
             "ref2",
-            foreign_keys=[ForeignKey(column="hub_id", references_table="hub_table",
-                                     references_column="id")],
+            foreign_keys=[
+                ForeignKey(column="hub_id", references_table="hub_table", references_column="id")
+            ],
         )
         ref3 = _make_table(
             "ref3",
-            foreign_keys=[ForeignKey(column="hub_id", references_table="hub_table",
-                                     references_column="id")],
+            foreign_keys=[
+                ForeignKey(column="hub_id", references_table="hub_table", references_column="id")
+            ],
         )
         schema = ParsedSchema(tables=[hub, ref1, ref2, ref3])
 
@@ -184,8 +211,9 @@ class TestBuildTopology:
         parent = _make_table("parent")
         leaf = _make_table(
             "leaf",
-            foreign_keys=[ForeignKey(column="parent_id", references_table="parent",
-                                     references_column="id")],
+            foreign_keys=[
+                ForeignKey(column="parent_id", references_table="parent", references_column="id")
+            ],
         )
         schema = ParsedSchema(tables=[parent, leaf])
 
@@ -201,17 +229,20 @@ class TestBuildTopology:
         bridge = Table(
             name="a_b",
             columns=[
-                Column(name="id", data_type=DataType.INT, raw_type="INT",
-                       is_primary_key=True, nullable=False),
+                Column(
+                    name="id",
+                    data_type=DataType.INT,
+                    raw_type="INT",
+                    is_primary_key=True,
+                    nullable=False,
+                ),
                 Column(name="a_id", data_type=DataType.INT, raw_type="INT"),
                 Column(name="b_id", data_type=DataType.INT, raw_type="INT"),
             ],
             primary_key=["id"],
             foreign_keys=[
-                ForeignKey(column="a_id", references_table="table_a",
-                           references_column="id"),
-                ForeignKey(column="b_id", references_table="table_b",
-                           references_column="id"),
+                ForeignKey(column="a_id", references_table="table_a", references_column="id"),
+                ForeignKey(column="b_id", references_table="table_b", references_column="id"),
             ],
         )
         schema = ParsedSchema(tables=[t1, t2, bridge])
@@ -225,14 +256,20 @@ class TestBuildTopology:
 # Column Patterns
 # ---------------------------------------------------------------------------
 
+
 class TestDetectColumnPatterns:
     def test_money_as_float_detected(self):
         """price FLOAT should be flagged."""
         table = _make_table(
             "products",
             columns=[
-                Column(name="id", data_type=DataType.INT, raw_type="INT",
-                       is_primary_key=True, nullable=False),
+                Column(
+                    name="id",
+                    data_type=DataType.INT,
+                    raw_type="INT",
+                    is_primary_key=True,
+                    nullable=False,
+                ),
                 Column(name="price", data_type=DataType.FLOAT, raw_type="FLOAT"),
             ],
         )
@@ -248,8 +285,13 @@ class TestDetectColumnPatterns:
         table = _make_table(
             "orders",
             columns=[
-                Column(name="id", data_type=DataType.INT, raw_type="INT",
-                       is_primary_key=True, nullable=False),
+                Column(
+                    name="id",
+                    data_type=DataType.INT,
+                    raw_type="INT",
+                    is_primary_key=True,
+                    nullable=False,
+                ),
                 Column(name="user_id", data_type=DataType.INT, raw_type="INT"),
             ],
         )
@@ -265,10 +307,14 @@ class TestDetectColumnPatterns:
         table = _make_table(
             "users",
             columns=[
-                Column(name="id", data_type=DataType.INT, raw_type="INT",
-                       is_primary_key=True, nullable=False),
-                Column(name="password", data_type=DataType.VARCHAR,
-                       raw_type="VARCHAR(255)"),
+                Column(
+                    name="id",
+                    data_type=DataType.INT,
+                    raw_type="INT",
+                    is_primary_key=True,
+                    nullable=False,
+                ),
+                Column(name="password", data_type=DataType.VARCHAR, raw_type="VARCHAR(255)"),
             ],
         )
         schema = ParsedSchema(tables=[table])
@@ -283,10 +329,14 @@ class TestDetectColumnPatterns:
         table = _make_table(
             "users",
             columns=[
-                Column(name="id", data_type=DataType.INT, raw_type="INT",
-                       is_primary_key=True, nullable=False),
-                Column(name="password_hash", data_type=DataType.VARCHAR,
-                       raw_type="VARCHAR(255)"),
+                Column(
+                    name="id",
+                    data_type=DataType.INT,
+                    raw_type="INT",
+                    is_primary_key=True,
+                    nullable=False,
+                ),
+                Column(name="password_hash", data_type=DataType.VARCHAR, raw_type="VARCHAR(255)"),
             ],
         )
         schema = ParsedSchema(tables=[table])
@@ -299,6 +349,7 @@ class TestDetectColumnPatterns:
 # ---------------------------------------------------------------------------
 # Statistics
 # ---------------------------------------------------------------------------
+
 
 class TestComputeStatistics:
     def test_basic_statistics(self):
@@ -326,6 +377,7 @@ class TestComputeStatistics:
 # Risk Signals
 # ---------------------------------------------------------------------------
 
+
 class TestDetectRiskSignals:
     def test_no_pk_risk(self):
         """Table without PK should generate high risk signal."""
@@ -349,8 +401,9 @@ class TestDetectRiskSignals:
             Column(name=f"col_{i}", data_type=DataType.VARCHAR, raw_type="VARCHAR(100)")
             for i in range(16)
         ]
-        cols[0] = Column(name="id", data_type=DataType.INT, raw_type="INT",
-                         is_primary_key=True, nullable=False)
+        cols[0] = Column(
+            name="id", data_type=DataType.INT, raw_type="INT", is_primary_key=True, nullable=False
+        )
         table = Table(name="wide", columns=cols, primary_key=["id"])
         schema = ParsedSchema(tables=[table])
         risks = detect_risk_signals(schema)
@@ -362,6 +415,7 @@ class TestDetectRiskSignals:
 # ---------------------------------------------------------------------------
 # Integration
 # ---------------------------------------------------------------------------
+
 
 class TestRunPreAnalysis:
     def test_run_pre_analysis_complete(self):

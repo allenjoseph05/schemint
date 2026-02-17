@@ -41,9 +41,7 @@ def _make_schema(num_tables: int = 2, cols_per_table: int = 5) -> ParsedSchema:
             is_primary_key=True,
             nullable=False,
         )
-        tables.append(
-            Table(name=f"table_{i}", columns=cols, primary_key=["id"])
-        )
+        tables.append(Table(name=f"table_{i}", columns=cols, primary_key=["id"]))
     return ParsedSchema(tables=tables, database_type="mysql")
 
 
@@ -158,7 +156,6 @@ class TestBuildMemoryContext:
         assert "semantics" not in result
 
 
-
 # ---------------------------------------------------------------------------
 # Tests: Suppressed findings filtering
 # ---------------------------------------------------------------------------
@@ -240,9 +237,11 @@ class TestSuppressedFindings:
         # which maps to IssueCategory.MISSING_INDEX (value "missing_index").
         # The suppressed type is "missing_index", so the FLOAT finding is suppressed.
         # Only "Missing FK on orders.user_id" (structural -> missing_constraint) survives.
-        ai_titles = [i.title for i in result.issues if i.title in [
-            "FLOAT used for value column", "Missing FK on orders.user_id"
-        ]]
+        ai_titles = [
+            i.title
+            for i in result.issues
+            if i.title in ["FLOAT used for value column", "Missing FK on orders.user_id"]
+        ]
         assert len(ai_titles) == 1
         assert ai_titles[0] == "Missing FK on orders.user_id"
 

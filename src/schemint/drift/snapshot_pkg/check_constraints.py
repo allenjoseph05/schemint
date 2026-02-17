@@ -35,7 +35,7 @@ def extract_check_constraints(sql: str) -> dict[str, list[str]]:
                 depth -= 1
             pos += 1
 
-        table_body = sql[start:pos - 1] if depth == 0 else sql[start:]
+        table_body = sql[start : pos - 1] if depth == 0 else sql[start:]
 
         # Extract CHECK(...) expressions from the table body
         check_pattern = re.compile(r"CHECK\s*\(", re.IGNORECASE)
@@ -53,7 +53,7 @@ def extract_check_constraints(sql: str) -> dict[str, list[str]]:
                 check_pos += 1
 
             if paren_depth == 0:
-                check_expr = table_body[check_start:check_pos - 1].strip()
+                check_expr = table_body[check_start : check_pos - 1].strip()
                 if check_expr:
                     checks.append(check_expr)
 

@@ -92,6 +92,7 @@ def _resolve_project_id(project_id: str) -> UUID | None:
     # Fall back to external_id lookup
     try:
         from schemint.memory.store import get_memory_store
+
         store = get_memory_store()
         project = store.get_project_by_external_id(project_id)
         if project:
@@ -170,7 +171,11 @@ def analyze_schema(
             created_at=datetime.now(timezone.utc),
             duration_ms=duration_ms,
             score=AnalysisScore(
-                total=0, structural=0, performance=0, naming=0, best_practices=0,
+                total=0,
+                structural=0,
+                performance=0,
+                naming=0,
+                best_practices=0,
             ),
             tables=tables,
             table_count=schema.table_count,
@@ -190,7 +195,9 @@ def analyze_schema(
             raise RuntimeError("AI agent could not be initialized")
 
         ai_result = agent.analyze(
-            schema, app_type, project_context,
+            schema,
+            app_type,
+            project_context,
             memory_context=memory_context,
         )
 
@@ -203,12 +210,9 @@ def analyze_schema(
             suppressed = ai_result.get("suppressed", [])
             suppressed_count = len(suppressed)
             if suppressed:
-                suppressed_types = {
-                    s.get("type", "").lower() for s in suppressed
-                }
+                suppressed_types = {s.get("type", "").lower() for s in suppressed}
                 ai_issues = [
-                    issue for issue in ai_issues
-                    if issue.category.value not in suppressed_types
+                    issue for issue in ai_issues if issue.category.value not in suppressed_types
                 ]
 
             # Extract AI scores
@@ -223,7 +227,11 @@ def analyze_schema(
                 )
             else:
                 score = AnalysisScore(
-                    total=0, structural=0, performance=0, naming=0, best_practices=0,
+                    total=0,
+                    structural=0,
+                    performance=0,
+                    naming=0,
+                    best_practices=0,
                 )
 
             # Add AI-found good practices
@@ -233,7 +241,11 @@ def analyze_schema(
     except Exception as e:
         ai_summary = f"AI analysis failed: {e}"
         score = AnalysisScore(
-            total=0, structural=0, performance=0, naming=0, best_practices=0,
+            total=0,
+            structural=0,
+            performance=0,
+            naming=0,
+            best_practices=0,
         )
 
     all_issues = ai_issues
@@ -260,7 +272,9 @@ def analyze_schema(
 
     # Add suppressed count to summary
     if suppressed_count > 0 and final_summary:
-        final_summary = f"{final_summary}\n\n[{suppressed_count} finding(s) suppressed by project memory]"
+        final_summary = (
+            f"{final_summary}\n\n[{suppressed_count} finding(s) suppressed by project memory]"
+        )
     elif suppressed_count > 0:
         final_summary = f"[{suppressed_count} finding(s) suppressed by project memory]"
 

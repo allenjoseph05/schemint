@@ -37,7 +37,6 @@ class CIIngestError(Exception):
     """Error during CI ingestion."""
 
 
-
 class CIIngestHandler:
     """
     Handles CI event ingestion and analysis.
@@ -118,9 +117,7 @@ class CIIngestHandler:
             )
 
             # Run analysis on SQL changes
-            findings, analysis_results = await self._analyze_diff(
-                schema_diff, project.id, store
-            )
+            findings, analysis_results = await self._analyze_diff(schema_diff, project.id, store)
 
             # Calculate decision status
             status = self._determine_status(findings)
@@ -217,7 +214,9 @@ class CIIngestHandler:
                 logger.info(f"Analyzing SQL content for {sql_change.file_path}")
 
                 # First, check for dangerous patterns (ALTER TABLE issues, etc.)
-                dangerous_findings = self._check_dangerous_patterns(file_content, sql_change.file_path)
+                dangerous_findings = self._check_dangerous_patterns(
+                    file_content, sql_change.file_path
+                )
                 for finding in dangerous_findings:
                     logger.info(f"  Dangerous pattern: {finding.type} - {finding.title}")
                     findings.append(finding)
@@ -232,7 +231,9 @@ class CIIngestHandler:
 
                     analysis_results.append(result)
 
-                    logger.info(f"Analysis result for {sql_change.file_path}: {len(result.issues)} issues found")
+                    logger.info(
+                        f"Analysis result for {sql_change.file_path}: {len(result.issues)} issues found"
+                    )
 
                     # Convert issues to findings
                     for issue in result.issues:
@@ -250,9 +251,7 @@ class CIIngestHandler:
                         )
 
                         # Check memory for suppression
-                        suppressed = self._check_memory_suppression(
-                            store, project_id, issue
-                        )
+                        suppressed = self._check_memory_suppression(store, project_id, issue)
                         if suppressed:
                             finding.suppressed_by_memory = True
                             finding.memory_context = suppressed.get("reason")

@@ -102,8 +102,6 @@ class TestMigrationGap:
         assert len(data["changes"]) == 1
 
 
-
-
 class TestDiffAgainstDesired:
     """Tests for diff_against_desired() method."""
 
@@ -218,9 +216,7 @@ class TestDiffAgainstDesired:
         """Integration test: capture DDL and diff against desired state."""
         service = SnapshotService()
         current = service.capture_from_ddl("CREATE TABLE users (id INT);")
-        desired = service.capture_from_ddl(
-            "CREATE TABLE users (id INT, email VARCHAR(255));"
-        )
+        desired = service.capture_from_ddl("CREATE TABLE users (id INT, email VARCHAR(255));")
         desired.source = "desired_state"
         desired.is_desired_state = True
 

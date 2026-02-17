@@ -83,9 +83,7 @@ class TestBuildSummary:
                 severity="critical",
                 title="Plaintext password",
                 description="password column stores plaintext",
-                location=FindingLocation(
-                    file="schema.sql", table="users", column="password"
-                ),
+                location=FindingLocation(file="schema.sql", table="users", column="password"),
             ),
             AnalysisFinding(
                 type="missing_timestamps",
@@ -143,9 +141,7 @@ class TestBuildAnnotations:
                 severity="critical",
                 title="Missing PK on users",
                 description="Table users has no primary key",
-                location=FindingLocation(
-                    file="migrations/001.sql", table="users"
-                ),
+                location=FindingLocation(file="migrations/001.sql", table="users"),
             ),
         ]
 
@@ -201,13 +197,19 @@ class TestBuildScore:
         results = [
             _make_analysis_result(
                 ai_summary="Analysis 1",
-                total=80, structural=90, performance=70,
-                naming=80, best_practices=60,
+                total=80,
+                structural=90,
+                performance=70,
+                naming=80,
+                best_practices=60,
             ),
             _make_analysis_result(
                 ai_summary="Analysis 2",
-                total=60, structural=70, performance=50,
-                naming=60, best_practices=40,
+                total=60,
+                structural=70,
+                performance=50,
+                naming=60,
+                best_practices=40,
             ),
         ]
 
@@ -230,8 +232,11 @@ class TestBuildScore:
 
         results = [
             _make_analysis_result(
-                total=75, structural=80, performance=70,
-                naming=75, best_practices=65,
+                total=75,
+                structural=80,
+                performance=70,
+                naming=75,
+                best_practices=65,
             ),
         ]
 

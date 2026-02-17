@@ -117,9 +117,7 @@ class GitLabProvider(BaseGitProvider):
 
             # Get content for added/modified files
             if change_type in ("added", "modified"):
-                content = await self.get_file_content(
-                    repo, head_ref, diff_file.path
-                )
+                content = await self.get_file_content(repo, head_ref, diff_file.path)
                 diff_file.content = content
 
             files.append(diff_file)

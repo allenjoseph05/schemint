@@ -44,9 +44,11 @@ class DangerousPattern:
 
 def _strip_quotes(name: str) -> str:
     """Strip surrounding quotes/backticks/brackets from an identifier."""
-    if len(name) >= 2 and ((name[0] == '"' and name[-1] == '"') or \
-           (name[0] == '`' and name[-1] == '`') or \
-           (name[0] == '[' and name[-1] == ']')):
+    if len(name) >= 2 and (
+        (name[0] == '"' and name[-1] == '"')
+        or (name[0] == "`" and name[-1] == "`")
+        or (name[0] == "[" and name[-1] == "]")
+    ):
         return name[1:-1]
     return name
 
@@ -58,23 +60,33 @@ def _extract_table_name(token: sqlparse.sql.Token) -> str:
     For 'public.users', returns 'users'.
     For '"my_table"', returns 'my_table'.
     """
-    name = token.get_real_name() if hasattr(token, 'get_real_name') else str(token)
+    name = token.get_real_name() if hasattr(token, "get_real_name") else str(token)
     if name is None:
         name = str(token).strip()
     name = _strip_quotes(name)
     # Handle schema-qualified: if the token still contains a dot, take the last part
-    if '.' in name:
-        name = name.rsplit('.', 1)[-1]
+    if "." in name:
+        name = name.rsplit(".", 1)[-1]
         name = _strip_quotes(name)
     return name
 
 
-def _get_next_meaningful(tokens: list[Any], start_idx: int) -> tuple[int, sqlparse.sql.Token | None]:
+def _get_next_meaningful(
+    tokens: list[Any], start_idx: int
+) -> tuple[int, sqlparse.sql.Token | None]:
     """Get the next non-whitespace, non-comment token after start_idx."""
     for i in range(start_idx + 1, len(tokens)):
         tok = tokens[i]
-        if tok.ttype not in (sqlparse.tokens.Whitespace, sqlparse.tokens.Newline,
-                             sqlparse.tokens.Comment.Single, sqlparse.tokens.Comment.Multiline) and not tok.is_whitespace:
+        if (
+            tok.ttype
+            not in (
+                sqlparse.tokens.Whitespace,
+                sqlparse.tokens.Newline,
+                sqlparse.tokens.Comment.Single,
+                sqlparse.tokens.Comment.Multiline,
+            )
+            and not tok.is_whitespace
+        ):
             return i, tok
     return -1, None
 
@@ -132,8 +144,10 @@ def _skip_whitespace_and_keywords(tokens: list[Any], start: int, skip_words: set
     while i < len(tokens):
         tok = tokens[i]
         if tok.is_whitespace or tok.ttype in (
-            sqlparse.tokens.Whitespace, sqlparse.tokens.Newline,
-            sqlparse.tokens.Comment.Single, sqlparse.tokens.Comment.Multiline,
+            sqlparse.tokens.Whitespace,
+            sqlparse.tokens.Newline,
+            sqlparse.tokens.Comment.Single,
+            sqlparse.tokens.Comment.Multiline,
         ):
             i += 1
             continue
@@ -151,15 +165,57 @@ def _skip_whitespace_and_keywords(tokens: list[Any], start: int, skip_words: set
     return i
 
 
-_SQL_KEYWORDS = frozenset({
-    'TABLE', 'IF', 'NOT', 'EXISTS', 'COLUMN', 'ADD', 'DROP', 'ALTER',
-    'CREATE', 'SET', 'DEFAULT', 'NULL', 'PRIMARY', 'KEY', 'CONSTRAINT',
-    'INDEX', 'UNIQUE', 'CHECK', 'REFERENCES', 'FOREIGN', 'CASCADE',
-    'RESTRICT', 'ON', 'UPDATE', 'DELETE', 'INT', 'INTEGER', 'VARCHAR',
-    'TEXT', 'BOOLEAN', 'BIGINT', 'SMALLINT', 'FLOAT', 'DOUBLE', 'DECIMAL',
-    'NUMERIC', 'DATE', 'TIMESTAMP', 'SERIAL', 'RENAME', 'TO', 'SELECT',
-    'INSERT', 'FROM', 'WHERE', 'VALUES', 'INTO',
-})
+_SQL_KEYWORDS = frozenset(
+    {
+        "TABLE",
+        "IF",
+        "NOT",
+        "EXISTS",
+        "COLUMN",
+        "ADD",
+        "DROP",
+        "ALTER",
+        "CREATE",
+        "SET",
+        "DEFAULT",
+        "NULL",
+        "PRIMARY",
+        "KEY",
+        "CONSTRAINT",
+        "INDEX",
+        "UNIQUE",
+        "CHECK",
+        "REFERENCES",
+        "FOREIGN",
+        "CASCADE",
+        "RESTRICT",
+        "ON",
+        "UPDATE",
+        "DELETE",
+        "INT",
+        "INTEGER",
+        "VARCHAR",
+        "TEXT",
+        "BOOLEAN",
+        "BIGINT",
+        "SMALLINT",
+        "FLOAT",
+        "DOUBLE",
+        "DECIMAL",
+        "NUMERIC",
+        "DATE",
+        "TIMESTAMP",
+        "SERIAL",
+        "RENAME",
+        "TO",
+        "SELECT",
+        "INSERT",
+        "FROM",
+        "WHERE",
+        "VALUES",
+        "INTO",
+    }
+)
 
 
 def _is_sql_keyword(tok_str: str) -> bool:
@@ -188,32 +244,35 @@ def _read_identifier(tokens: list[Any], start: int) -> tuple[str, int]:
         if not s:
             i += 1
             continue
-        if tok.ttype is Punctuation and s == '.':
-            parts.append('.')
+        if tok.ttype is Punctuation and s == ".":
+            parts.append(".")
             i += 1
             continue
 
         # Accept Name tokens and Literal.String.Symbol (quoted identifiers)
-        is_name = tok.ttype in (Name, sqlparse.tokens.Literal.String.Symbol,
-                                sqlparse.tokens.Name.Builtin)
+        is_name = tok.ttype in (
+            Name,
+            sqlparse.tokens.Literal.String.Symbol,
+            sqlparse.tokens.Name.Builtin,
+        )
         # Accept Keyword tokens only if they're not SQL reserved words
         # (some identifiers overlap with keywords, e.g. "status")
-        is_non_reserved_keyword = (tok.ttype is Keyword and not _is_sql_keyword(s))
+        is_non_reserved_keyword = tok.ttype is Keyword and not _is_sql_keyword(s)
 
         if is_name or is_non_reserved_keyword:
             parts.append(_strip_quotes(s))
             i += 1
             # Check if next is a dot for schema.table
-            if i < len(tokens) and str(tokens[i]).strip() == '.':
+            if i < len(tokens) and str(tokens[i]).strip() == ".":
                 continue
             break
         # Not an identifier token — stop
         break
 
-    full_name = ''.join(parts)
+    full_name = "".join(parts)
     # For schema.table, take just the table part
-    if '.' in full_name:
-        full_name = full_name.rsplit('.', 1)[-1]
+    if "." in full_name:
+        full_name = full_name.rsplit(".", 1)[-1]
 
     return _strip_quotes(full_name), i
 
@@ -319,7 +378,7 @@ def is_sql_content(content: str) -> bool:
         if not statement.tokens:
             continue
         stmt_str = str(statement).strip()
-        if not stmt_str or stmt_str == ';':
+        if not stmt_str or stmt_str == ";":
             continue
 
         # Check if the statement starts with a DDL/DML keyword
@@ -403,7 +462,7 @@ def _check_alter_dangers(tokens: list[Any], idx: int, patterns: list[DangerousPa
             j = i
             while j < len(tokens):
                 t_upper = str(tokens[j]).upper().strip()
-                if t_upper in (';', ',') or (tokens[j].ttype is DDL):
+                if t_upper in (";", ",") or (tokens[j].ttype is DDL):
                     break
                 if t_upper == "DEFAULT":
                     has_default = True
@@ -417,29 +476,33 @@ def _check_alter_dangers(tokens: list[Any], idx: int, patterns: list[DangerousPa
                 j += 1
 
             if has_default:
-                patterns.append(DangerousPattern(
-                    pattern_type="blocking_migration",
-                    severity="critical",
-                    table_name=table_name,
-                    column_name=col_name,
-                    description=(
-                        f"Adding column '{col_name}' with DEFAULT to table '{table_name}' "
-                        "can cause a table lock on large tables in MySQL/PostgreSQL. "
-                        "Consider adding the column without DEFAULT, then backfilling data."
-                    ),
-                ))
+                patterns.append(
+                    DangerousPattern(
+                        pattern_type="blocking_migration",
+                        severity="critical",
+                        table_name=table_name,
+                        column_name=col_name,
+                        description=(
+                            f"Adding column '{col_name}' with DEFAULT to table '{table_name}' "
+                            "can cause a table lock on large tables in MySQL/PostgreSQL. "
+                            "Consider adding the column without DEFAULT, then backfilling data."
+                        ),
+                    )
+                )
 
             if has_not_null and not has_default:
-                patterns.append(DangerousPattern(
-                    pattern_type="unsafe_migration",
-                    severity="warning",
-                    table_name=table_name,
-                    column_name=col_name,
-                    description=(
-                        f"Adding NOT NULL column '{col_name}' to '{table_name}' "
-                        "without a DEFAULT value will fail if the table has existing rows."
-                    ),
-                ))
+                patterns.append(
+                    DangerousPattern(
+                        pattern_type="unsafe_migration",
+                        severity="warning",
+                        table_name=table_name,
+                        column_name=col_name,
+                        description=(
+                            f"Adding NOT NULL column '{col_name}' to '{table_name}' "
+                            "without a DEFAULT value will fail if the table has existing rows."
+                        ),
+                    )
+                )
 
             i = j
 
@@ -450,20 +513,22 @@ def _check_alter_dangers(tokens: list[Any], idx: int, patterns: list[DangerousPa
                 i = _skip_whitespace_and_keywords(tokens, i, set())
                 col_name, i = _read_identifier(tokens, i)
                 if col_name:
-                    patterns.append(DangerousPattern(
-                        pattern_type="destructive_change",
-                        severity="critical",
-                        table_name=table_name,
-                        column_name=col_name,
-                        description=(
-                            f"Dropping column '{col_name}' from table '{table_name}' "
-                            "is a destructive operation that cannot be undone. "
-                            "Ensure you have backups and have removed all code references first."
-                        ),
-                    ))
+                    patterns.append(
+                        DangerousPattern(
+                            pattern_type="destructive_change",
+                            severity="critical",
+                            table_name=table_name,
+                            column_name=col_name,
+                            description=(
+                                f"Dropping column '{col_name}' from table '{table_name}' "
+                                "is a destructive operation that cannot be undone. "
+                                "Ensure you have backups and have removed all code references first."
+                            ),
+                        )
+                    )
             else:
                 i += 1
-        elif tok_upper == ';':
+        elif tok_upper == ";":
             break
         else:
             i += 1
@@ -482,16 +547,18 @@ def _check_drop_table(tokens: list[Any], idx: int, patterns: list[DangerousPatte
     i = _skip_whitespace_and_keywords(tokens, i, {"IF", "EXISTS"})
     table_name, i = _read_identifier(tokens, i)
     if table_name:
-        patterns.append(DangerousPattern(
-            pattern_type="destructive_change",
-            severity="critical",
-            table_name=table_name,
-            column_name=None,
-            description=(
-                f"Dropping table '{table_name}' will delete all data. "
-                "Ensure you have backups and this is intentional."
-            ),
-        ))
+        patterns.append(
+            DangerousPattern(
+                pattern_type="destructive_change",
+                severity="critical",
+                table_name=table_name,
+                column_name=None,
+                description=(
+                    f"Dropping table '{table_name}' will delete all data. "
+                    "Ensure you have backups and this is intentional."
+                ),
+            )
+        )
     return i
 
 
@@ -576,7 +643,9 @@ def parse_sqlalchemy_models(content: str) -> SQLAnalysis:
         # Check if any base class contains 'Base'
         inherits_base = False
         for base in node.bases:
-            if (isinstance(base, ast.Name) and "Base" in base.id) or (isinstance(base, ast.Attribute) and "Base" in base.attr):
+            if (isinstance(base, ast.Name) and "Base" in base.id) or (
+                isinstance(base, ast.Attribute) and "Base" in base.attr
+            ):
                 inherits_base = True
 
         if not inherits_base:
@@ -587,7 +656,12 @@ def parse_sqlalchemy_models(content: str) -> SQLAnalysis:
         for item in node.body:
             if isinstance(item, ast.Assign):
                 for target in item.targets:
-                    if isinstance(target, ast.Name) and target.id == "__tablename__" and isinstance(item.value, ast.Constant) and isinstance(item.value.value, str):
+                    if (
+                        isinstance(target, ast.Name)
+                        and target.id == "__tablename__"
+                        and isinstance(item.value, ast.Constant)
+                        and isinstance(item.value.value, str)
+                    ):
                         tablename = item.value.value
 
         if tablename:

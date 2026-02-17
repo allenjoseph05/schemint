@@ -30,22 +30,16 @@ class TestSchemaSnapshotEnvironment:
         assert snap.environment == "default"
 
     def test_custom_environment(self):
-        snap = SchemaSnapshot(
-            snapshot_id="test_1", source="ddl", environment="production"
-        )
+        snap = SchemaSnapshot(snapshot_id="test_1", source="ddl", environment="production")
         assert snap.environment == "production"
 
     def test_environment_serializes(self):
-        snap = SchemaSnapshot(
-            snapshot_id="test_1", source="ddl", environment="staging"
-        )
+        snap = SchemaSnapshot(snapshot_id="test_1", source="ddl", environment="staging")
         data = snap.model_dump()
         assert data["environment"] == "staging"
 
     def test_environment_round_trip(self):
-        snap = SchemaSnapshot(
-            snapshot_id="test_1", source="ddl", environment="dev"
-        )
+        snap = SchemaSnapshot(snapshot_id="test_1", source="ddl", environment="dev")
         restored = SchemaSnapshot(**snap.model_dump())
         assert restored.environment == "dev"
 
@@ -100,16 +94,12 @@ class TestSnapshotServiceEnvironment:
 
     def test_capture_from_ddl_custom_environment(self):
         service = SnapshotService()
-        snap = service.capture_from_ddl(
-            "CREATE TABLE users (id INT);", environment="production"
-        )
+        snap = service.capture_from_ddl("CREATE TABLE users (id INT);", environment="production")
         assert snap.environment == "production"
 
     def test_capture_from_ddl_staging(self):
         service = SnapshotService()
-        snap = service.capture_from_ddl(
-            "CREATE TABLE orders (id INT);", environment="staging"
-        )
+        snap = service.capture_from_ddl("CREATE TABLE orders (id INT);", environment="staging")
         assert snap.environment == "staging"
         assert "orders" in snap.tables
 
@@ -153,9 +143,7 @@ class TestContextAssemblerEnvironment:
 
     def test_assembler_propagates_staging_environment(self):
         schema = self._make_schema("staging")
-        change = SchemaChangeEvent(
-            change_type="column_added", table="users", column="id"
-        )
+        change = SchemaChangeEvent(change_type="column_added", table="users", column="id")
         graph = DependencyGraph()
         assembler = ContextAssembler()
         ctx = assembler.assemble(change, graph, schema)

@@ -22,7 +22,6 @@ class SQLParserError(Exception):
     """Error during SQL parsing."""
 
 
-
 class SQLParser:
     """Parses SQL CREATE TABLE statements into structured schema."""
 
@@ -115,12 +114,23 @@ class SQLParser:
 
         # Skip whitespace and comments to find the first real tokens
         tokens = [
-            t for t in statement.tokens
-            if not t.is_whitespace and t.ttype not in (sqlparse_tokens.Comment.Single, sqlparse_tokens.Comment.Multiline)
-            and not (hasattr(t, 'tokens') and all(
-                getattr(sub, 'ttype', None) in (sqlparse_tokens.Comment.Single, sqlparse_tokens.Comment.Multiline, sqlparse_tokens.Newline, sqlparse_tokens.Whitespace)
-                for sub in t.flatten()
-            ))
+            t
+            for t in statement.tokens
+            if not t.is_whitespace
+            and t.ttype not in (sqlparse_tokens.Comment.Single, sqlparse_tokens.Comment.Multiline)
+            and not (
+                hasattr(t, "tokens")
+                and all(
+                    getattr(sub, "ttype", None)
+                    in (
+                        sqlparse_tokens.Comment.Single,
+                        sqlparse_tokens.Comment.Multiline,
+                        sqlparse_tokens.Newline,
+                        sqlparse_tokens.Whitespace,
+                    )
+                    for sub in t.flatten()
+                )
+            )
         ]
         if len(tokens) < 2:
             return False
@@ -313,7 +323,9 @@ class SQLParser:
             return None
         column = fk_match.group(1).strip().strip("`\"'")
 
-        ref_match = re.search(r"REFERENCES\s+[`\"]?(\w+)[`\"]?\s*\(([^)]+)\)", fk_def, re.IGNORECASE)
+        ref_match = re.search(
+            r"REFERENCES\s+[`\"]?(\w+)[`\"]?\s*\(([^)]+)\)", fk_def, re.IGNORECASE
+        )
         if not ref_match:
             return None
 

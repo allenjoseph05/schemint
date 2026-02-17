@@ -87,14 +87,10 @@ class VerificationEngine:
         execution_id = execution_report.execution_id
 
         # 1. Schema validation
-        schema_valid = self._validate_schema(
-            expected_snapshot, actual_snapshot
-        )
+        schema_valid = self._validate_schema(expected_snapshot, actual_snapshot)
 
         # 2. Dependency revalidation
-        dependency_valid = self._validate_dependencies(
-            expected_graph, actual_graph
-        )
+        dependency_valid = self._validate_dependencies(expected_graph, actual_graph)
 
         # 3. Test validation
         tests_passed = self._validate_tests(ci_results)
@@ -221,14 +217,8 @@ class VerificationEngine:
             return expected is None and actual is None
 
         # Build edge key sets for comparison
-        expected_keys = {
-            (e.from_element, e.to_element, e.usage_type)
-            for e in expected.edges
-        }
-        actual_keys = {
-            (e.from_element, e.to_element, e.usage_type)
-            for e in actual.edges
-        }
+        expected_keys = {(e.from_element, e.to_element, e.usage_type) for e in expected.edges}
+        actual_keys = {(e.from_element, e.to_element, e.usage_type) for e in actual.edges}
 
         # Check for lost edges (expected but not in actual)
         lost_edges = expected_keys - actual_keys

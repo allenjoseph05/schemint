@@ -12,7 +12,6 @@ Covers:
     - View definition normalization
 """
 
-
 from schemint.drift.change_classifier import (
     _TYPE_TO_FAMILY,
     TYPE_FAMILIES,
@@ -131,12 +130,8 @@ class TestNewModels:
 
     def test_context_package_with_statistics(self):
         pkg = ContextPackage(
-            schema_change=SchemaChangeEvent(
-                change_type="column_type_change", table="orders"
-            ),
-            affected_table_stats=TableStatistics(
-                table_name="orders", row_count=1_000_000
-            ),
+            schema_change=SchemaChangeEvent(change_type="column_type_change", table="orders"),
+            affected_table_stats=TableStatistics(table_name="orders", row_count=1_000_000),
             affected_index_stats=[
                 IndexStatistics(index_name="idx1", table_name="orders", idx_scan=500),
             ],
@@ -165,18 +160,14 @@ class TestSequenceDiff:
 
     def test_sequence_added(self):
         old = self._make_schema()
-        new = self._make_schema(
-            sequences={"id_seq": SequenceSnapshot(name="id_seq")}
-        )
+        new = self._make_schema(sequences={"id_seq": SequenceSnapshot(name="id_seq")})
         result = self.differ.diff(old, new)
         seq_changes = [c for c in result.changes if c.change_type == "sequence_added"]
         assert len(seq_changes) == 1
         assert seq_changes[0].table == "id_seq"
 
     def test_sequence_dropped(self):
-        old = self._make_schema(
-            sequences={"id_seq": SequenceSnapshot(name="id_seq")}
-        )
+        old = self._make_schema(sequences={"id_seq": SequenceSnapshot(name="id_seq")})
         new = self._make_schema()
         result = self.differ.diff(old, new)
         seq_changes = [c for c in result.changes if c.change_type == "sequence_dropped"]
@@ -214,23 +205,22 @@ class TestEnumDiff:
 
     def _make_schema(self, enums=None, **kwargs):
         return SchemaSnapshot(
-            snapshot_id="test", source="ddl", enums=enums or {}, **kwargs,
+            snapshot_id="test",
+            source="ddl",
+            enums=enums or {},
+            **kwargs,
         )
 
     def test_enum_added(self):
         old = self._make_schema()
-        new = self._make_schema(
-            enums={"status": EnumSnapshot(name="status", values=["a", "b"])}
-        )
+        new = self._make_schema(enums={"status": EnumSnapshot(name="status", values=["a", "b"])})
         result = self.differ.diff(old, new)
         changes = [c for c in result.changes if c.change_type == "enum_added"]
         assert len(changes) == 1
         assert "a,b" in changes[0].new_value
 
     def test_enum_dropped(self):
-        old = self._make_schema(
-            enums={"status": EnumSnapshot(name="status", values=["a", "b"])}
-        )
+        old = self._make_schema(enums={"status": EnumSnapshot(name="status", values=["a", "b"])})
         new = self._make_schema()
         result = self.differ.diff(old, new)
         changes = [c for c in result.changes if c.change_type == "enum_dropped"]
@@ -262,12 +252,8 @@ class TestEnumDiff:
 
     def test_enum_value_added_and_removed(self):
         """Adding and removing values in the same diff should produce both events."""
-        old = self._make_schema(
-            enums={"status": EnumSnapshot(name="status", values=["a", "b"])}
-        )
-        new = self._make_schema(
-            enums={"status": EnumSnapshot(name="status", values=["b", "c"])}
-        )
+        old = self._make_schema(enums={"status": EnumSnapshot(name="status", values=["a", "b"])})
+        new = self._make_schema(enums={"status": EnumSnapshot(name="status", values=["b", "c"])})
         result = self.differ.diff(old, new)
         added = [c for c in result.changes if c.change_type == "enum_value_added"]
         removed = [c for c in result.changes if c.change_type == "enum_value_removed"]
@@ -294,7 +280,10 @@ class TestFunctionDiff:
 
     def _make_schema(self, functions=None, **kwargs):
         return SchemaSnapshot(
-            snapshot_id="test", source="ddl", functions=functions or {}, **kwargs,
+            snapshot_id="test",
+            source="ddl",
+            functions=functions or {},
+            **kwargs,
         )
 
     def test_function_added(self):
@@ -307,9 +296,7 @@ class TestFunctionDiff:
         assert len(changes) == 1
 
     def test_function_dropped(self):
-        old = self._make_schema(
-            functions={"calc": FunctionSnapshot(name="calc")}
-        )
+        old = self._make_schema(functions={"calc": FunctionSnapshot(name="calc")})
         new = self._make_schema()
         result = self.differ.diff(old, new)
         changes = [c for c in result.changes if c.change_type == "function_dropped"]
@@ -409,18 +396,22 @@ class TestIndexPropertyDiff:
         old = SchemaSnapshot(
             snapshot_id="old",
             source="ddl",
-            tables={"t": TableSnapshot(
-                name="t",
-                indexes=[IndexSnapshot(name="idx_email", columns=["email"], is_unique=False)],
-            )},
+            tables={
+                "t": TableSnapshot(
+                    name="t",
+                    indexes=[IndexSnapshot(name="idx_email", columns=["email"], is_unique=False)],
+                )
+            },
         )
         new = SchemaSnapshot(
             snapshot_id="new",
             source="ddl",
-            tables={"t": TableSnapshot(
-                name="t",
-                indexes=[IndexSnapshot(name="idx_email", columns=["email"], is_unique=True)],
-            )},
+            tables={
+                "t": TableSnapshot(
+                    name="t",
+                    indexes=[IndexSnapshot(name="idx_email", columns=["email"], is_unique=True)],
+                )
+            },
         )
         result = self.differ.diff(old, new)
         changes = [c for c in result.changes if c.change_type == "index_changed"]
@@ -443,16 +434,12 @@ class TestViewNormalization:
         old = SchemaSnapshot(
             snapshot_id="old",
             source="ddl",
-            views={"v": ViewSnapshot(
-                name="v", definition="SELECT   id,  name  FROM  users"
-            )},
+            views={"v": ViewSnapshot(name="v", definition="SELECT   id,  name  FROM  users")},
         )
         new = SchemaSnapshot(
             snapshot_id="new",
             source="ddl",
-            views={"v": ViewSnapshot(
-                name="v", definition="SELECT id, name FROM users"
-            )},
+            views={"v": ViewSnapshot(name="v", definition="SELECT id, name FROM users")},
         )
         result = self.differ.diff(old, new)
         view_changes = [c for c in result.changes if "view" in c.change_type]
@@ -463,16 +450,12 @@ class TestViewNormalization:
         old = SchemaSnapshot(
             snapshot_id="old",
             source="ddl",
-            views={"v": ViewSnapshot(
-                name="v", definition="SELECT id FROM users"
-            )},
+            views={"v": ViewSnapshot(name="v", definition="SELECT id FROM users")},
         )
         new = SchemaSnapshot(
             snapshot_id="new",
             source="ddl",
-            views={"v": ViewSnapshot(
-                name="v", definition="select id from users"
-            )},
+            views={"v": ViewSnapshot(name="v", definition="select id from users")},
         )
         result = self.differ.diff(old, new)
         view_changes = [c for c in result.changes if "view" in c.change_type]
@@ -483,16 +466,12 @@ class TestViewNormalization:
         old = SchemaSnapshot(
             snapshot_id="old",
             source="ddl",
-            views={"v": ViewSnapshot(
-                name="v", definition="SELECT id FROM users"
-            )},
+            views={"v": ViewSnapshot(name="v", definition="SELECT id FROM users")},
         )
         new = SchemaSnapshot(
             snapshot_id="new",
             source="ddl",
-            views={"v": ViewSnapshot(
-                name="v", definition="SELECT id, name FROM users"
-            )},
+            views={"v": ViewSnapshot(name="v", definition="SELECT id, name FROM users")},
         )
         result = self.differ.diff(old, new)
         view_changes = [c for c in result.changes if c.change_type == "view_definition_change"]
@@ -738,9 +717,7 @@ class TestContextWithStatistics:
             },
         )
         graph = DependencyGraph(edges=[])
-        change = SchemaChangeEvent(
-            change_type="table_dropped", table="orders"
-        )
+        change = SchemaChangeEvent(change_type="table_dropped", table="orders")
 
         assembler = ContextAssembler(max_depth=10)
         ctx = assembler.assemble(change, graph, schema)

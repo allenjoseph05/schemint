@@ -34,17 +34,21 @@ class TriggerEdgeExtractor:
                 if ref_table == source_table:
                     continue
 
-                edges.append(DependencyEdge(
-                    from_element=source_table,
-                    to_element=ref_table,
-                    direction="downstream",
-                    usage_type="transform",
-                    sources=[DependencySource(
-                        source_type="trigger_definition",
-                        confidence=CONFIDENCE_TRIGGER,
-                        extracted_at=now,
-                    )],
-                    final_confidence=CONFIDENCE_TRIGGER,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=source_table,
+                        to_element=ref_table,
+                        direction="downstream",
+                        usage_type="transform",
+                        sources=[
+                            DependencySource(
+                                source_type="trigger_definition",
+                                confidence=CONFIDENCE_TRIGGER,
+                                extracted_at=now,
+                            )
+                        ],
+                        final_confidence=CONFIDENCE_TRIGGER,
+                    )
+                )
 
         return edges

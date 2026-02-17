@@ -151,14 +151,10 @@ class ContextAssembler:
         affected_elements = self._get_affected_elements(change, schema)
 
         # BFS downstream
-        downstream, was_truncated = self._traverse_downstream(
-            affected_elements, graph
-        )
+        downstream, was_truncated = self._traverse_downstream(affected_elements, graph)
 
         # BFS upstream
-        upstream_results, _ = self._traverse_upstream(
-            affected_elements, graph
-        )
+        upstream_results, _ = self._traverse_upstream(affected_elements, graph)
 
         # Aggregate downstream impacts per table
         table_impacts: dict[str, _TableAgg] = {}
@@ -183,12 +179,14 @@ class ContextAssembler:
         impacted: list[ImpactAssessment] = []
         for table in sorted(table_impacts):
             agg = table_impacts[table]
-            impacted.append(ImpactAssessment(
-                table=table,
-                usage=",".join(sorted(agg.usages)),
-                dependency_count=agg.edge_count,
-                confidence=agg.max_confidence,
-            ))
+            impacted.append(
+                ImpactAssessment(
+                    table=table,
+                    usage=",".join(sorted(agg.usages)),
+                    dependency_count=agg.edge_count,
+                    confidence=agg.max_confidence,
+                )
+            )
 
         # Aggregate upstream impacts
         upstream_table_impacts: dict[str, _TableAgg] = {}
@@ -204,12 +202,14 @@ class ContextAssembler:
         upstream_impacts: list[ImpactAssessment] = []
         for table in sorted(upstream_table_impacts):
             agg = upstream_table_impacts[table]
-            upstream_impacts.append(ImpactAssessment(
-                table=table,
-                usage=",".join(sorted(agg.usages)),
-                dependency_count=agg.edge_count,
-                confidence=agg.max_confidence,
-            ))
+            upstream_impacts.append(
+                ImpactAssessment(
+                    table=table,
+                    usage=",".join(sorted(agg.usages)),
+                    dependency_count=agg.edge_count,
+                    confidence=agg.max_confidence,
+                )
+            )
 
         # Attach table statistics for the affected table (needed for criticality)
         affected_table_stats = schema.table_statistics.get(change.table)
@@ -227,12 +227,11 @@ class ContextAssembler:
 
         # Compute coverage (uses extracted CoverageComputer — no circular import)
         from schemint.drift.dependency.coverage import CoverageComputer
+
         coverage = CoverageComputer().compute_coverage(graph, schema)
 
         # Compute context quality
-        context_quality = self._compute_context_quality(
-            coverage, impacted, was_truncated
-        )
+        context_quality = self._compute_context_quality(coverage, impacted, was_truncated)
 
         # Compute context gaps
         context_gaps = self._compute_context_gaps(
@@ -241,8 +240,7 @@ class ContextAssembler:
 
         # Attach index statistics for affected table's indexes
         affected_index_stats = [
-            stat for stat in schema.index_statistics.values()
-            if stat.table_name == change.table
+            stat for stat in schema.index_statistics.values() if stat.table_name == change.table
         ]
 
         # Attach column statistics for the affected table
@@ -250,13 +248,13 @@ class ContextAssembler:
 
         # Attach permissions for the affected table
         affected_permissions = [
-            perm for perm in schema.permissions
-            if perm.table_name == change.table
+            perm for perm in schema.permissions if perm.table_name == change.table
         ]
 
         # Attach functions that reference the affected table
         affected_functions = [
-            fn for fn in schema.functions.values()
+            fn
+            for fn in schema.functions.values()
             if fn.definition and change.table in fn.definition
         ]
 
@@ -285,10 +283,7 @@ class ContextAssembler:
         parse_health: ParseHealth | None = None,
     ) -> list[ContextPackage]:
         """Assemble context packages for all changes in a diff result."""
-        return [
-            self.assemble(change, graph, schema, parse_health)
-            for change in diff.changes
-        ]
+        return [self.assemble(change, graph, schema, parse_health) for change in diff.changes]
 
     def _get_affected_elements(
         self, change: SchemaChangeEvent, schema: SchemaSnapshot
@@ -372,10 +367,16 @@ class ContextAssembler:
 
         # Extension/permission/policy/partition — seed with table name
         if ct in (
-            "extension_added", "extension_dropped", "extension_version_changed",
-            "permission_granted", "permission_revoked",
-            "policy_added", "policy_dropped", "policy_changed",
-            "partition_added", "partition_dropped",
+            "extension_added",
+            "extension_dropped",
+            "extension_version_changed",
+            "permission_granted",
+            "permission_revoked",
+            "policy_added",
+            "policy_dropped",
+            "policy_changed",
+            "partition_added",
+            "partition_dropped",
         ):
             return self._expand_table_seeds(change.table, schema)
 
@@ -400,33 +401,37 @@ class ContextAssembler:
             return None
 
         total_rows = table_stats.row_count + table_stats.dead_tuples
-        dead_tuple_ratio = (
-            table_stats.dead_tuples / total_rows if total_rows > 0 else 0.0
-        )
+        dead_tuple_ratio = table_stats.dead_tuples / total_rows if total_rows > 0 else 0.0
 
         total_scans = table_stats.seq_scan_count + table_stats.idx_scan_count
-        seq_scan_ratio = (
-            table_stats.seq_scan_count / total_scans if total_scans > 0 else 0.0
-        )
+        seq_scan_ratio = table_stats.seq_scan_count / total_scans if total_scans > 0 else 0.0
 
         last_vacuum_age_hours: float | None = None
         if table_stats.last_vacuum:
             from datetime import datetime, timezone
+
             now = datetime.now(timezone.utc)
-            delta = now - table_stats.last_vacuum.replace(tzinfo=timezone.utc) if table_stats.last_vacuum.tzinfo is None else now - table_stats.last_vacuum
+            delta = (
+                now - table_stats.last_vacuum.replace(tzinfo=timezone.utc)
+                if table_stats.last_vacuum.tzinfo is None
+                else now - table_stats.last_vacuum
+            )
             last_vacuum_age_hours = delta.total_seconds() / 3600
 
         last_analyze_age_hours: float | None = None
         if table_stats.last_analyze:
             from datetime import datetime, timezone
+
             now = datetime.now(timezone.utc)
-            delta = now - table_stats.last_analyze.replace(tzinfo=timezone.utc) if table_stats.last_analyze.tzinfo is None else now - table_stats.last_analyze
+            delta = (
+                now - table_stats.last_analyze.replace(tzinfo=timezone.utc)
+                if table_stats.last_analyze.tzinfo is None
+                else now - table_stats.last_analyze
+            )
             last_analyze_age_hours = delta.total_seconds() / 3600
 
         is_vacuum_needed = dead_tuple_ratio > 0.1
-        is_analyze_stale = (
-            last_analyze_age_hours is not None and last_analyze_age_hours > 72
-        )
+        is_analyze_stale = last_analyze_age_hours is not None and last_analyze_age_hours > 72
 
         return DataQualitySignals(
             dead_tuple_ratio=dead_tuple_ratio,
@@ -437,9 +442,7 @@ class ContextAssembler:
             is_analyze_stale=is_analyze_stale,
         )
 
-    def _expand_table_seeds(
-        self, table_name: str, schema: SchemaSnapshot
-    ) -> list[str]:
+    def _expand_table_seeds(self, table_name: str, schema: SchemaSnapshot) -> list[str]:
         """Expand a table name to seeds including all its columns."""
         seeds = [table_name]
         table_snap = schema.tables.get(table_name)

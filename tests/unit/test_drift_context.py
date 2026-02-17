@@ -54,29 +54,31 @@ def schema():
 @pytest.fixture
 def graph():
     """Graph: users.id → orders.user_id → order_items.order_id, orders.id → payments.order_id"""
-    return DependencyGraph(edges=[
-        DependencyEdge(
-            from_element="users.id",
-            to_element="orders.user_id",
-            usage_type="fk",
-            sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
-            final_confidence=1.0,
-        ),
-        DependencyEdge(
-            from_element="orders.user_id",
-            to_element="order_items.order_id",
-            usage_type="join_key",
-            sources=[DependencySource(source_type="sql_ast", confidence=0.9)],
-            final_confidence=0.9,
-        ),
-        DependencyEdge(
-            from_element="orders.id",
-            to_element="payments.order_id",
-            usage_type="fk",
-            sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
-            final_confidence=1.0,
-        ),
-    ])
+    return DependencyGraph(
+        edges=[
+            DependencyEdge(
+                from_element="users.id",
+                to_element="orders.user_id",
+                usage_type="fk",
+                sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
+                final_confidence=1.0,
+            ),
+            DependencyEdge(
+                from_element="orders.user_id",
+                to_element="order_items.order_id",
+                usage_type="join_key",
+                sources=[DependencySource(source_type="sql_ast", confidence=0.9)],
+                final_confidence=0.9,
+            ),
+            DependencyEdge(
+                from_element="orders.id",
+                to_element="payments.order_id",
+                usage_type="fk",
+                sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
+                final_confidence=1.0,
+            ),
+        ]
+    )
 
 
 @pytest.fixture
@@ -153,20 +155,22 @@ class TestDependencyAggregation:
 
     def test_multiple_edges_to_same_table_aggregated(self, assembler, schema):
         """Two edges targeting the same table should produce one ImpactAssessment."""
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="users.id",
-                to_element="orders.user_id",
-                usage_type="fk",
-                final_confidence=1.0,
-            ),
-            DependencyEdge(
-                from_element="users.id",
-                to_element="orders.created_by",
-                usage_type="join_key",
-                final_confidence=0.9,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="users.id",
+                    to_element="orders.user_id",
+                    usage_type="fk",
+                    final_confidence=1.0,
+                ),
+                DependencyEdge(
+                    from_element="users.id",
+                    to_element="orders.created_by",
+                    usage_type="join_key",
+                    final_confidence=0.9,
+                ),
+            ]
+        )
 
         change = SchemaChangeEvent(
             change_type="column_type_change",
@@ -183,20 +187,22 @@ class TestDependencyAggregation:
 
     def test_aggregated_usages_joined(self, assembler, schema):
         """Aggregated impact should list all usage types."""
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="users.id",
-                to_element="orders.user_id",
-                usage_type="fk",
-                final_confidence=1.0,
-            ),
-            DependencyEdge(
-                from_element="users.id",
-                to_element="orders.created_by",
-                usage_type="join_key",
-                final_confidence=0.9,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="users.id",
+                    to_element="orders.user_id",
+                    usage_type="fk",
+                    final_confidence=1.0,
+                ),
+                DependencyEdge(
+                    from_element="users.id",
+                    to_element="orders.created_by",
+                    usage_type="join_key",
+                    final_confidence=0.9,
+                ),
+            ]
+        )
 
         change = SchemaChangeEvent(
             change_type="column_type_change",
@@ -212,14 +218,16 @@ class TestDependencyAggregation:
 
 class TestCriticalityComputation:
     def test_low_criticality(self, assembler, schema):
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="users.id",
-                to_element="orders.user_id",
-                usage_type="fk",
-                final_confidence=1.0,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="users.id",
+                    to_element="orders.user_id",
+                    usage_type="fk",
+                    final_confidence=1.0,
+                ),
+            ]
+        )
 
         change = SchemaChangeEvent(
             change_type="column_type_change",
@@ -326,7 +334,7 @@ class TestBFSDepthLimiting:
         edges = [
             DependencyEdge(
                 from_element=f"t{i}.id",
-                to_element=f"t{i+1}.id",
+                to_element=f"t{i + 1}.id",
                 usage_type="fk",
                 final_confidence=1.0,
             )
@@ -352,17 +360,20 @@ class TestBFSDepthLimiting:
         schema = SchemaSnapshot(
             snapshot_id="test",
             source="ddl",
-            tables={f"t{i}": TableSnapshot(
-                name=f"t{i}",
-                columns={"id": ColumnSnapshot(name="id", type="integer")},
-            ) for i in range(5)},
+            tables={
+                f"t{i}": TableSnapshot(
+                    name=f"t{i}",
+                    columns={"id": ColumnSnapshot(name="id", type="integer")},
+                )
+                for i in range(5)
+            },
         )
 
         # Chain: t0.id → t1.id → t2.id → t3.id → t4.id
         edges = [
             DependencyEdge(
                 from_element=f"t{i}.id",
-                to_element=f"t{i+1}.id",
+                to_element=f"t{i + 1}.id",
                 usage_type="fk",
                 sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
                 final_confidence=1.0,
@@ -394,7 +405,7 @@ class TestBFSDepthLimiting:
         edges = [
             DependencyEdge(
                 from_element=f"t{i}.id",
-                to_element=f"t{i+1}.id",
+                to_element=f"t{i + 1}.id",
                 usage_type="fk",
                 final_confidence=1.0,
             )
@@ -431,15 +442,17 @@ class TestContextQuality:
             },
         )
 
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="a.id",
-                to_element="b.a_id",
-                usage_type="fk",
-                sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
-                final_confidence=1.0,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="a.id",
+                    to_element="b.a_id",
+                    usage_type="fk",
+                    sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
+                    final_confidence=1.0,
+                ),
+            ]
+        )
 
         change = SchemaChangeEvent(
             change_type="column_type_change",
@@ -468,15 +481,17 @@ class TestContextQuality:
             },
         )
 
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="a.id",
-                to_element="b.a_id",
-                usage_type="join_key",
-                sources=[DependencySource(source_type="sql_ast", confidence=0.5)],
-                final_confidence=0.5,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="a.id",
+                    to_element="b.a_id",
+                    usage_type="join_key",
+                    sources=[DependencySource(source_type="sql_ast", confidence=0.5)],
+                    final_confidence=0.5,
+                ),
+            ]
+        )
 
         change = SchemaChangeEvent(
             change_type="column_type_change",
@@ -494,21 +509,26 @@ class TestContextQuality:
         schema = SchemaSnapshot(
             snapshot_id="test",
             source="ddl",
-            tables={f"t{i}": TableSnapshot(
-                name=f"t{i}",
-                columns={"id": ColumnSnapshot(name="id", type="integer")},
-            ) for i in range(5)},
+            tables={
+                f"t{i}": TableSnapshot(
+                    name=f"t{i}",
+                    columns={"id": ColumnSnapshot(name="id", type="integer")},
+                )
+                for i in range(5)
+            },
         )
 
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="t0.id",
-                to_element="t1.id",
-                usage_type="fk",
-                sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
-                final_confidence=1.0,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="t0.id",
+                    to_element="t1.id",
+                    usage_type="fk",
+                    sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
+                    final_confidence=1.0,
+                ),
+            ]
+        )
 
         change = SchemaChangeEvent(
             change_type="column_type_change",
@@ -538,15 +558,17 @@ class TestContextQuality:
             },
         )
 
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="a.id",
-                to_element="b.a_id",
-                usage_type="filter",
-                sources=[DependencySource(source_type="sql_ast", confidence=0.4)],
-                final_confidence=0.4,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="a.id",
+                    to_element="b.a_id",
+                    usage_type="filter",
+                    sources=[DependencySource(source_type="sql_ast", confidence=0.4)],
+                    final_confidence=0.4,
+                ),
+            ]
+        )
 
         change = SchemaChangeEvent(
             change_type="column_type_change",
@@ -644,11 +666,13 @@ class TestConfigurableAssembler:
             column="users_id",
         )
         # Create edges so users has 3 downstream tables
-        graph = DependencyGraph(edges=[
-            _make_edge("users.users_id", "orders.users_id"),
-            _make_edge("users.users_id", "items.users_id"),
-            _make_edge("users.users_id", "payments.users_id"),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                _make_edge("users.users_id", "orders.users_id"),
+                _make_edge("users.users_id", "items.users_id"),
+                _make_edge("users.users_id", "payments.users_id"),
+            ]
+        )
 
         # Default thresholds: 3 downstream > 2 = "medium"
         assembler_default = ContextAssembler()
@@ -670,11 +694,14 @@ class TestContextGaps:
         schema = _make_schema("users", "orders")
         change = SchemaChangeEvent(
             change_type="column_type_change",
-            table="users", column="users_id",
+            table="users",
+            column="users_id",
         )
-        graph = DependencyGraph(edges=[
-            _make_edge("users.users_id", "orders.users_id"),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                _make_edge("users.users_id", "orders.users_id"),
+            ]
+        )
 
         assembler = ContextAssembler()
         pkg = assembler.assemble(change, graph, schema)
@@ -689,11 +716,14 @@ class TestContextGaps:
         schema = _make_schema("users")  # only users, missing "external_service"
         change = SchemaChangeEvent(
             change_type="column_type_change",
-            table="users", column="users_id",
+            table="users",
+            column="users_id",
         )
-        graph = DependencyGraph(edges=[
-            _make_edge("users.users_id", "external_service.users_id"),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                _make_edge("users.users_id", "external_service.users_id"),
+            ]
+        )
 
         assembler = ContextAssembler()
         pkg = assembler.assemble(change, graph, schema)
@@ -705,11 +735,14 @@ class TestContextGaps:
         schema = _make_schema("users", "orders")
         change = SchemaChangeEvent(
             change_type="column_type_change",
-            table="users", column="users_id",
+            table="users",
+            column="users_id",
         )
-        graph = DependencyGraph(edges=[
-            _make_edge("users.users_id", "orders.users_id", confidence=0.4),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                _make_edge("users.users_id", "orders.users_id", confidence=0.4),
+            ]
+        )
 
         assembler = ContextAssembler()
         pkg = assembler.assemble(change, graph, schema)
@@ -722,14 +755,12 @@ class TestContextGaps:
         schema = _make_schema("users")
         change = SchemaChangeEvent(
             change_type="column_type_change",
-            table="users", column="users_id",
+            table="users",
+            column="users_id",
         )
         graph = DependencyGraph(edges=[])
 
-        health = ParseHealth(
-            total_files=5, parsed_ok=3,
-            parse_failures=["bad1.sql", "bad2.sql"]
-        )
+        health = ParseHealth(total_files=5, parsed_ok=3, parse_failures=["bad1.sql", "bad2.sql"])
 
         assembler = ContextAssembler()
         pkg = assembler.assemble(change, graph, schema, parse_health=health)
@@ -748,13 +779,16 @@ class TestUpstreamAnalysis:
         schema = _make_schema("users", "orders", "payments")
         change = SchemaChangeEvent(
             change_type="column_type_change",
-            table="orders", column="orders_id",
+            table="orders",
+            column="orders_id",
         )
         # payments depends on orders, orders depends on users
-        graph = DependencyGraph(edges=[
-            _make_edge("users.users_id", "orders.orders_id"),
-            _make_edge("orders.orders_id", "payments.orders_id"),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                _make_edge("users.users_id", "orders.orders_id"),
+                _make_edge("orders.orders_id", "payments.orders_id"),
+            ]
+        )
 
         assembler = ContextAssembler()
         pkg = assembler.assemble(change, graph, schema)
@@ -767,11 +801,14 @@ class TestUpstreamAnalysis:
         schema = _make_schema("users", "orders", "payments")
         change = SchemaChangeEvent(
             change_type="column_type_change",
-            table="orders", column="orders_id",
+            table="orders",
+            column="orders_id",
         )
-        graph = DependencyGraph(edges=[
-            _make_edge("orders.orders_id", "payments.orders_id"),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                _make_edge("orders.orders_id", "payments.orders_id"),
+            ]
+        )
 
         assembler = ContextAssembler()
         pkg = assembler.assemble(change, graph, schema)
@@ -783,11 +820,14 @@ class TestUpstreamAnalysis:
         schema = _make_schema("users", "orders")
         change = SchemaChangeEvent(
             change_type="column_type_change",
-            table="users", column="users_id",
+            table="users",
+            column="users_id",
         )
-        graph = DependencyGraph(edges=[
-            _make_edge("users.users_id", "orders.users_id"),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                _make_edge("users.users_id", "orders.users_id"),
+            ]
+        )
 
         assembler = ContextAssembler()
         pkg = assembler.assemble(change, graph, schema)

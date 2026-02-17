@@ -1,6 +1,5 @@
 """Tests for multi-schema composition — cross-schema snapshots and diffing."""
 
-
 from schemint.drift.differ import SchemaDiffer
 from schemint.drift.models import (
     ColumnSnapshot,
@@ -98,12 +97,14 @@ class TestFlattenMultiSchema:
                 "users": TableSnapshot(name="users"),
                 "orders": TableSnapshot(
                     name="orders",
-                    foreign_keys=[{
-                        "name": "fk_user",
-                        "column": "user_id",
-                        "references_table": "users",
-                        "references_column": "id",
-                    }],
+                    foreign_keys=[
+                        {
+                            "name": "fk_user",
+                            "column": "user_id",
+                            "references_table": "users",
+                            "references_column": "id",
+                        }
+                    ],
                 ),
             },
         )

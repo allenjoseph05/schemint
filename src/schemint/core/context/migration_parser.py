@@ -156,7 +156,9 @@ class MigrationParser:
             match = re.match(pattern, filename, re.IGNORECASE)
             if match:
                 version = match.group(1)
-                description = match.group(2).replace("_", " ") if (match.lastindex or 0) >= 2 else None
+                description = (
+                    match.group(2).replace("_", " ") if (match.lastindex or 0) >= 2 else None
+                )
                 return version, description
 
         return None, None
@@ -188,7 +190,10 @@ class MigrationParser:
                         actions.append(action)
 
                     # Extract table names
-                    if action == MigrationAction.CREATE_TABLE or action == MigrationAction.DROP_TABLE:
+                    if (
+                        action == MigrationAction.CREATE_TABLE
+                        or action == MigrationAction.DROP_TABLE
+                    ):
                         tables.add(match.group(1).lower())
                     elif action == MigrationAction.ALTER_TABLE:
                         current_table = match.group(1).lower()
@@ -237,8 +242,8 @@ class MigrationParser:
         # Try common timestamp formats
         formats = [
             "%Y%m%d%H%M%S",  # 20240101120000
-            "%Y%m%d%H%M",    # 202401011200
-            "%Y%m%d",        # 20240101
+            "%Y%m%d%H%M",  # 202401011200
+            "%Y%m%d",  # 20240101
         ]
 
         for fmt in formats:

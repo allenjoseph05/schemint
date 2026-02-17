@@ -60,9 +60,7 @@ def extract_aliases_from_ast(statement: Any) -> dict[str, str]:
     return aliases
 
 
-def resolve_column_ref(
-    col: sqlglot_exp.Column, aliases: dict[str, str]
-) -> tuple[str, bool]:
+def resolve_column_ref(col: sqlglot_exp.Column, aliases: dict[str, str]) -> tuple[str, bool]:
     """Resolve a column reference to table.column using an alias map.
 
     Returns (resolved_ref, alias_was_resolved).

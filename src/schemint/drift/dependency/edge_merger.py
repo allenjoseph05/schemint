@@ -22,9 +22,7 @@ class EdgeMerger:
             if key in edge_map:
                 existing = edge_map[key]
                 existing.sources.extend(edge.sources)
-                existing.final_confidence = max(
-                    s.confidence for s in existing.sources
-                )
+                existing.final_confidence = max(s.confidence for s in existing.sources)
             else:
                 edge_map[key] = edge.model_copy(deep=True)
 

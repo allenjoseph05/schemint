@@ -1,6 +1,5 @@
 """Tests for trigger snapshot capture + diff + dependency wiring."""
 
-
 from schemint.drift.dependency_graph import DependencyGraphBuilder
 from schemint.drift.differ import SchemaDiffer
 from schemint.drift.models import (
@@ -23,15 +22,18 @@ class TestTriggerDiff:
 
     def test_trigger_added(self):
         old = self._make_snapshot("old")
-        new = self._make_snapshot("new", triggers={
-            "trg_audit": TriggerSnapshot(
-                name="trg_audit",
-                table="orders",
-                event="INSERT",
-                timing="AFTER",
-                function_name="audit_log",
-            ),
-        })
+        new = self._make_snapshot(
+            "new",
+            triggers={
+                "trg_audit": TriggerSnapshot(
+                    name="trg_audit",
+                    table="orders",
+                    event="INSERT",
+                    timing="AFTER",
+                    function_name="audit_log",
+                ),
+            },
+        )
         differ = SchemaDiffer()
         result = differ.diff(old, new)
 
@@ -41,15 +43,18 @@ class TestTriggerDiff:
         assert added[0].new_value == "trg_audit"
 
     def test_trigger_dropped(self):
-        old = self._make_snapshot("old", triggers={
-            "trg_audit": TriggerSnapshot(
-                name="trg_audit",
-                table="orders",
-                event="INSERT",
-                timing="AFTER",
-                function_name="audit_log",
-            ),
-        })
+        old = self._make_snapshot(
+            "old",
+            triggers={
+                "trg_audit": TriggerSnapshot(
+                    name="trg_audit",
+                    table="orders",
+                    event="INSERT",
+                    timing="AFTER",
+                    function_name="audit_log",
+                ),
+            },
+        )
         new = self._make_snapshot("new")
         differ = SchemaDiffer()
         result = differ.diff(old, new)
@@ -59,24 +64,30 @@ class TestTriggerDiff:
         assert dropped[0].old_value == "trg_audit"
 
     def test_trigger_changed(self):
-        old = self._make_snapshot("old", triggers={
-            "trg_audit": TriggerSnapshot(
-                name="trg_audit",
-                table="orders",
-                event="INSERT",
-                timing="AFTER",
-                function_name="audit_insert",
-            ),
-        })
-        new = self._make_snapshot("new", triggers={
-            "trg_audit": TriggerSnapshot(
-                name="trg_audit",
-                table="orders",
-                event="INSERT",
-                timing="BEFORE",
-                function_name="audit_insert",
-            ),
-        })
+        old = self._make_snapshot(
+            "old",
+            triggers={
+                "trg_audit": TriggerSnapshot(
+                    name="trg_audit",
+                    table="orders",
+                    event="INSERT",
+                    timing="AFTER",
+                    function_name="audit_insert",
+                ),
+            },
+        )
+        new = self._make_snapshot(
+            "new",
+            triggers={
+                "trg_audit": TriggerSnapshot(
+                    name="trg_audit",
+                    table="orders",
+                    event="INSERT",
+                    timing="BEFORE",
+                    function_name="audit_insert",
+                ),
+            },
+        )
         differ = SchemaDiffer()
         result = differ.diff(old, new)
 
@@ -86,8 +97,11 @@ class TestTriggerDiff:
     def test_identical_triggers_no_changes(self):
         triggers = {
             "trg1": TriggerSnapshot(
-                name="trg1", table="t1", event="INSERT",
-                timing="AFTER", function_name="fn1",
+                name="trg1",
+                table="t1",
+                event="INSERT",
+                timing="AFTER",
+                function_name="fn1",
             ),
         }
         old = self._make_snapshot("old", triggers=triggers)
@@ -98,18 +112,30 @@ class TestTriggerDiff:
         assert len(trig_changes) == 0
 
     def test_trigger_function_change(self):
-        old = self._make_snapshot("old", triggers={
-            "trg1": TriggerSnapshot(
-                name="trg1", table="t1", event="UPDATE",
-                timing="AFTER", function_name="old_fn",
-            ),
-        })
-        new = self._make_snapshot("new", triggers={
-            "trg1": TriggerSnapshot(
-                name="trg1", table="t1", event="UPDATE",
-                timing="AFTER", function_name="new_fn",
-            ),
-        })
+        old = self._make_snapshot(
+            "old",
+            triggers={
+                "trg1": TriggerSnapshot(
+                    name="trg1",
+                    table="t1",
+                    event="UPDATE",
+                    timing="AFTER",
+                    function_name="old_fn",
+                ),
+            },
+        )
+        new = self._make_snapshot(
+            "new",
+            triggers={
+                "trg1": TriggerSnapshot(
+                    name="trg1",
+                    table="t1",
+                    event="UPDATE",
+                    timing="AFTER",
+                    function_name="new_fn",
+                ),
+            },
+        )
         differ = SchemaDiffer()
         result = differ.diff(old, new)
         changed = [c for c in result.changes if c.change_type == "trigger_changed"]
@@ -152,8 +178,11 @@ class TestTriggerDependencyWiring:
             tables={"t1": TableSnapshot(name="t1")},
             triggers={
                 "trg1": TriggerSnapshot(
-                    name="trg1", table="t1", event="INSERT",
-                    timing="AFTER", function_name="fn1",
+                    name="trg1",
+                    table="t1",
+                    event="INSERT",
+                    timing="AFTER",
+                    function_name="fn1",
                     definition=None,
                 ),
             },

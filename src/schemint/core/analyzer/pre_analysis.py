@@ -17,36 +17,85 @@ from schemint.models.schema import ParsedSchema
 # ---------------------------------------------------------------------------
 
 # Words that suggest money/currency columns
-MONEY_WORDS = frozenset([
-    "price", "cost", "amount", "total", "balance", "salary", "fee", "payment",
-    "charge", "discount", "tax", "revenue", "profit", "budget", "rate",
-])
+MONEY_WORDS = frozenset(
+    [
+        "price",
+        "cost",
+        "amount",
+        "total",
+        "balance",
+        "salary",
+        "fee",
+        "payment",
+        "charge",
+        "discount",
+        "tax",
+        "revenue",
+        "profit",
+        "budget",
+        "rate",
+    ]
+)
 
 # Words that suggest date/time columns
-DATE_WORDS = frozenset([
-    "date", "time", "created", "updated", "deleted", "modified", "timestamp",
-    "_at", "started", "ended", "expired", "published", "scheduled",
-])
+DATE_WORDS = frozenset(
+    [
+        "date",
+        "time",
+        "created",
+        "updated",
+        "deleted",
+        "modified",
+        "timestamp",
+        "_at",
+        "started",
+        "ended",
+        "expired",
+        "published",
+        "scheduled",
+    ]
+)
 
 # Columns ending with _id that are NOT foreign key indicators
-FK_ID_EXCEPTIONS = frozenset([
-    "id", "external_id", "uuid", "device_id", "session_id",
-])
+FK_ID_EXCEPTIONS = frozenset(
+    [
+        "id",
+        "external_id",
+        "uuid",
+        "device_id",
+        "session_id",
+    ]
+)
 
 # Security-sensitive column names (without safe suffixes)
-SECURITY_SENSITIVE_NAMES = frozenset([
-    "password", "secret", "token", "api_key",
-])
+SECURITY_SENSITIVE_NAMES = frozenset(
+    [
+        "password",
+        "secret",
+        "token",
+        "api_key",
+    ]
+)
 
 # Safe suffixes for security columns
 SECURITY_SAFE_SUFFIXES = ("_hash", "_hashed", "_encrypted", "_digest")
 
 # PII column name indicators
-PII_INDICATORS = frozenset([
-    "email", "ssn", "social_security", "phone", "phone_number",
-    "address", "street_address", "date_of_birth", "dob",
-    "credit_card", "card_number",
-])
+PII_INDICATORS = frozenset(
+    [
+        "email",
+        "ssn",
+        "social_security",
+        "phone",
+        "phone_number",
+        "address",
+        "street_address",
+        "date_of_birth",
+        "dob",
+        "credit_card",
+        "card_number",
+    ]
+)
 
 # PII encryption markers in column names
 PII_ENCRYPTION_MARKERS = ("_encrypted", "_hash", "_hashed", "_masked", "_tokenized")
@@ -55,6 +104,7 @@ PII_ENCRYPTION_MARKERS = ("_encrypted", "_hash", "_hashed", "_masked", "_tokeniz
 # ---------------------------------------------------------------------------
 # Domain
 # ---------------------------------------------------------------------------
+
 
 class SchemaDomain(str, Enum):
     ECOMMERCE = "ecommerce"
@@ -96,11 +146,12 @@ def resolve_domain(app_type: str | None = None) -> SchemaDomain:
 # Models
 # ---------------------------------------------------------------------------
 
+
 class TableRole(str, Enum):
-    HUB = "hub"           # 3+ incoming FKs
-    BRIDGE = "bridge"     # 2+ outgoing FKs, few own columns (junction table)
-    LEAF = "leaf"         # Has outgoing FKs but no incoming
-    ORPHAN = "orphan"     # No FK relationships
+    HUB = "hub"  # 3+ incoming FKs
+    BRIDGE = "bridge"  # 2+ outgoing FKs, few own columns (junction table)
+    LEAF = "leaf"  # Has outgoing FKs but no incoming
+    ORPHAN = "orphan"  # No FK relationships
     STANDARD = "standard"
 
 
@@ -115,8 +166,8 @@ class TableTopology(BaseModel):
 class ColumnPattern(BaseModel):
     table: str
     column: str
-    pattern: str   # "id_without_fk", "money_as_float", "bool_as_int",
-                   # "pii_unencrypted", "security_plaintext", "date_as_string"
+    pattern: str  # "id_without_fk", "money_as_float", "bool_as_int",
+    # "pii_unencrypted", "security_plaintext", "date_as_string"
     detail: str
 
 
@@ -132,8 +183,8 @@ class SchemaStatistics(BaseModel):
 
 class RiskSignal(BaseModel):
     table: str
-    signal: str     # "no_pk", "no_indexes", "wide_table", "security_plaintext"
-    severity: str   # "high", "medium", "low"
+    signal: str  # "no_pk", "no_indexes", "wide_table", "security_plaintext"
+    severity: str  # "high", "medium", "low"
     detail: str
 
 
@@ -148,6 +199,7 @@ class SchemaPreAnalysis(BaseModel):
 # ---------------------------------------------------------------------------
 # Topology
 # ---------------------------------------------------------------------------
+
 
 def build_topology(schema: ParsedSchema) -> list[TableTopology]:
     """Build FK topology graph and classify table roles.
@@ -184,9 +236,9 @@ def build_topology(schema: ParsedSchema) -> list[TableTopology]:
             # mostly FK columns + maybe an id)
             fk_col_names = {fk.column.lower() for fk in table.foreign_keys}
             non_fk_cols = [
-                c for c in table.columns
-                if c.name.lower() not in fk_col_names
-                and not c.is_primary_key
+                c
+                for c in table.columns
+                if c.name.lower() not in fk_col_names and not c.is_primary_key
             ]
             if len(non_fk_cols) <= 2:
                 role = TableRole.BRIDGE
@@ -201,13 +253,15 @@ def build_topology(schema: ParsedSchema) -> list[TableTopology]:
         else:
             role = TableRole.STANDARD
 
-        result.append(TableTopology(
-            name=table.name,
-            role=role,
-            incoming_fk_count=in_count,
-            outgoing_fk_count=out_count,
-            referenced_by=incoming.get(tname, []),
-        ))
+        result.append(
+            TableTopology(
+                name=table.name,
+                role=role,
+                incoming_fk_count=in_count,
+                outgoing_fk_count=out_count,
+                referenced_by=incoming.get(tname, []),
+            )
+        )
 
     return result
 
@@ -215,6 +269,7 @@ def build_topology(schema: ParsedSchema) -> list[TableTopology]:
 # ---------------------------------------------------------------------------
 # Column Patterns
 # ---------------------------------------------------------------------------
+
 
 def detect_column_patterns(schema: ParsedSchema) -> list[ColumnPattern]:
     """Detect 6 column patterns using word lists from rule_analyzer."""
@@ -236,68 +291,84 @@ def detect_column_patterns(schema: ParsedSchema) -> list[ColumnPattern]:
                 and col_lower not in pk_set
                 and col_lower not in fk_columns
             ):
-                patterns.append(ColumnPattern(
-                    table=table.name,
-                    column=col.name,
-                    pattern="id_without_fk",
-                    detail=f"{col.name} ends with _id but has no FK constraint",
-                ))
+                patterns.append(
+                    ColumnPattern(
+                        table=table.name,
+                        column=col.name,
+                        pattern="id_without_fk",
+                        detail=f"{col.name} ends with _id but has no FK constraint",
+                    )
+                )
 
             # 2. money_as_float: FLOAT/DOUBLE for money columns
-            if ("FLOAT" in col_type or "DOUBLE" in col_type
-                    or "FLOAT" in raw_upper or "DOUBLE" in raw_upper) and any(word in col_lower for word in MONEY_WORDS):
-                patterns.append(ColumnPattern(
-                    table=table.name,
-                    column=col.name,
-                    pattern="money_as_float",
-                    detail=f"{col.name} uses {col.raw_type} for money (should be DECIMAL)",
-                ))
+            if (
+                "FLOAT" in col_type
+                or "DOUBLE" in col_type
+                or "FLOAT" in raw_upper
+                or "DOUBLE" in raw_upper
+            ) and any(word in col_lower for word in MONEY_WORDS):
+                patterns.append(
+                    ColumnPattern(
+                        table=table.name,
+                        column=col.name,
+                        pattern="money_as_float",
+                        detail=f"{col.name} uses {col.raw_type} for money (should be DECIMAL)",
+                    )
+                )
 
             # 3. bool_as_int: INT for boolean-like columns
-            if (col_type == "DATATYPE.INT" or raw_upper.startswith("INT")) and col_lower.startswith(("is_", "has_")):
-                patterns.append(ColumnPattern(
-                    table=table.name,
-                    column=col.name,
-                    pattern="bool_as_int",
-                    detail=f"{col.name} uses INT for boolean (should be BOOLEAN)",
-                ))
+            if (col_type == "DATATYPE.INT" or raw_upper.startswith("INT")) and col_lower.startswith(
+                ("is_", "has_")
+            ):
+                patterns.append(
+                    ColumnPattern(
+                        table=table.name,
+                        column=col.name,
+                        pattern="bool_as_int",
+                        detail=f"{col.name} uses INT for boolean (should be BOOLEAN)",
+                    )
+                )
 
             # 4. pii_unencrypted: PII column without encryption marker
             if col_lower in PII_INDICATORS:
-                has_marker = any(
-                    col_lower.endswith(m) for m in PII_ENCRYPTION_MARKERS
-                )
+                has_marker = any(col_lower.endswith(m) for m in PII_ENCRYPTION_MARKERS)
                 if not has_marker:
-                    patterns.append(ColumnPattern(
-                        table=table.name,
-                        column=col.name,
-                        pattern="pii_unencrypted",
-                        detail=f"{col.name} contains PII without encryption marker",
-                    ))
+                    patterns.append(
+                        ColumnPattern(
+                            table=table.name,
+                            column=col.name,
+                            pattern="pii_unencrypted",
+                            detail=f"{col.name} contains PII without encryption marker",
+                        )
+                    )
 
             # 5. security_plaintext: sensitive column without safe suffix
             for sensitive in SECURITY_SENSITIVE_NAMES:
                 if col_lower == sensitive or col_lower.endswith(f"_{sensitive}"):
-                    has_safe = any(
-                        col_lower.endswith(s) for s in SECURITY_SAFE_SUFFIXES
-                    )
+                    has_safe = any(col_lower.endswith(s) for s in SECURITY_SAFE_SUFFIXES)
                     if not has_safe:
-                        patterns.append(ColumnPattern(
-                            table=table.name,
-                            column=col.name,
-                            pattern="security_plaintext",
-                            detail=f"{col.name} stores sensitive data without hashing/encryption",
-                        ))
+                        patterns.append(
+                            ColumnPattern(
+                                table=table.name,
+                                column=col.name,
+                                pattern="security_plaintext",
+                                detail=f"{col.name} stores sensitive data without hashing/encryption",
+                            )
+                        )
                     break  # Only flag once per column
 
             # 6. date_as_string: VARCHAR/CHAR/TEXT for date columns
-            if ("VARCHAR" in col_type or "CHAR" in col_type or "TEXT" in col_type) and any(word in col_lower for word in DATE_WORDS):
-                patterns.append(ColumnPattern(
-                    table=table.name,
-                    column=col.name,
-                    pattern="date_as_string",
-                    detail=f"{col.name} uses string type for date (should be TIMESTAMP/DATE)",
-                ))
+            if ("VARCHAR" in col_type or "CHAR" in col_type or "TEXT" in col_type) and any(
+                word in col_lower for word in DATE_WORDS
+            ):
+                patterns.append(
+                    ColumnPattern(
+                        table=table.name,
+                        column=col.name,
+                        pattern="date_as_string",
+                        detail=f"{col.name} uses string type for date (should be TIMESTAMP/DATE)",
+                    )
+                )
 
     return patterns
 
@@ -305,6 +376,7 @@ def detect_column_patterns(schema: ParsedSchema) -> list[ColumnPattern]:
 # ---------------------------------------------------------------------------
 # Statistics
 # ---------------------------------------------------------------------------
+
 
 def compute_statistics(schema: ParsedSchema) -> SchemaStatistics:
     """Compute schema-wide statistics and coverage metrics."""
@@ -331,7 +403,11 @@ def compute_statistics(schema: ParsedSchema) -> SchemaStatistics:
         pk_set = {pk.lower() for pk in table.primary_key}
         for col in table.columns:
             col_lower = col.name.lower()
-            if col_lower.endswith("_id") and col_lower not in FK_ID_EXCEPTIONS and col_lower not in pk_set:
+            if (
+                col_lower.endswith("_id")
+                and col_lower not in FK_ID_EXCEPTIONS
+                and col_lower not in pk_set
+            ):
                 id_cols_total += 1
                 if col_lower in fk_columns:
                     id_cols_with_fk += 1
@@ -340,8 +416,7 @@ def compute_statistics(schema: ParsedSchema) -> SchemaStatistics:
 
     # Index coverage: % of tables that have at least one non-PK index
     tables_with_indexes = sum(
-        1 for t in schema.tables
-        if any(not idx.is_primary for idx in t.indexes)
+        1 for t in schema.tables if any(not idx.is_primary for idx in t.indexes)
     )
     index_coverage = tables_with_indexes / table_count * 100
 
@@ -368,6 +443,7 @@ def compute_statistics(schema: ParsedSchema) -> SchemaStatistics:
 # Risk Signals
 # ---------------------------------------------------------------------------
 
+
 def detect_risk_signals(schema: ParsedSchema) -> list[RiskSignal]:
     """Detect high-level risk signals across the schema."""
     signals: list[RiskSignal] = []
@@ -375,47 +451,53 @@ def detect_risk_signals(schema: ParsedSchema) -> list[RiskSignal]:
     for table in schema.tables:
         # no_pk
         if not table.has_primary_key():
-            signals.append(RiskSignal(
-                table=table.name,
-                signal="no_pk",
-                severity="high",
-                detail=f"Table '{table.name}' has no primary key",
-            ))
+            signals.append(
+                RiskSignal(
+                    table=table.name,
+                    signal="no_pk",
+                    severity="high",
+                    detail=f"Table '{table.name}' has no primary key",
+                )
+            )
 
         # no_indexes (only flag if table has 5+ columns)
         has_non_pk_index = any(not idx.is_primary for idx in table.indexes)
         if not has_non_pk_index and len(table.columns) >= 5:
-            signals.append(RiskSignal(
-                table=table.name,
-                signal="no_indexes",
-                severity="medium",
-                detail=f"Table '{table.name}' has {len(table.columns)} columns but no indexes",
-            ))
+            signals.append(
+                RiskSignal(
+                    table=table.name,
+                    signal="no_indexes",
+                    severity="medium",
+                    detail=f"Table '{table.name}' has {len(table.columns)} columns but no indexes",
+                )
+            )
 
         # Flag wide tables with 15 or more columns
         if len(table.columns) >= 15:
-            signals.append(RiskSignal(
-                table=table.name,
-                signal="wide_table",
-                severity="low",
-                detail=f"Table '{table.name}' has {len(table.columns)} columns (consider splitting)",
-            ))
+            signals.append(
+                RiskSignal(
+                    table=table.name,
+                    signal="wide_table",
+                    severity="low",
+                    detail=f"Table '{table.name}' has {len(table.columns)} columns (consider splitting)",
+                )
+            )
 
         # security_plaintext
         for col in table.columns:
             col_lower = col.name.lower()
             for sensitive in SECURITY_SENSITIVE_NAMES:
                 if col_lower == sensitive or col_lower.endswith(f"_{sensitive}"):
-                    has_safe = any(
-                        col_lower.endswith(s) for s in SECURITY_SAFE_SUFFIXES
-                    )
+                    has_safe = any(col_lower.endswith(s) for s in SECURITY_SAFE_SUFFIXES)
                     if not has_safe:
-                        signals.append(RiskSignal(
-                            table=table.name,
-                            signal="security_plaintext",
-                            severity="high",
-                            detail=f"Column '{table.name}.{col.name}' stores sensitive data in plaintext",
-                        ))
+                        signals.append(
+                            RiskSignal(
+                                table=table.name,
+                                signal="security_plaintext",
+                                severity="high",
+                                detail=f"Column '{table.name}.{col.name}' stores sensitive data in plaintext",
+                            )
+                        )
                     break
 
     return signals
@@ -424,6 +506,7 @@ def detect_risk_signals(schema: ParsedSchema) -> list[RiskSignal]:
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
+
 
 def run_pre_analysis(
     schema: ParsedSchema,
@@ -442,6 +525,7 @@ def run_pre_analysis(
 # ---------------------------------------------------------------------------
 # Serialization for agent tools
 # ---------------------------------------------------------------------------
+
 
 def serialize_pre_analysis(pre: SchemaPreAnalysis) -> str:
     """Serialize pre-analysis to a compact string for agent tool output."""

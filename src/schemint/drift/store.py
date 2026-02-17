@@ -156,7 +156,10 @@ class DriftStore:
 
     def get_latest_snapshot(self, project_id: str) -> SchemaSnapshot | None:
         """Get the most recent snapshot for a project."""
-        with self._get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
             cur.execute(
                 """
                 SELECT snapshot_data FROM schema_snapshots
@@ -178,7 +181,10 @@ class DriftStore:
 
     def get_snapshot(self, snapshot_id: str) -> SchemaSnapshot | None:
         """Get a snapshot by its snapshot_id."""
-        with self._get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
             cur.execute(
                 "SELECT snapshot_data FROM schema_snapshots WHERE snapshot_id = %s",
                 (snapshot_id,),
@@ -224,7 +230,10 @@ class DriftStore:
 
     def get_dependency_graph(self, project_id: str) -> DependencyGraph | None:
         """Get the current dependency graph for a project."""
-        with self._get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
             cur.execute(
                 """
                 SELECT from_element, to_element, usage_type, sources,
@@ -248,13 +257,15 @@ class DriftStore:
                 sources_data = json.loads(sources_data)
 
             sources = [DependencySource(**s) for s in sources_data]
-            edges.append(DependencyEdge(
-                from_element=row["from_element"],
-                to_element=row["to_element"],
-                usage_type=row["usage_type"],
-                sources=sources,
-                final_confidence=row["final_confidence"],
-            ))
+            edges.append(
+                DependencyEdge(
+                    from_element=row["from_element"],
+                    to_element=row["to_element"],
+                    usage_type=row["usage_type"],
+                    sources=sources,
+                    final_confidence=row["final_confidence"],
+                )
+            )
             if built_at is None:
                 built_at = row["built_at"]
 
@@ -288,11 +299,12 @@ class DriftStore:
             )
         return row_id
 
-    def get_change_history(
-        self, project_id: str, limit: int = 50
-    ) -> list[SchemaDiffResult]:
+    def get_change_history(self, project_id: str, limit: int = 50) -> list[SchemaDiffResult]:
         """Get recent change history for a project, newest first."""
-        with self._get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
             cur.execute(
                 """
                 SELECT diff_data FROM schema_change_history
@@ -312,9 +324,7 @@ class DriftStore:
             results.append(SchemaDiffResult(**data))
         return results
 
-    def get_table_change_frequency(
-        self, project_id: str, table_name: str, days: int = 90
-    ) -> int:
+    def get_table_change_frequency(self, project_id: str, table_name: str, days: int = 90) -> int:
         """Count how many times a specific table has been changed recently.
 
         Used by the AI to determine table stability.
@@ -340,7 +350,10 @@ class DriftStore:
         self, project_id: str, environment: str
     ) -> SchemaSnapshot | None:
         """Get the most recent snapshot for a project in a specific environment."""
-        with self._get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
             cur.execute(
                 """
                 SELECT snapshot_data FROM schema_snapshots
@@ -405,7 +418,10 @@ class DriftStore:
         self, project_id: str, environment: str = "default"
     ) -> SchemaSnapshot | None:
         """Get the active desired state for a project and environment."""
-        with self._get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
             cur.execute(
                 """
                 SELECT snapshot_data FROM desired_states
@@ -462,7 +478,10 @@ class DriftStore:
         self, project_id: str, environment: str, limit: int = 100
     ) -> list[MigrationRecord]:
         """Get migration history for a project and environment, newest first."""
-        with self._get_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
             cur.execute(
                 """
                 SELECT migration_id, project_id, environment, migration_type,
@@ -479,9 +498,7 @@ class DriftStore:
 
         return [MigrationRecord(**row) for row in rows]
 
-    def has_migration_been_applied(
-        self, project_id: str, environment: str, checksum: str
-    ) -> bool:
+    def has_migration_been_applied(self, project_id: str, environment: str, checksum: str) -> bool:
         """Check if a migration with this checksum has already been applied."""
         with self._get_connection() as conn, conn.cursor() as cur:
             cur.execute(
@@ -514,6 +531,7 @@ def get_drift_store(database_url: str | None = None) -> DriftStore:
         return _store
     if _store is None:
         from schemint.config import get_settings
+
         settings = get_settings()
         if not settings.database_url:
             raise ValueError("DATABASE_URL must be set for drift store.")

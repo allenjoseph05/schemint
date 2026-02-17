@@ -1,6 +1,5 @@
 """Tests for view snapshot capture + diff + dependency wiring."""
 
-
 from schemint.drift.dependency_graph import DependencyGraphBuilder
 from schemint.drift.differ import SchemaDiffer
 from schemint.drift.models import (
@@ -81,9 +80,12 @@ class TestViewDiff:
 
     def test_view_added(self):
         old = self._make_snapshot("old")
-        new = self._make_snapshot("new", views={
-            "v1": ViewSnapshot(name="v1", definition="SELECT 1"),
-        })
+        new = self._make_snapshot(
+            "new",
+            views={
+                "v1": ViewSnapshot(name="v1", definition="SELECT 1"),
+            },
+        )
         differ = SchemaDiffer()
         result = differ.diff(old, new)
 
@@ -92,9 +94,12 @@ class TestViewDiff:
         assert added[0].table == "v1"
 
     def test_view_dropped(self):
-        old = self._make_snapshot("old", views={
-            "v1": ViewSnapshot(name="v1", definition="SELECT 1"),
-        })
+        old = self._make_snapshot(
+            "old",
+            views={
+                "v1": ViewSnapshot(name="v1", definition="SELECT 1"),
+            },
+        )
         new = self._make_snapshot("new")
         differ = SchemaDiffer()
         result = differ.diff(old, new)
@@ -105,12 +110,18 @@ class TestViewDiff:
         assert dropped[0].change_risk == "breaking"
 
     def test_view_definition_change(self):
-        old = self._make_snapshot("old", views={
-            "v1": ViewSnapshot(name="v1", definition="SELECT id FROM users"),
-        })
-        new = self._make_snapshot("new", views={
-            "v1": ViewSnapshot(name="v1", definition="SELECT id, name FROM users"),
-        })
+        old = self._make_snapshot(
+            "old",
+            views={
+                "v1": ViewSnapshot(name="v1", definition="SELECT id FROM users"),
+            },
+        )
+        new = self._make_snapshot(
+            "new",
+            views={
+                "v1": ViewSnapshot(name="v1", definition="SELECT id, name FROM users"),
+            },
+        )
         differ = SchemaDiffer()
         result = differ.diff(old, new)
 

@@ -1,6 +1,5 @@
 """Tests for ALTER TABLE parser — sqlglot-based change event extraction."""
 
-
 from schemint.drift.alter_parser import AlterParser
 from schemint.drift.differ import SchemaDiffer
 

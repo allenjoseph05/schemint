@@ -36,9 +36,7 @@ def _make_schema(num_tables: int = 1, cols_per_table: int = 3) -> ParsedSchema:
             is_primary_key=True,
             nullable=False,
         )
-        tables.append(
-            Table(name=f"table_{i}", columns=cols, primary_key=["id"])
-        )
+        tables.append(Table(name=f"table_{i}", columns=cols, primary_key=["id"]))
     return ParsedSchema(tables=tables, database_type="mysql")
 
 
@@ -169,8 +167,13 @@ class TestAnalyzeSchema:
 
         mock_agent = MagicMock()
         mock_agent.analyze.return_value = _mock_agent_result(
-            score={"total": 42, "structural": 55, "performance": 60,
-                   "naming": 80, "best_practices": 35},
+            score={
+                "total": 42,
+                "structural": 55,
+                "performance": 60,
+                "naming": 80,
+                "best_practices": 35,
+            },
         )
         mock_get_agent.return_value = mock_agent
 

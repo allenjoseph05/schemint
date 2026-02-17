@@ -76,9 +76,11 @@ def _mock_claude_plan_response(steps: list[dict]) -> MagicMock:
 
 def _make_agent() -> PlanningAgent:
     """Create a PlanningAgent with mocked settings."""
-    with patch("schemint.drift.planning_agent.anthropic"), \
-         patch("schemint.drift.planning_agent.CLAUDE_AVAILABLE", True), \
-         patch("schemint.drift.planning_agent.get_settings") as mock_settings:
+    with (
+        patch("schemint.drift.planning_agent.anthropic"),
+        patch("schemint.drift.planning_agent.CLAUDE_AVAILABLE", True),
+        patch("schemint.drift.planning_agent.get_settings") as mock_settings,
+    ):
         mock_settings.return_value = MagicMock(
             claude_api_key="test-key",
             claude_model="test-model",
@@ -131,10 +133,12 @@ class TestScopedRegistry:
         context = _make_context()
 
         # Claude returns an action from monitor_only AND one not in scope
-        agent.client.messages.create.return_value = _mock_claude_plan_response([
-            {"step": 1, "action": "add_monitoring_alert", "target": "users", "notes": "ok"},
-            {"step": 2, "action": "block_deploy", "target": "users", "notes": "bad"},
-        ])
+        agent.client.messages.create.return_value = _mock_claude_plan_response(
+            [
+                {"step": 1, "action": "add_monitoring_alert", "target": "users", "notes": "ok"},
+                {"step": 2, "action": "block_deploy", "target": "users", "notes": "bad"},
+            ]
+        )
 
         result = agent.plan(decision, context)
 
@@ -156,11 +160,13 @@ class TestCategoryRestrictions:
         decision = _make_decision(severity="low", categories=["block_deploy", "notify_owner"])
         context = _make_context()
 
-        agent.client.messages.create.return_value = _mock_claude_plan_response([
-            {"step": 1, "action": "block_deploy", "target": "users"},
-            {"step": 2, "action": "require_migration_review", "target": "users"},
-            {"step": 3, "action": "notify_table_owner", "target": "users"},
-        ])
+        agent.client.messages.create.return_value = _mock_claude_plan_response(
+            [
+                {"step": 1, "action": "block_deploy", "target": "users"},
+                {"step": 2, "action": "require_migration_review", "target": "users"},
+                {"step": 3, "action": "notify_table_owner", "target": "users"},
+            ]
+        )
 
         result = agent.plan(decision, context)
 
@@ -178,12 +184,14 @@ class TestCategoryRestrictions:
         )
         context = _make_context(context_quality="insufficient")
 
-        agent.client.messages.create.return_value = _mock_claude_plan_response([
-            {"step": 1, "action": "add_column_alias", "target": "users"},
-            {"step": 2, "action": "add_default_value", "target": "users"},
-            {"step": 3, "action": "create_migration_view", "target": "users"},
-            {"step": 4, "action": "notify_table_owner", "target": "users"},
-        ])
+        agent.client.messages.create.return_value = _mock_claude_plan_response(
+            [
+                {"step": 1, "action": "add_column_alias", "target": "users"},
+                {"step": 2, "action": "add_default_value", "target": "users"},
+                {"step": 3, "action": "create_migration_view", "target": "users"},
+                {"step": 4, "action": "notify_table_owner", "target": "users"},
+            ]
+        )
 
         result = agent.plan(decision, context)
 
@@ -203,9 +211,11 @@ class TestCategoryRestrictions:
         context = _make_context(criticality="critical")
 
         # LLM returns plan WITHOUT block_deploy
-        agent.client.messages.create.return_value = _mock_claude_plan_response([
-            {"step": 1, "action": "notify_table_owner", "target": "users"},
-        ])
+        agent.client.messages.create.return_value = _mock_claude_plan_response(
+            [
+                {"step": 1, "action": "notify_table_owner", "target": "users"},
+            ]
+        )
 
         result = agent.plan(decision, context)
 
@@ -221,9 +231,11 @@ class TestCategoryRestrictions:
         )
         context = _make_context()
 
-        agent.client.messages.create.return_value = _mock_claude_plan_response([
-            {"step": 1, "action": "block_deploy", "target": "users"},
-        ])
+        agent.client.messages.create.return_value = _mock_claude_plan_response(
+            [
+                {"step": 1, "action": "block_deploy", "target": "users"},
+            ]
+        )
 
         result = agent.plan(decision, context)
 
@@ -242,10 +254,12 @@ class TestPostProcessing:
         decision = _make_decision(categories=["notify_owner"])
         context = _make_context()
 
-        agent.client.messages.create.return_value = _mock_claude_plan_response([
-            {"step": 1, "action": "notify_table_owner", "target": "users"},
-            {"step": 2, "action": "invented_action", "target": "users"},
-        ])
+        agent.client.messages.create.return_value = _mock_claude_plan_response(
+            [
+                {"step": 1, "action": "notify_table_owner", "target": "users"},
+                {"step": 2, "action": "invented_action", "target": "users"},
+            ]
+        )
 
         result = agent.plan(decision, context)
 
@@ -259,11 +273,13 @@ class TestPostProcessing:
         decision = _make_decision(categories=["notify_owner"])
         context = _make_context()
 
-        agent.client.messages.create.return_value = _mock_claude_plan_response([
-            {"step": 1, "action": "invented_action", "target": "users"},
-            {"step": 2, "action": "notify_table_owner", "target": "users"},
-            {"step": 3, "action": "notify_downstream_teams", "target": "users"},
-        ])
+        agent.client.messages.create.return_value = _mock_claude_plan_response(
+            [
+                {"step": 1, "action": "invented_action", "target": "users"},
+                {"step": 2, "action": "notify_table_owner", "target": "users"},
+                {"step": 3, "action": "notify_downstream_teams", "target": "users"},
+            ]
+        )
 
         result = agent.plan(decision, context)
 

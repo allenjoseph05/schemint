@@ -40,39 +40,47 @@ class DbtEdgeExtractor:
                 else:
                     dep_fqn = dep_id.split(".")[-1] if "." in dep_id else dep_id
 
-                edges.append(DependencyEdge(
-                    from_element=dep_fqn,
-                    to_element=node_fqn,
-                    direction="upstream",
-                    usage_type="transform",
-                    sources=[DependencySource(
-                        source_type="dbt_manifest",
-                        confidence=CONFIDENCE_DBT,
-                        file_path=manifest_path,
-                        extracted_at=now,
-                        dbt_unique_id=dep_id,
-                    )],
-                    final_confidence=CONFIDENCE_DBT,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=dep_fqn,
+                        to_element=node_fqn,
+                        direction="upstream",
+                        usage_type="transform",
+                        sources=[
+                            DependencySource(
+                                source_type="dbt_manifest",
+                                confidence=CONFIDENCE_DBT,
+                                file_path=manifest_path,
+                                extracted_at=now,
+                                dbt_unique_id=dep_id,
+                            )
+                        ],
+                        final_confidence=CONFIDENCE_DBT,
+                    )
+                )
 
             # Column-level lineage if available
             columns = node.get("columns", {})
             for col_name, col_info in columns.items():
                 depends_on_cols = col_info.get("depends_on", [])
                 for dep_col in depends_on_cols:
-                    edges.append(DependencyEdge(
-                        from_element=dep_col,
-                        to_element=f"{node_fqn}.{col_name}",
-                        direction="upstream",
-                        usage_type="transform",
-                        sources=[DependencySource(
-                            source_type="dbt_manifest",
-                            confidence=CONFIDENCE_DBT,
-                            file_path=manifest_path,
-                            extracted_at=now,
-                        )],
-                        final_confidence=CONFIDENCE_DBT,
-                    ))
+                    edges.append(
+                        DependencyEdge(
+                            from_element=dep_col,
+                            to_element=f"{node_fqn}.{col_name}",
+                            direction="upstream",
+                            usage_type="transform",
+                            sources=[
+                                DependencySource(
+                                    source_type="dbt_manifest",
+                                    confidence=CONFIDENCE_DBT,
+                                    file_path=manifest_path,
+                                    extracted_at=now,
+                                )
+                            ],
+                            final_confidence=CONFIDENCE_DBT,
+                        )
+                    )
 
         return edges
 

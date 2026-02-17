@@ -101,9 +101,7 @@ class DriftAgent:
         settings = get_settings()
 
         if not CLAUDE_AVAILABLE:
-            raise RuntimeError(
-                "anthropic not installed. Install with: pip install anthropic"
-            )
+            raise RuntimeError("anthropic not installed. Install with: pip install anthropic")
         if not settings.claude_api_key:
             raise RuntimeError("CLAUDE_API_KEY not set.")
 
@@ -206,7 +204,9 @@ class DriftAgent:
             confidence = min(confidence, 0.6)
 
         # 3. Critical criticality → severity ≥ high
-        if context.impact_metrics.criticality == "critical" and _sev_index(severity) < _sev_index("high"):
+        if context.impact_metrics.criticality == "critical" and _sev_index(severity) < _sev_index(
+            "high"
+        ):
             severity = "high"
 
         # 4. Insufficient context → human review, severity ≥ medium, no backward_compat
@@ -285,9 +285,9 @@ def _truncate_categories(categories: list[str], max_count: int) -> list[str]:
     # Sort by priority (lower index = higher priority)
     sorted_cats = sorted(
         categories,
-        key=lambda c: _CATEGORY_PRIORITY.index(c)
-        if c in _CATEGORY_PRIORITY
-        else len(_CATEGORY_PRIORITY),
+        key=lambda c: (
+            _CATEGORY_PRIORITY.index(c) if c in _CATEGORY_PRIORITY else len(_CATEGORY_PRIORITY)
+        ),
     )
     return sorted_cats[:max_count]
 

@@ -109,8 +109,6 @@ class TestMigrationRecord:
         assert record.execution_time_ms is None
 
 
-
-
 class TestComputeMigrationChecksum:
     """Tests for compute_migration_checksum()."""
 
@@ -147,8 +145,6 @@ class TestComputeMigrationChecksum:
         checksum = compute_migration_checksum("")
         assert isinstance(checksum, str)
         assert len(checksum) == 64
-
-
 
 
 class TestGenerateMigrationId:

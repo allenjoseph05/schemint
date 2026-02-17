@@ -33,9 +33,7 @@ class MultiSchemaCapture:
         schemas: dict[str, SchemaSnapshot] = {}
 
         for name in schema_names:
-            schemas[name] = live_capture.capture(
-                connection_string, schema_name=name
-            )
+            schemas[name] = live_capture.capture(connection_string, schema_name=name)
 
         return MultiSchemaSnapshot(
             snapshot_id=f"multi_{'_'.join(schema_names)}_{now.strftime('%Y%m%d_%H%M%S')}",
@@ -57,8 +55,14 @@ class MultiSchemaCapture:
                 qualified = f"{schema_name}.{table_name}"
                 qualified_fks = []
                 for fk in table.foreign_keys:
-                    ref_table = fk.references_table if hasattr(fk, "references_table") else fk.get("references_table", "")
-                    qualified_ref = f"{schema_name}.{ref_table}" if ref_table in schema.tables else ref_table
+                    ref_table = (
+                        fk.references_table
+                        if hasattr(fk, "references_table")
+                        else fk.get("references_table", "")
+                    )
+                    qualified_ref = (
+                        f"{schema_name}.{ref_table}" if ref_table in schema.tables else ref_table
+                    )
                     if hasattr(fk, "model_copy"):
                         new_fk = fk.model_copy(update={"references_table": qualified_ref})
                     else:

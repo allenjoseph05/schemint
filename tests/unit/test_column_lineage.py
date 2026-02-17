@@ -1,6 +1,5 @@
 """Tests for column-level lineage extraction in dependency graph."""
 
-
 from schemint.drift.dependency_graph import DependencyGraphBuilder
 
 
@@ -75,10 +74,7 @@ class TestCTEColumnLineage:
         edges = self.builder.from_sql_ast(sql)
         col_edges = [e for e in edges if e.lineage_type == "column"]
         # Should trace orders.id → recent_orders.id etc.
-        cte_edges = [
-            e for e in col_edges
-            if "recent_orders" in e.to_element
-        ]
+        cte_edges = [e for e in col_edges if "recent_orders" in e.to_element]
         assert len(cte_edges) >= 1
 
     def test_cte_with_aggregation(self):

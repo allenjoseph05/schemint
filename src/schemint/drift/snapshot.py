@@ -87,9 +87,7 @@ class SnapshotService:
         """Capture snapshots across multiple schemas."""
         return self._multi.capture(connection_string, schema_names)
 
-    def flatten_multi_schema(
-        self, multi: MultiSchemaSnapshot
-    ) -> SchemaSnapshot:
+    def flatten_multi_schema(self, multi: MultiSchemaSnapshot) -> SchemaSnapshot:
         """Merge all schemas into one snapshot with qualified table names."""
         return self._multi.flatten(multi)
 
@@ -97,6 +95,7 @@ class SnapshotService:
     def _extract_tables_from_view_sql(self, sql: str) -> list[str]:
         """Extract table names referenced in view SQL using sqlglot."""
         from schemint.drift.sql_utils import extract_tables_from_sql
+
         return extract_tables_from_sql(sql, context="view SQL")
 
     def _extract_views_from_ddl(self, sql: str) -> dict[str, ViewSnapshot]:

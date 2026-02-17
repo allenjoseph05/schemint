@@ -74,6 +74,7 @@ def sample_schema():
 # FK Extraction
 # =========================================================================
 
+
 class TestFKExtraction:
     def test_extracts_fk_edges(self, builder, sample_schema):
         edges = builder.from_fk_constraints(sample_schema)
@@ -130,6 +131,7 @@ class TestFKExtraction:
 # =========================================================================
 # dbt Manifest
 # =========================================================================
+
 
 class TestDbtManifest:
     def test_parses_manifest(self, builder, tmp_path):
@@ -287,6 +289,7 @@ class TestDbtManifest:
 # SQL AST (sqlglot-based, deterministic)
 # =========================================================================
 
+
 class TestSQLAST:
     def test_extracts_join_edges(self, builder):
         sql = """
@@ -405,6 +408,7 @@ class TestSQLAST:
 # View Definitions
 # =========================================================================
 
+
 class TestViewDefinitions:
     def test_extracts_view_sources(self, builder):
         views = {
@@ -444,6 +448,7 @@ class TestViewDefinitions:
 # =========================================================================
 # Edge Merging & Invariants
 # =========================================================================
+
 
 class TestEdgeMerging:
     def test_merges_duplicate_edges(self, builder):
@@ -541,22 +546,25 @@ class TestEdgeMerging:
 # Coverage & Uncertainty
 # =========================================================================
 
+
 class TestCoverage:
     def test_full_coverage(self, builder, sample_schema):
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="users.id",
-                to_element="orders.user_id",
-                usage_type="fk",
-                final_confidence=1.0,
-            ),
-            DependencyEdge(
-                from_element="orders.id",
-                to_element="order_items.order_id",
-                usage_type="fk",
-                final_confidence=1.0,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="users.id",
+                    to_element="orders.user_id",
+                    usage_type="fk",
+                    final_confidence=1.0,
+                ),
+                DependencyEdge(
+                    from_element="orders.id",
+                    to_element="order_items.order_id",
+                    usage_type="fk",
+                    final_confidence=1.0,
+                ),
+            ]
+        )
 
         coverage = builder.compute_coverage(graph, sample_schema)
         assert coverage.tables_total == 3
@@ -565,14 +573,16 @@ class TestCoverage:
         assert coverage.untracked_tables == []
 
     def test_partial_coverage(self, builder, sample_schema):
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="users.id",
-                to_element="orders.user_id",
-                usage_type="fk",
-                final_confidence=1.0,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="users.id",
+                    to_element="orders.user_id",
+                    usage_type="fk",
+                    final_confidence=1.0,
+                ),
+            ]
+        )
 
         coverage = builder.compute_coverage(graph, sample_schema)
         assert coverage.tables_total == 3
@@ -692,8 +702,7 @@ class TestInsertSelectExtraction:
         insert_edges = [e for e in edges if e.final_confidence == 0.95]
         assert len(insert_edges) > 0
         assert any(
-            e.from_element == "users" and e.to_element == "user_archive"
-            for e in insert_edges
+            e.from_element == "users" and e.to_element == "user_archive" for e in insert_edges
         )
 
     def test_insert_select_multiple_sources(self, builder):
@@ -719,8 +728,7 @@ class TestInsertSelectExtraction:
         edges = builder.from_sql_ast(sql)
         insert_edges = [e for e in edges if e.final_confidence == 0.95]
         self_edges = [
-            e for e in insert_edges
-            if e.from_element == "users" and e.to_element == "users"
+            e for e in insert_edges if e.from_element == "users" and e.to_element == "users"
         ]
         assert len(self_edges) == 0
 
@@ -760,9 +768,7 @@ class TestParseHealth:
         }
         edges, _health = builder.from_sql_files(sql_files)
         assert len(edges) > 0
-        assert all(
-            any(s.file_path == "query.sql" for s in e.sources) for e in edges
-        )
+        assert all(any(s.file_path == "query.sql" for s in e.sources) for e in edges)
 
 
 class TestParseHealthModel:
@@ -777,9 +783,6 @@ class TestParseHealthModel:
         assert health.success_rate == 1.0
 
     def test_parse_failures_tracked(self):
-        health = ParseHealth(
-            total_files=3, parsed_ok=1,
-            parse_failures=["bad1.sql", "bad2.sql"]
-        )
+        health = ParseHealth(total_files=3, parsed_ok=1, parse_failures=["bad1.sql", "bad2.sql"])
         assert len(health.parse_failures) == 2
         assert health.success_rate == pytest.approx(1 / 3)

@@ -184,51 +184,63 @@ class TestColumnStatisticsModel:
 
 class TestSchemaSnapshotWithTier2:
     def test_snapshot_with_extensions(self):
-        snap = _make_snapshot(extensions={
-            "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
-            "postgis": ExtensionSnapshot(name="postgis", version="3.4.0"),
-        })
+        snap = _make_snapshot(
+            extensions={
+                "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
+                "postgis": ExtensionSnapshot(name="postgis", version="3.4.0"),
+            }
+        )
         assert len(snap.extensions) == 2
         assert snap.extensions["pg_trgm"].version == "1.6"
 
     def test_snapshot_with_permissions(self):
-        snap = _make_snapshot(permissions=[
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="INSERT"),
-        ])
+        snap = _make_snapshot(
+            permissions=[
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="INSERT"),
+            ]
+        )
         assert len(snap.permissions) == 2
 
     def test_snapshot_with_policies(self):
-        snap = _make_snapshot(policies={
-            "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders"),
-        })
+        snap = _make_snapshot(
+            policies={
+                "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders"),
+            }
+        )
         assert "tenant_iso" in snap.policies
 
     def test_snapshot_with_partitions(self):
-        snap = _make_snapshot(partitions={
-            "orders": [
-                PartitionInfo(partition_name="orders_2024_01", parent_table="orders"),
-                PartitionInfo(partition_name="orders_2024_02", parent_table="orders"),
-            ],
-        })
+        snap = _make_snapshot(
+            partitions={
+                "orders": [
+                    PartitionInfo(partition_name="orders_2024_01", parent_table="orders"),
+                    PartitionInfo(partition_name="orders_2024_02", parent_table="orders"),
+                ],
+            }
+        )
         assert len(snap.partitions["orders"]) == 2
 
     def test_snapshot_with_materialized_views(self):
-        snap = _make_snapshot(materialized_views={
-            "mv_summary": MaterializedViewSnapshot(
-                name="mv_summary",
-                definition="SELECT count(*) FROM orders",
-            ),
-        })
+        snap = _make_snapshot(
+            materialized_views={
+                "mv_summary": MaterializedViewSnapshot(
+                    name="mv_summary",
+                    definition="SELECT count(*) FROM orders",
+                ),
+            }
+        )
         assert snap.materialized_views["mv_summary"].definition == "SELECT count(*) FROM orders"
 
     def test_snapshot_with_column_statistics(self):
-        snap = _make_snapshot(column_statistics={
-            "users": [
-                ColumnStatistics(column_name="id", table_name="users", n_distinct=-1.0),
-                ColumnStatistics(column_name="email", table_name="users", null_frac=0.01),
-            ],
-        })
+        snap = _make_snapshot(
+            column_statistics={
+                "users": [
+                    ColumnStatistics(column_name="id", table_name="users", n_distinct=-1.0),
+                    ColumnStatistics(column_name="email", table_name="users", null_frac=0.01),
+                ],
+            }
+        )
         assert len(snap.column_statistics["users"]) == 2
 
 
@@ -243,9 +255,11 @@ class TestExtensionDiff:
 
     def test_extension_added(self):
         old = _make_snapshot()
-        new = _make_snapshot(extensions={
-            "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
-        })
+        new = _make_snapshot(
+            extensions={
+                "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "extension_added"]
         assert len(events) == 1
@@ -253,9 +267,11 @@ class TestExtensionDiff:
         assert events[0].new_value == "1.6"
 
     def test_extension_dropped(self):
-        old = _make_snapshot(extensions={
-            "postgis": ExtensionSnapshot(name="postgis", version="3.4.0"),
-        })
+        old = _make_snapshot(
+            extensions={
+                "postgis": ExtensionSnapshot(name="postgis", version="3.4.0"),
+            }
+        )
         new = _make_snapshot()
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "extension_dropped"]
@@ -264,12 +280,16 @@ class TestExtensionDiff:
         assert events[0].old_value == "3.4.0"
 
     def test_extension_version_changed(self):
-        old = _make_snapshot(extensions={
-            "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.5"),
-        })
-        new = _make_snapshot(extensions={
-            "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
-        })
+        old = _make_snapshot(
+            extensions={
+                "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.5"),
+            }
+        )
+        new = _make_snapshot(
+            extensions={
+                "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "extension_version_changed"]
         assert len(events) == 1
@@ -285,14 +305,18 @@ class TestExtensionDiff:
         assert len(ext_events) == 0
 
     def test_multiple_extension_changes(self):
-        old = _make_snapshot(extensions={
-            "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.5"),
-            "hstore": ExtensionSnapshot(name="hstore", version="1.8"),
-        })
-        new = _make_snapshot(extensions={
-            "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
-            "uuid-ossp": ExtensionSnapshot(name="uuid-ossp", version="1.1"),
-        })
+        old = _make_snapshot(
+            extensions={
+                "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.5"),
+                "hstore": ExtensionSnapshot(name="hstore", version="1.8"),
+            }
+        )
+        new = _make_snapshot(
+            extensions={
+                "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
+                "uuid-ossp": ExtensionSnapshot(name="uuid-ossp", version="1.1"),
+            }
+        )
         result = self.differ.diff(old, new)
         ext_events = [e for e in result.changes if "extension" in e.change_type]
         types = {e.change_type for e in ext_events}
@@ -312,18 +336,22 @@ class TestPermissionDiff:
 
     def test_permission_granted(self):
         old = _make_snapshot()
-        new = _make_snapshot(permissions=[
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
-        ])
+        new = _make_snapshot(
+            permissions=[
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
+            ]
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "permission_granted"]
         assert len(events) == 1
         assert events[0].table == "users"
 
     def test_permission_revoked(self):
-        old = _make_snapshot(permissions=[
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
-        ])
+        old = _make_snapshot(
+            permissions=[
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
+            ]
+        )
         new = _make_snapshot()
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "permission_revoked"]
@@ -342,25 +370,33 @@ class TestPermissionDiff:
 
     def test_permission_identity_key(self):
         """Permission identity is (table, grantee, privilege) — same table with different grantee is different."""
-        old = _make_snapshot(permissions=[
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
-        ])
-        new = _make_snapshot(permissions=[
-            PermissionSnapshot(table_name="users", grantee="admin", privilege_type="SELECT"),
-        ])
+        old = _make_snapshot(
+            permissions=[
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
+            ]
+        )
+        new = _make_snapshot(
+            permissions=[
+                PermissionSnapshot(table_name="users", grantee="admin", privilege_type="SELECT"),
+            ]
+        )
         result = self.differ.diff(old, new)
         perm_events = [e for e in result.changes if "permission" in e.change_type]
         assert len(perm_events) == 2  # revoked for app, granted for admin
 
     def test_multiple_permissions_on_same_table(self):
-        old = _make_snapshot(permissions=[
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="INSERT"),
-        ])
-        new = _make_snapshot(permissions=[
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="DELETE"),
-        ])
+        old = _make_snapshot(
+            permissions=[
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="INSERT"),
+            ]
+        )
+        new = _make_snapshot(
+            permissions=[
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="DELETE"),
+            ]
+        )
         result = self.differ.diff(old, new)
         revoked = [e for e in result.changes if e.change_type == "permission_revoked"]
         granted = [e for e in result.changes if e.change_type == "permission_granted"]
@@ -379,18 +415,22 @@ class TestPolicyDiff:
 
     def test_policy_added(self):
         old = _make_snapshot()
-        new = _make_snapshot(policies={
-            "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders"),
-        })
+        new = _make_snapshot(
+            policies={
+                "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders"),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "policy_added"]
         assert len(events) == 1
         assert events[0].table == "orders"
 
     def test_policy_dropped(self):
-        old = _make_snapshot(policies={
-            "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders"),
-        })
+        old = _make_snapshot(
+            policies={
+                "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders"),
+            }
+        )
         new = _make_snapshot()
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "policy_dropped"]
@@ -398,46 +438,64 @@ class TestPolicyDiff:
         assert events[0].old_value == "tenant_iso"
 
     def test_policy_changed_command(self):
-        old = _make_snapshot(policies={
-            "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders", command="ALL"),
-        })
-        new = _make_snapshot(policies={
-            "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders", command="SELECT"),
-        })
+        old = _make_snapshot(
+            policies={
+                "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders", command="ALL"),
+            }
+        )
+        new = _make_snapshot(
+            policies={
+                "tenant_iso": PolicySnapshot(name="tenant_iso", table="orders", command="SELECT"),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "policy_changed"]
         assert len(events) == 1
         assert "SELECT" in events[0].new_value
 
     def test_policy_changed_permissive(self):
-        old = _make_snapshot(policies={
-            "pol1": PolicySnapshot(name="pol1", table="t", permissive=True),
-        })
-        new = _make_snapshot(policies={
-            "pol1": PolicySnapshot(name="pol1", table="t", permissive=False),
-        })
+        old = _make_snapshot(
+            policies={
+                "pol1": PolicySnapshot(name="pol1", table="t", permissive=True),
+            }
+        )
+        new = _make_snapshot(
+            policies={
+                "pol1": PolicySnapshot(name="pol1", table="t", permissive=False),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "policy_changed"]
         assert len(events) == 1
 
     def test_policy_changed_qual(self):
-        old = _make_snapshot(policies={
-            "pol1": PolicySnapshot(name="pol1", table="t", qual_expression="tenant_id = 1"),
-        })
-        new = _make_snapshot(policies={
-            "pol1": PolicySnapshot(name="pol1", table="t", qual_expression="tenant_id = current_user"),
-        })
+        old = _make_snapshot(
+            policies={
+                "pol1": PolicySnapshot(name="pol1", table="t", qual_expression="tenant_id = 1"),
+            }
+        )
+        new = _make_snapshot(
+            policies={
+                "pol1": PolicySnapshot(
+                    name="pol1", table="t", qual_expression="tenant_id = current_user"
+                ),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "policy_changed"]
         assert len(events) == 1
 
     def test_policy_changed_roles(self):
-        old = _make_snapshot(policies={
-            "pol1": PolicySnapshot(name="pol1", table="t", roles=["app_user"]),
-        })
-        new = _make_snapshot(policies={
-            "pol1": PolicySnapshot(name="pol1", table="t", roles=["app_user", "admin"]),
-        })
+        old = _make_snapshot(
+            policies={
+                "pol1": PolicySnapshot(name="pol1", table="t", roles=["app_user"]),
+            }
+        )
+        new = _make_snapshot(
+            policies={
+                "pol1": PolicySnapshot(name="pol1", table="t", roles=["app_user", "admin"]),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "policy_changed"]
         assert len(events) == 1
@@ -461,15 +519,19 @@ class TestPartitionDiff:
         self.differ = SchemaDiffer()
 
     def test_partition_added(self):
-        old = _make_snapshot(partitions={
-            "orders": [PartitionInfo(partition_name="orders_2024_01", parent_table="orders")],
-        })
-        new = _make_snapshot(partitions={
-            "orders": [
-                PartitionInfo(partition_name="orders_2024_01", parent_table="orders"),
-                PartitionInfo(partition_name="orders_2024_02", parent_table="orders"),
-            ],
-        })
+        old = _make_snapshot(
+            partitions={
+                "orders": [PartitionInfo(partition_name="orders_2024_01", parent_table="orders")],
+            }
+        )
+        new = _make_snapshot(
+            partitions={
+                "orders": [
+                    PartitionInfo(partition_name="orders_2024_01", parent_table="orders"),
+                    PartitionInfo(partition_name="orders_2024_02", parent_table="orders"),
+                ],
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "partition_added"]
         assert len(events) == 1
@@ -477,24 +539,30 @@ class TestPartitionDiff:
         assert events[0].table == "orders"
 
     def test_partition_dropped(self):
-        old = _make_snapshot(partitions={
-            "orders": [
-                PartitionInfo(partition_name="orders_2024_01", parent_table="orders"),
-                PartitionInfo(partition_name="orders_2024_02", parent_table="orders"),
-            ],
-        })
-        new = _make_snapshot(partitions={
-            "orders": [PartitionInfo(partition_name="orders_2024_01", parent_table="orders")],
-        })
+        old = _make_snapshot(
+            partitions={
+                "orders": [
+                    PartitionInfo(partition_name="orders_2024_01", parent_table="orders"),
+                    PartitionInfo(partition_name="orders_2024_02", parent_table="orders"),
+                ],
+            }
+        )
+        new = _make_snapshot(
+            partitions={
+                "orders": [PartitionInfo(partition_name="orders_2024_01", parent_table="orders")],
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "partition_dropped"]
         assert len(events) == 1
         assert events[0].old_value == "orders_2024_02"
 
     def test_partition_table_removed_entirely(self):
-        old = _make_snapshot(partitions={
-            "orders": [PartitionInfo(partition_name="orders_2024_01", parent_table="orders")],
-        })
+        old = _make_snapshot(
+            partitions={
+                "orders": [PartitionInfo(partition_name="orders_2024_01", parent_table="orders")],
+            }
+        )
         new = _make_snapshot()
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "partition_dropped"]
@@ -502,9 +570,11 @@ class TestPartitionDiff:
 
     def test_partition_table_added_entirely(self):
         old = _make_snapshot()
-        new = _make_snapshot(partitions={
-            "events": [PartitionInfo(partition_name="events_2024_01", parent_table="events")],
-        })
+        new = _make_snapshot(
+            partitions={
+                "events": [PartitionInfo(partition_name="events_2024_01", parent_table="events")],
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "partition_added"]
         assert len(events) == 1
@@ -520,17 +590,21 @@ class TestPartitionDiff:
         assert len(part_events) == 0
 
     def test_multiple_parent_tables(self):
-        old = _make_snapshot(partitions={
-            "orders": [PartitionInfo(partition_name="orders_q1", parent_table="orders")],
-            "events": [PartitionInfo(partition_name="events_q1", parent_table="events")],
-        })
-        new = _make_snapshot(partitions={
-            "orders": [
-                PartitionInfo(partition_name="orders_q1", parent_table="orders"),
-                PartitionInfo(partition_name="orders_q2", parent_table="orders"),
-            ],
-            # events partition removed entirely
-        })
+        old = _make_snapshot(
+            partitions={
+                "orders": [PartitionInfo(partition_name="orders_q1", parent_table="orders")],
+                "events": [PartitionInfo(partition_name="events_q1", parent_table="events")],
+            }
+        )
+        new = _make_snapshot(
+            partitions={
+                "orders": [
+                    PartitionInfo(partition_name="orders_q1", parent_table="orders"),
+                    PartitionInfo(partition_name="orders_q2", parent_table="orders"),
+                ],
+                # events partition removed entirely
+            }
+        )
         result = self.differ.diff(old, new)
         added = [e for e in result.changes if e.change_type == "partition_added"]
         dropped = [e for e in result.changes if e.change_type == "partition_dropped"]
@@ -549,57 +623,69 @@ class TestMaterializedViewDiff:
 
     def test_matview_added(self):
         old = _make_snapshot()
-        new = _make_snapshot(materialized_views={
-            "mv_summary": MaterializedViewSnapshot(
-                name="mv_summary",
-                definition="SELECT count(*) FROM orders",
-            ),
-        })
+        new = _make_snapshot(
+            materialized_views={
+                "mv_summary": MaterializedViewSnapshot(
+                    name="mv_summary",
+                    definition="SELECT count(*) FROM orders",
+                ),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "matview_added"]
         assert len(events) == 1
         assert events[0].table == "mv_summary"
 
     def test_matview_dropped(self):
-        old = _make_snapshot(materialized_views={
-            "mv_summary": MaterializedViewSnapshot(name="mv_summary", definition="SELECT 1"),
-        })
+        old = _make_snapshot(
+            materialized_views={
+                "mv_summary": MaterializedViewSnapshot(name="mv_summary", definition="SELECT 1"),
+            }
+        )
         new = _make_snapshot()
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "matview_dropped"]
         assert len(events) == 1
 
     def test_matview_definition_changed(self):
-        old = _make_snapshot(materialized_views={
-            "mv_summary": MaterializedViewSnapshot(
-                name="mv_summary",
-                definition="SELECT count(*) FROM orders",
-            ),
-        })
-        new = _make_snapshot(materialized_views={
-            "mv_summary": MaterializedViewSnapshot(
-                name="mv_summary",
-                definition="SELECT count(*), sum(amount) FROM orders",
-            ),
-        })
+        old = _make_snapshot(
+            materialized_views={
+                "mv_summary": MaterializedViewSnapshot(
+                    name="mv_summary",
+                    definition="SELECT count(*) FROM orders",
+                ),
+            }
+        )
+        new = _make_snapshot(
+            materialized_views={
+                "mv_summary": MaterializedViewSnapshot(
+                    name="mv_summary",
+                    definition="SELECT count(*), sum(amount) FROM orders",
+                ),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "matview_definition_changed"]
         assert len(events) == 1
 
     def test_matview_definition_whitespace_normalized(self):
         """Whitespace and case differences should not trigger a change."""
-        old = _make_snapshot(materialized_views={
-            "mv_summary": MaterializedViewSnapshot(
-                name="mv_summary",
-                definition="SELECT  count(*)  FROM  orders",
-            ),
-        })
-        new = _make_snapshot(materialized_views={
-            "mv_summary": MaterializedViewSnapshot(
-                name="mv_summary",
-                definition="select count(*) from orders",
-            ),
-        })
+        old = _make_snapshot(
+            materialized_views={
+                "mv_summary": MaterializedViewSnapshot(
+                    name="mv_summary",
+                    definition="SELECT  count(*)  FROM  orders",
+                ),
+            }
+        )
+        new = _make_snapshot(
+            materialized_views={
+                "mv_summary": MaterializedViewSnapshot(
+                    name="mv_summary",
+                    definition="select count(*) from orders",
+                ),
+            }
+        )
         result = self.differ.diff(old, new)
         mv_events = [e for e in result.changes if "matview" in e.change_type]
         assert len(mv_events) == 0
@@ -685,9 +771,11 @@ class TestPhaseCRiskOnDiffOutput:
         self.differ = SchemaDiffer()
 
     def test_extension_dropped_has_breaking_risk(self):
-        old = _make_snapshot(extensions={
-            "postgis": ExtensionSnapshot(name="postgis", version="3.4"),
-        })
+        old = _make_snapshot(
+            extensions={
+                "postgis": ExtensionSnapshot(name="postgis", version="3.4"),
+            }
+        )
         new = _make_snapshot()
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "extension_dropped"]
@@ -696,18 +784,22 @@ class TestPhaseCRiskOnDiffOutput:
 
     def test_permission_granted_has_safe_risk(self):
         old = _make_snapshot()
-        new = _make_snapshot(permissions=[
-            PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
-        ])
+        new = _make_snapshot(
+            permissions=[
+                PermissionSnapshot(table_name="users", grantee="app", privilege_type="SELECT"),
+            ]
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "permission_granted"]
         assert len(events) == 1
         assert events[0].change_risk == "safe"
 
     def test_partition_dropped_has_breaking_risk(self):
-        old = _make_snapshot(partitions={
-            "orders": [PartitionInfo(partition_name="p1", parent_table="orders")],
-        })
+        old = _make_snapshot(
+            partitions={
+                "orders": [PartitionInfo(partition_name="p1", parent_table="orders")],
+            }
+        )
         new = _make_snapshot()
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "partition_dropped"]
@@ -716,9 +808,11 @@ class TestPhaseCRiskOnDiffOutput:
 
     def test_policy_added_has_potentially_breaking_risk(self):
         old = _make_snapshot()
-        new = _make_snapshot(policies={
-            "rls1": PolicySnapshot(name="rls1", table="orders"),
-        })
+        new = _make_snapshot(
+            policies={
+                "rls1": PolicySnapshot(name="rls1", table="orders"),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "policy_added"]
         assert len(events) == 1
@@ -754,12 +848,16 @@ class TestCombinedDiffPhaseC:
                 "events": [PartitionInfo(partition_name="events_q1", parent_table="events")],
             },
             materialized_views={
-                "mv1": MaterializedViewSnapshot(name="mv1", definition="SELECT count(*) FROM users"),
+                "mv1": MaterializedViewSnapshot(
+                    name="mv1", definition="SELECT count(*) FROM users"
+                ),
             },
         )
         new = _make_snapshot(
             tables={
-                "users": _make_table("users", {"id": "integer", "name": "text", "email": "varchar(255)"}),
+                "users": _make_table(
+                    "users", {"id": "integer", "name": "text", "email": "varchar(255)"}
+                ),
             },
             extensions={
                 "pg_trgm": ExtensionSnapshot(name="pg_trgm", version="1.6"),
@@ -846,18 +944,24 @@ class TestPhaseCEdgeCases:
         assert len(mv_events) == 0
 
     def test_policy_with_check_expression_change(self):
-        old = _make_snapshot(policies={
-            "p1": PolicySnapshot(
-                name="p1", table="t",
-                with_check_expression="tenant_id = 1",
-            ),
-        })
-        new = _make_snapshot(policies={
-            "p1": PolicySnapshot(
-                name="p1", table="t",
-                with_check_expression="tenant_id = 2",
-            ),
-        })
+        old = _make_snapshot(
+            policies={
+                "p1": PolicySnapshot(
+                    name="p1",
+                    table="t",
+                    with_check_expression="tenant_id = 1",
+                ),
+            }
+        )
+        new = _make_snapshot(
+            policies={
+                "p1": PolicySnapshot(
+                    name="p1",
+                    table="t",
+                    with_check_expression="tenant_id = 2",
+                ),
+            }
+        )
         result = self.differ.diff(old, new)
         events = [e for e in result.changes if e.change_type == "policy_changed"]
         assert len(events) == 1

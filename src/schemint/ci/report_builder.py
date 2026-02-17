@@ -50,14 +50,16 @@ class CIReportBuilder:
         ]
 
         # Severity counts table
-        lines.extend([
-            "| Severity | Count |",
-            "|----------|-------|",
-            f"| Critical | {decision.critical_count} |",
-            f"| Warning | {decision.warning_count} |",
-            f"| Suggestion | {decision.suggestion_count} |",
-            "",
-        ])
+        lines.extend(
+            [
+                "| Severity | Count |",
+                "|----------|-------|",
+                f"| Critical | {decision.critical_count} |",
+                f"| Warning | {decision.warning_count} |",
+                f"| Suggestion | {decision.suggestion_count} |",
+                "",
+            ]
+        )
 
         # AI Analysis section
         if has_ai:
@@ -90,10 +92,12 @@ class CIReportBuilder:
 
         # Footer
         duration = decision.duration_ms
-        lines.extend([
-            "---",
-            f"_Analysis completed in {duration}ms by Schemint_",
-        ])
+        lines.extend(
+            [
+                "---",
+                f"_Analysis completed in {duration}ms by Schemint_",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -170,6 +174,7 @@ class CIReportBuilder:
         best_practices = sum(r.score.best_practices for r in analysis_results) // n
 
         from schemint.models.analysis import AnalysisScore
+
         avg_score = AnalysisScore(
             total=max(0, min(100, total)),
             structural=max(0, min(100, structural)),

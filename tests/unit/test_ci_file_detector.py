@@ -2,7 +2,6 @@
 Tests for CI File Detector.
 """
 
-
 from schemint.ci.file_detector import (
     DetectedFile,
     DetectionResult,

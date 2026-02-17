@@ -43,25 +43,49 @@ def store():
 
     # Clean up test data before each test
     with store._get_connection() as conn, conn.cursor() as cur:
-            cur.execute("DELETE FROM analysis_history WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM schema_semantics WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM business_rules WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM accepted_findings WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM known_safe_patterns WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM historical_inflection_points WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM projects WHERE external_id LIKE 'test:%'")
+        cur.execute(
+            "DELETE FROM analysis_history WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM schema_semantics WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM business_rules WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM accepted_findings WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM known_safe_patterns WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM historical_inflection_points WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute("DELETE FROM projects WHERE external_id LIKE 'test:%'")
 
     yield store
 
     # Clean up after test
     with store._get_connection() as conn, conn.cursor() as cur:
-            cur.execute("DELETE FROM analysis_history WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM schema_semantics WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM business_rules WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM accepted_findings WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM known_safe_patterns WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM historical_inflection_points WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')")
-            cur.execute("DELETE FROM projects WHERE external_id LIKE 'test:%'")
+        cur.execute(
+            "DELETE FROM analysis_history WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM schema_semantics WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM business_rules WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM accepted_findings WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM known_safe_patterns WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute(
+            "DELETE FROM historical_inflection_points WHERE project_id IN (SELECT id FROM projects WHERE external_id LIKE 'test:%')"
+        )
+        cur.execute("DELETE FROM projects WHERE external_id LIKE 'test:%'")
 
 
 @pytest.fixture

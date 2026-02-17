@@ -51,11 +51,9 @@ def normalize_pattern(finding: Issue) -> dict[str, Any]:
         # Core identifiers
         "category": finding.category.value,
         "severity": finding.severity.value,
-
         # Structural location fields
         "table": finding.table_name.lower() if finding.table_name else None,
         "column": finding.column_name.lower() if finding.column_name else None,
-
         # Semantic context
         "semantic_markers": sorted(semantic_markers),
     }
@@ -119,7 +117,10 @@ def _extract_semantic_markers(
         col_lower = column_name.lower()
 
         # Money-related
-        if any(kw in col_lower for kw in ["price", "cost", "amount", "total", "balance", "fee", "payment"]):
+        if any(
+            kw in col_lower
+            for kw in ["price", "cost", "amount", "total", "balance", "fee", "payment"]
+        ):
             markers.append("money")
 
         # Date/time-related
@@ -135,7 +136,10 @@ def _extract_semantic_markers(
             markers.append("categorical")
 
         # Metrics-related
-        if any(kw in col_lower for kw in ["count", "total", "avg", "sum", "metric", "rate", "percentage"]):
+        if any(
+            kw in col_lower
+            for kw in ["count", "total", "avg", "sum", "metric", "rate", "percentage"]
+        ):
             markers.append("metric")
 
         # PII-related
@@ -169,7 +173,17 @@ def _extract_type_info(description: str) -> str | None:
     description_upper = description.upper()
 
     # Common types to look for
-    types = ["FLOAT", "DOUBLE", "DECIMAL", "INT", "BIGINT", "VARCHAR", "TEXT", "DATETIME", "TIMESTAMP"]
+    types = [
+        "FLOAT",
+        "DOUBLE",
+        "DECIMAL",
+        "INT",
+        "BIGINT",
+        "VARCHAR",
+        "TEXT",
+        "DATETIME",
+        "TIMESTAMP",
+    ]
 
     for dtype in types:
         if dtype in description_upper:

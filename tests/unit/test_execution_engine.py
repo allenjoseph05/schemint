@@ -12,7 +12,6 @@ Tests verify:
 - Execution ID generation
 """
 
-
 from schemint.drift.execution_engine import (
     CIPipelineRunner,
     DBTRunner,
@@ -101,11 +100,13 @@ class TestApprovalGate:
 class TestSequentialExecution:
     def test_all_steps_execute_in_order(self):
         engine = ExecutionEngine()
-        plan = _make_plan(steps=[
-            {"step": 1, "action": "notify_table_owner", "target": "users"},
-            {"step": 2, "action": "log_drift_event", "target": "users"},
-            {"step": 3, "action": "notify_downstream_teams", "target": "users"},
-        ])
+        plan = _make_plan(
+            steps=[
+                {"step": 1, "action": "notify_table_owner", "target": "users"},
+                {"step": 2, "action": "log_drift_event", "target": "users"},
+                {"step": 3, "action": "notify_downstream_teams", "target": "users"},
+            ]
+        )
 
         report = engine.execute(plan)
 
@@ -134,10 +135,12 @@ class TestFailureHandling:
     def test_failure_halts_execution(self):
         """When a step fails, remaining steps are skipped."""
         engine = ExecutionEngine(adapters=[FailingAdapter()])
-        plan = _make_plan(steps=[
-            {"step": 1, "action": "notify_table_owner", "target": "users"},
-            {"step": 2, "action": "log_drift_event", "target": "users"},
-        ])
+        plan = _make_plan(
+            steps=[
+                {"step": 1, "action": "notify_table_owner", "target": "users"},
+                {"step": 2, "action": "log_drift_event", "target": "users"},
+            ]
+        )
 
         report = engine.execute(plan)
 
@@ -147,9 +150,11 @@ class TestFailureHandling:
 
     def test_failure_sets_overall_failed(self):
         engine = ExecutionEngine(adapters=[FailingAdapter()])
-        plan = _make_plan(steps=[
-            {"step": 1, "action": "notify_table_owner", "target": "users"},
-        ])
+        plan = _make_plan(
+            steps=[
+                {"step": 1, "action": "notify_table_owner", "target": "users"},
+            ]
+        )
 
         report = engine.execute(plan)
 
@@ -158,9 +163,11 @@ class TestFailureHandling:
     def test_unknown_action_rejected(self):
         """Action not in registry → immediate failure."""
         engine = ExecutionEngine()
-        plan = _make_plan(steps=[
-            {"step": 1, "action": "invented_action", "target": "users"},
-        ])
+        plan = _make_plan(
+            steps=[
+                {"step": 1, "action": "invented_action", "target": "users"},
+            ]
+        )
 
         report = engine.execute(plan)
 
@@ -196,20 +203,26 @@ class TestRollbackComputation:
                 self.call_count += 1
                 if self.call_count == 2:
                     return ExecutionResult(
-                        step=step.step, action=step.action,
-                        status="failed", error_message="boom",
+                        step=step.step,
+                        action=step.action,
+                        status="failed",
+                        error_message="boom",
                         reversible=step.reversible,
                     )
                 return ExecutionResult(
-                    step=step.step, action=step.action,
-                    status="success", reversible=True,
+                    step=step.step,
+                    action=step.action,
+                    status="success",
+                    reversible=True,
                 )
 
         engine = ExecutionEngine(adapters=[MixedAdapter()])
-        plan = _make_plan(steps=[
-            {"step": 1, "action": "notify_table_owner", "target": "t", "reversible": True},
-            {"step": 2, "action": "log_drift_event", "target": "t"},
-        ])
+        plan = _make_plan(
+            steps=[
+                {"step": 1, "action": "notify_table_owner", "target": "t", "reversible": True},
+                {"step": 2, "action": "log_drift_event", "target": "t"},
+            ]
+        )
 
         report = engine.execute(plan)
 
@@ -218,9 +231,11 @@ class TestRollbackComputation:
     def test_no_rollback_if_only_failure_step(self):
         """If first step fails with no prior success → no rollback."""
         engine = ExecutionEngine(adapters=[FailingAdapter()])
-        plan = _make_plan(steps=[
-            {"step": 1, "action": "notify_table_owner", "target": "users"},
-        ])
+        plan = _make_plan(
+            steps=[
+                {"step": 1, "action": "notify_table_owner", "target": "users"},
+            ]
+        )
 
         report = engine.execute(plan)
 
@@ -319,20 +334,26 @@ class TestExecutionMetadata:
                 self.call_count += 1
                 if self.call_count == 2:
                     return ExecutionResult(
-                        step=step.step, action=step.action,
-                        status="failed", error_message="boom",
+                        step=step.step,
+                        action=step.action,
+                        status="failed",
+                        error_message="boom",
                         reversible=True,
                     )
                 return ExecutionResult(
-                    step=step.step, action=step.action,
-                    status="success", reversible=True,
+                    step=step.step,
+                    action=step.action,
+                    status="success",
+                    reversible=True,
                 )
 
         engine = ExecutionEngine(adapters=[PartialAdapter()])
-        plan = _make_plan(steps=[
-            {"step": 1, "action": "notify_table_owner", "target": "t"},
-            {"step": 2, "action": "log_drift_event", "target": "t"},
-        ])
+        plan = _make_plan(
+            steps=[
+                {"step": 1, "action": "notify_table_owner", "target": "t"},
+                {"step": 2, "action": "log_drift_event", "target": "t"},
+            ]
+        )
 
         report = engine.execute(plan)
 

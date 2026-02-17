@@ -60,7 +60,9 @@ async def capture_ddl_snapshot(request: DDLSnapshotRequest) -> SchemaSnapshot:
     try:
         service = SnapshotService()
         return service.capture_from_ddl(
-            request.sql, request.database_type, environment=request.environment,
+            request.sql,
+            request.database_type,
+            environment=request.environment,
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -72,7 +74,8 @@ async def capture_live_snapshot(request: LiveSnapshotRequest) -> SchemaSnapshot:
     try:
         service = SnapshotService()
         return service.capture_from_live_db(
-            request.connection_string, environment=request.environment,
+            request.connection_string,
+            environment=request.environment,
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -83,6 +86,7 @@ async def get_latest_snapshot(project_id: str) -> SchemaSnapshot | None:
     """Get the latest snapshot for a project."""
     try:
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
         return store.get_latest_snapshot(project_id)
     except Exception as e:
@@ -95,9 +99,7 @@ async def get_latest_snapshot(project_id: str) -> SchemaSnapshot | None:
 
 
 @router.post("/graph/{project_id}/build", response_model=DependencyGraph)
-async def build_dependency_graph(
-    project_id: str, request: BuildGraphRequest
-) -> DependencyGraph:
+async def build_dependency_graph(project_id: str, request: BuildGraphRequest) -> DependencyGraph:
     """Build a dependency graph from deterministic sources."""
     try:
         builder = DependencyGraphBuilder()
@@ -106,6 +108,7 @@ async def build_dependency_graph(
         # Get latest snapshot for FK extraction
         try:
             from schemint.drift.store import get_drift_store
+
             store = get_drift_store()
             snapshot = store.get_latest_snapshot(project_id)
             if snapshot:
@@ -131,6 +134,7 @@ async def build_dependency_graph(
         # Try to persist
         try:
             from schemint.drift.store import get_drift_store
+
             store = get_drift_store()
             store.save_dependency_graph(project_id, graph)
         except Exception:
@@ -146,6 +150,7 @@ async def get_dependency_graph(project_id: str) -> DependencyGraph | None:
     """Get the current dependency graph for a project."""
     try:
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
         return store.get_dependency_graph(project_id)
     except Exception as e:
@@ -162,10 +167,12 @@ async def diff_snapshots(project_id: str) -> SchemaDiffResult:
     """Diff the latest two snapshots for a project."""
     try:
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
 
         # Get the two most recent snapshots
         from psycopg2.extras import RealDictCursor
+
         with store._get_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 """
@@ -185,6 +192,7 @@ async def diff_snapshots(project_id: str) -> SchemaDiffResult:
             )
 
         import json
+
         new_data = rows[0]["snapshot_data"]
         old_data = rows[1]["snapshot_data"]
         if isinstance(new_data, str):
@@ -213,6 +221,7 @@ async def assemble_context(project_id: str) -> list[ContextPackage]:
     """Assemble context packages for the latest diff."""
     try:
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
 
         # Get latest diff
@@ -228,6 +237,7 @@ async def assemble_context(project_id: str) -> list[ContextPackage]:
         import json
 
         from psycopg2.extras import RealDictCursor
+
         with store._get_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 """
@@ -278,9 +288,7 @@ class PlanRequest(BaseModel):
 
 
 @router.post("/judge/{project_id}", response_model=AgentDecision)
-async def judge_schema_change(
-    project_id: str, request: JudgeRequest
-) -> AgentDecision:
+async def judge_schema_change(project_id: str, request: JudgeRequest) -> AgentDecision:
     """Phase 3: Judge severity of a schema change.
 
     Uses AI with deterministic guardrails. Falls back to deterministic
@@ -306,9 +314,7 @@ async def judge_schema_change(
 
 
 @router.post("/plan/{project_id}", response_model=ExecutionPlan)
-async def plan_schema_change(
-    project_id: str, request: PlanRequest
-) -> ExecutionPlan:
+async def plan_schema_change(project_id: str, request: PlanRequest) -> ExecutionPlan:
     """Phase 3+4 combined: Judge severity then generate execution plan.
 
     Falls back to notification-only plan if AI is unavailable.
@@ -365,9 +371,7 @@ class ExecuteRequest(BaseModel):
 
 
 @router.post("/execute/{project_id}", response_model=ExecutionReport)
-async def execute_plan(
-    project_id: str, request: ExecuteRequest
-) -> ExecutionReport:
+async def execute_plan(project_id: str, request: ExecuteRequest) -> ExecutionReport:
     """Phase 5: Execute an approved plan.
 
     Deterministic execution — no LLM calls.
@@ -390,9 +394,7 @@ class VerifyRequest(BaseModel):
 
 
 @router.post("/verify/{project_id}", response_model=VerificationReport)
-async def verify_execution(
-    project_id: str, request: VerifyRequest
-) -> VerificationReport:
+async def verify_execution(project_id: str, request: VerifyRequest) -> VerificationReport:
     """Phase 6: Verify execution outcome.
 
     Deterministic verification — no LLM calls.
@@ -427,12 +429,15 @@ async def save_desired_state(
     try:
         service = SnapshotService()
         snapshot = service.capture_from_ddl(
-            request.sql, request.database_type, environment=environment,
+            request.sql,
+            request.database_type,
+            environment=environment,
         )
         snapshot.source = "desired_state"
         snapshot.is_desired_state = True
 
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
         store.save_desired_state(project_id, snapshot, environment)
 
@@ -446,6 +451,7 @@ async def get_desired_state(project_id: str, environment: str) -> SchemaSnapshot
     """Get the active desired state for a project and environment."""
     try:
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
         return store.get_desired_state(project_id, environment)
     except Exception as e:
@@ -453,12 +459,11 @@ async def get_desired_state(project_id: str, environment: str) -> SchemaSnapshot
 
 
 @router.post("/migration-gap/{project_id}/{environment}", response_model=MigrationGap)
-async def compute_migration_gap(
-    project_id: str, environment: str
-) -> MigrationGap:
+async def compute_migration_gap(project_id: str, environment: str) -> MigrationGap:
     """Diff current state vs desired state to compute migration gap."""
     try:
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
 
         current = store.get_latest_snapshot_for_environment(project_id, environment)
@@ -495,6 +500,7 @@ async def get_migration_history(
     """Get migration history for a project and environment."""
     try:
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
         return store.get_migration_history(project_id, environment, limit)
     except Exception as e:
@@ -508,6 +514,7 @@ async def check_migration_applied(
     """Check if a migration with this checksum has already been applied."""
     try:
         from schemint.drift.store import get_drift_store
+
         store = get_drift_store()
         applied = store.has_migration_been_applied(project_id, environment, checksum)
         return {"applied": applied}

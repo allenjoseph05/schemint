@@ -1,6 +1,5 @@
 """Tests for drift Pydantic models."""
 
-
 import pytest
 
 from schemint.drift.models import (
@@ -128,14 +127,16 @@ class TestDependencyModels:
         assert edge.final_confidence == 1.0
 
     def test_dependency_graph(self):
-        graph = DependencyGraph(edges=[
-            DependencyEdge(
-                from_element="a.id",
-                to_element="b.a_id",
-                usage_type="fk",
-                final_confidence=1.0,
-            ),
-        ])
+        graph = DependencyGraph(
+            edges=[
+                DependencyEdge(
+                    from_element="a.id",
+                    to_element="b.a_id",
+                    usage_type="fk",
+                    final_confidence=1.0,
+                ),
+            ]
+        )
         assert len(graph.edges) == 1
 
     def test_dependency_coverage(self):

@@ -52,7 +52,9 @@ def extract_sequences_from_ddl(sql: str) -> dict[str, SequenceSnapshot]:
                 cmd_text = stmt.sql()
                 # Skip Commands that are function definitions (may contain
                 # inner DDL that should not be extracted as top-level objects)
-                if not re.search(r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b", cmd_text, re.IGNORECASE):
+                if not re.search(
+                    r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b", cmd_text, re.IGNORECASE
+                ):
                     for k, v in _extract_sequences_regex(cmd_text + ";").items():
                         sequences.setdefault(k, v)
             continue
@@ -88,9 +90,7 @@ def extract_sequences_from_ddl(sql: str) -> dict[str, SequenceSnapshot]:
     return sequences
 
 
-def _apply_sequence_properties(
-    seq: SequenceSnapshot, prop: object, stmt_sql: str
-) -> None:
+def _apply_sequence_properties(seq: SequenceSnapshot, prop: object, stmt_sql: str) -> None:
     """Apply parsed SequenceProperties to a SequenceSnapshot."""
     args = getattr(prop, "args", {})
 

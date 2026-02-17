@@ -71,9 +71,7 @@ class AlterParser:
             return str(table_expr.name).lower()
         return ""
 
-    def _parse_alter(
-        self, statement: sqlglot_exp.Alter, now: datetime
-    ) -> list[SchemaChangeEvent]:
+    def _parse_alter(self, statement: sqlglot_exp.Alter, now: datetime) -> list[SchemaChangeEvent]:
         """Parse an Alter statement into change events."""
         events: list[SchemaChangeEvent] = []
         table_name = self._get_table_name(statement)
@@ -90,9 +88,7 @@ class AlterParser:
 
         return events
 
-    def _parse_action(
-        self, action: Any, table_name: str, now: datetime
-    ) -> list[SchemaChangeEvent]:
+    def _parse_action(self, action: Any, table_name: str, now: datetime) -> list[SchemaChangeEvent]:
         """Parse a single ALTER TABLE action into change events."""
         events: list[SchemaChangeEvent] = []
 
@@ -103,13 +99,15 @@ class AlterParser:
             type_node = action.find(sqlglot_exp.DataType)
             if type_node:
                 col_type = type_node.sql().lower()
-            events.append(SchemaChangeEvent(
-                change_type="column_added",
-                table=table_name,
-                column=col_name.lower(),
-                new_value=col_type,
-                detected_at=now,
-            ))
+            events.append(
+                SchemaChangeEvent(
+                    change_type="column_added",
+                    table=table_name,
+                    column=col_name.lower(),
+                    new_value=col_type,
+                    detected_at=now,
+                )
+            )
 
         # DROP COLUMN or DROP CONSTRAINT
         elif isinstance(action, sqlglot_exp.Drop):
@@ -117,30 +115,36 @@ class AlterParser:
             target = action.args.get("this")
             if kind and str(kind).upper() == "COLUMN":
                 col_name = target.name.lower() if target and hasattr(target, "name") else ""
-                events.append(SchemaChangeEvent(
-                    change_type="column_dropped",
-                    table=table_name,
-                    column=col_name,
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="column_dropped",
+                        table=table_name,
+                        column=col_name,
+                        detected_at=now,
+                    )
+                )
             elif kind and str(kind).upper() == "CONSTRAINT":
                 constraint_name = target.name if target and hasattr(target, "name") else ""
-                events.append(SchemaChangeEvent(
-                    change_type="fk_dropped",
-                    table=table_name,
-                    old_value=constraint_name,
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="fk_dropped",
+                        table=table_name,
+                        old_value=constraint_name,
+                        detected_at=now,
+                    )
+                )
             else:
                 # Generic drop — try Column expression
                 col_expr = action.find(sqlglot_exp.Column)
                 if col_expr and col_expr.name:
-                    events.append(SchemaChangeEvent(
-                        change_type="column_dropped",
-                        table=table_name,
-                        column=col_expr.name.lower(),
-                        detected_at=now,
-                    ))
+                    events.append(
+                        SchemaChangeEvent(
+                            change_type="column_dropped",
+                            table=table_name,
+                            column=col_expr.name.lower(),
+                            detected_at=now,
+                        )
+                    )
 
         # ALTER COLUMN (type change, nullable, default)
         elif isinstance(action, sqlglot_exp.AlterColumn):
@@ -151,56 +155,68 @@ class AlterParser:
 
             dtype = action.args.get("dtype")
             if dtype:
-                events.append(SchemaChangeEvent(
-                    change_type="column_type_change",
-                    table=table_name,
-                    column=col_name,
-                    new_value=dtype.sql().lower() if hasattr(dtype, "sql") else str(dtype).lower(),
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="column_type_change",
+                        table=table_name,
+                        column=col_name,
+                        new_value=dtype.sql().lower()
+                        if hasattr(dtype, "sql")
+                        else str(dtype).lower(),
+                        detected_at=now,
+                    )
+                )
 
             # SET NOT NULL / DROP NOT NULL
             # sqlglot uses allow_null: False = SET NOT NULL, True = DROP NOT NULL
             allow_null = action.args.get("allow_null")
             if allow_null is False:
-                events.append(SchemaChangeEvent(
-                    change_type="column_nullable_change",
-                    table=table_name,
-                    column=col_name,
-                    old_value="True",
-                    new_value="False",
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="column_nullable_change",
+                        table=table_name,
+                        column=col_name,
+                        old_value="True",
+                        new_value="False",
+                        detected_at=now,
+                    )
+                )
             elif allow_null is True:
-                events.append(SchemaChangeEvent(
-                    change_type="column_nullable_change",
-                    table=table_name,
-                    column=col_name,
-                    old_value="False",
-                    new_value="True",
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="column_nullable_change",
+                        table=table_name,
+                        column=col_name,
+                        old_value="False",
+                        new_value="True",
+                        detected_at=now,
+                    )
+                )
 
             # SET DEFAULT / DROP DEFAULT
             default = action.args.get("default")
             if default is not None:
-                events.append(SchemaChangeEvent(
-                    change_type="column_default_change",
-                    table=table_name,
-                    column=col_name,
-                    new_value=default.sql() if hasattr(default, "sql") else str(default),
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="column_default_change",
+                        table=table_name,
+                        column=col_name,
+                        new_value=default.sql() if hasattr(default, "sql") else str(default),
+                        detected_at=now,
+                    )
+                )
 
             # DROP DEFAULT (when only "drop" flag is set, no dtype or allow_null)
             if action.args.get("drop") and not dtype and allow_null is None:
-                events.append(SchemaChangeEvent(
-                    change_type="column_default_change",
-                    table=table_name,
-                    column=col_name,
-                    old_value="<dropped>",
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="column_default_change",
+                        table=table_name,
+                        column=col_name,
+                        old_value="<dropped>",
+                        detected_at=now,
+                    )
+                )
 
         # ADD CONSTRAINT
         elif isinstance(action, sqlglot_exp.AddConstraint):
@@ -212,19 +228,23 @@ class AlterParser:
                     ref_tbl = ref.find(sqlglot_exp.Table)
                     if ref_tbl and ref_tbl.name:
                         ref_table = ref_tbl.name.lower()
-                events.append(SchemaChangeEvent(
-                    change_type="fk_added",
-                    table=table_name,
-                    new_value=ref_table,
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="fk_added",
+                        table=table_name,
+                        new_value=ref_table,
+                        detected_at=now,
+                    )
+                )
             else:
-                events.append(SchemaChangeEvent(
-                    change_type="column_constraint_change",
-                    table=table_name,
-                    new_value=action.sql(),
-                    detected_at=now,
-                ))
+                events.append(
+                    SchemaChangeEvent(
+                        change_type="column_constraint_change",
+                        table=table_name,
+                        new_value=action.sql(),
+                        detected_at=now,
+                    )
+                )
 
         # RENAME COLUMN
         elif isinstance(action, sqlglot_exp.RenameColumn):
@@ -232,18 +252,22 @@ class AlterParser:
             new_col = action.args.get("to")
             old_name = old_col.name.lower() if old_col and hasattr(old_col, "name") else ""
             new_name = new_col.name.lower() if new_col and hasattr(new_col, "name") else ""
-            events.append(SchemaChangeEvent(
-                change_type="column_dropped",
-                table=table_name,
-                column=old_name,
-                detected_at=now,
-            ))
-            events.append(SchemaChangeEvent(
-                change_type="column_added",
-                table=table_name,
-                column=new_name,
-                detected_at=now,
-            ))
+            events.append(
+                SchemaChangeEvent(
+                    change_type="column_dropped",
+                    table=table_name,
+                    column=old_name,
+                    detected_at=now,
+                )
+            )
+            events.append(
+                SchemaChangeEvent(
+                    change_type="column_added",
+                    table=table_name,
+                    column=new_name,
+                    detected_at=now,
+                )
+            )
 
         # RENAME TABLE (AlterRename in sqlglot)
         elif isinstance(action, sqlglot_exp.AlterRename):
@@ -251,12 +275,14 @@ class AlterParser:
             new_name = ""
             if new_table and hasattr(new_table, "name"):
                 new_name = new_table.name.lower()
-            events.append(SchemaChangeEvent(
-                change_type="table_renamed",
-                table=table_name,
-                old_value=table_name,
-                new_value=new_name,
-                detected_at=now,
-            ))
+            events.append(
+                SchemaChangeEvent(
+                    change_type="table_renamed",
+                    table=table_name,
+                    old_value=table_name,
+                    new_value=new_name,
+                    detected_at=now,
+                )
+            )
 
         return events

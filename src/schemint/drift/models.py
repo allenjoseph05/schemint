@@ -104,11 +104,7 @@ class TableSnapshot(BaseModel):
         result = []
         for item in v:
             if isinstance(item, dict):
-                cleaned = {
-                    k: v
-                    for k, v in item.items()
-                    if k in IndexSnapshot.model_fields
-                }
+                cleaned = {k: v for k, v in item.items() if k in IndexSnapshot.model_fields}
                 result.append(IndexSnapshot(**cleaned))
             else:
                 result.append(item)
@@ -375,7 +371,9 @@ class DependencySource(BaseModel):
     No edge may exist without proof of origin.
     """
 
-    source_type: Literal["dbt_manifest", "sql_ast", "view_definition", "fk_constraint", "trigger_definition"]
+    source_type: Literal[
+        "dbt_manifest", "sql_ast", "view_definition", "fk_constraint", "trigger_definition"
+    ]
     confidence: float = Field(..., ge=0.0, le=1.0)
     file_path: str | None = None
     line_number: int | None = None

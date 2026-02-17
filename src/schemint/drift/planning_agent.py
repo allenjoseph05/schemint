@@ -97,9 +97,7 @@ class PlanningAgent:
         settings = get_settings()
 
         if not CLAUDE_AVAILABLE:
-            raise RuntimeError(
-                "anthropic not installed. Install with: pip install anthropic"
-            )
+            raise RuntimeError("anthropic not installed. Install with: pip install anthropic")
         if not settings.claude_api_key:
             raise RuntimeError("CLAUDE_API_KEY not set.")
 
@@ -234,16 +232,12 @@ class PlanningAgent:
         # 2. Low severity → no block_deploy or require_migration_review
         if decision.severity == "low":
             steps = [
-                s for s in steps
-                if s.action not in ("block_deploy", "require_migration_review")
+                s for s in steps if s.action not in ("block_deploy", "require_migration_review")
             ]
 
         # 3. Insufficient context → no backward_compat structural actions
         if decision.context_quality == "insufficient":
-            steps = [
-                s for s in steps
-                if s.action not in _BACKWARD_COMPAT_STRUCTURAL
-            ]
+            steps = [s for s in steps if s.action not in _BACKWARD_COMPAT_STRUCTURAL]
 
         # 4. Critical severity → must include block_deploy
         if decision.severity == "critical":
@@ -265,8 +259,7 @@ class PlanningAgent:
 
         # 6. Determine requires_execution_approval
         requires_approval = any(
-            s.action in ("block_deploy", "require_migration_review")
-            for s in steps
+            s.action in ("block_deploy", "require_migration_review") for s in steps
         )
 
         return ExecutionPlan(

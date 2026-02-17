@@ -211,9 +211,7 @@ class GenericGitProvider(BaseGitProvider):
             auth_url = f"{protocol}://x-access-token:{self.token}@{rest}"
 
         # Shallow clone (faster, less disk)
-        await self._run_command(
-            ["git", "clone", "--depth", "100", auth_url, temp_dir]
-        )
+        await self._run_command(["git", "clone", "--depth", "100", auth_url, temp_dir])
 
         return temp_dir
 

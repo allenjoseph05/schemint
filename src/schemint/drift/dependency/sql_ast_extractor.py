@@ -34,9 +34,7 @@ logger = logging.getLogger(__name__)
 class SqlAstEdgeExtractor:
     """Extract dependency edges from SQL statements using sqlglot AST."""
 
-    def extract(
-        self, sql: str, file_path: str | None = None
-    ) -> list[DependencyEdge]:
+    def extract(self, sql: str, file_path: str | None = None) -> list[DependencyEdge]:
         """Extract all edge types from SQL. Returns empty list on parse failure."""
         try:
             statements = sqlglot.parse(sql)
@@ -61,9 +59,7 @@ class SqlAstEdgeExtractor:
 
         return edges
 
-    def extract_batch(
-        self, sql_files: dict[str, str]
-    ) -> tuple[list[DependencyEdge], ParseHealth]:
+    def extract_batch(self, sql_files: dict[str, str]) -> tuple[list[DependencyEdge], ParseHealth]:
         """Extract edges from multiple SQL files with parse health tracking."""
         all_edges: list[DependencyEdge] = []
         health = ParseHealth(total_files=len(sql_files))
@@ -80,8 +76,11 @@ class SqlAstEdgeExtractor:
         return all_edges, health
 
     def _extract_join_edges(
-        self, statement: Any, aliases: dict[str, str],
-        now: datetime, file_path: str | None,
+        self,
+        statement: Any,
+        aliases: dict[str, str],
+        now: datetime,
+        file_path: str | None,
     ) -> list[DependencyEdge]:
         """Extract edges from JOIN ON conditions."""
         edges: list[DependencyEdge] = []
@@ -105,28 +104,37 @@ class SqlAstEdgeExtractor:
                     continue
 
                 both_resolved = left_resolved and right_resolved
-                confidence = CONFIDENCE_JOIN_RESOLVED if both_resolved else CONFIDENCE_UNRESOLVED_JOIN
+                confidence = (
+                    CONFIDENCE_JOIN_RESOLVED if both_resolved else CONFIDENCE_UNRESOLVED_JOIN
+                )
 
-                edges.append(DependencyEdge(
-                    from_element=left_ref,
-                    to_element=right_ref,
-                    direction="downstream",
-                    usage_type="join_key",
-                    sources=[DependencySource(
-                        source_type="sql_ast",
-                        confidence=confidence,
-                        file_path=file_path,
-                        extracted_at=now,
-                        alias_resolved=both_resolved,
-                    )],
-                    final_confidence=confidence,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=left_ref,
+                        to_element=right_ref,
+                        direction="downstream",
+                        usage_type="join_key",
+                        sources=[
+                            DependencySource(
+                                source_type="sql_ast",
+                                confidence=confidence,
+                                file_path=file_path,
+                                extracted_at=now,
+                                alias_resolved=both_resolved,
+                            )
+                        ],
+                        final_confidence=confidence,
+                    )
+                )
 
         return edges
 
     def _extract_where_edges(
-        self, statement: Any, aliases: dict[str, str],
-        now: datetime, file_path: str | None,
+        self,
+        statement: Any,
+        aliases: dict[str, str],
+        now: datetime,
+        file_path: str | None,
     ) -> list[DependencyEdge]:
         """Extract edges from WHERE clause column=column comparisons."""
         edges: list[DependencyEdge] = []
@@ -161,20 +169,24 @@ class SqlAstEdgeExtractor:
             both_resolved = left_resolved and right_resolved
             confidence = CONFIDENCE_WHERE_RESOLVED if both_resolved else CONFIDENCE_UNRESOLVED_WHERE
 
-            edges.append(DependencyEdge(
-                from_element=left_ref,
-                to_element=right_ref,
-                direction="downstream",
-                usage_type="filter",
-                sources=[DependencySource(
-                    source_type="sql_ast",
-                    confidence=confidence,
-                    file_path=file_path,
-                    extracted_at=now,
-                    alias_resolved=both_resolved,
-                )],
-                final_confidence=confidence,
-            ))
+            edges.append(
+                DependencyEdge(
+                    from_element=left_ref,
+                    to_element=right_ref,
+                    direction="downstream",
+                    usage_type="filter",
+                    sources=[
+                        DependencySource(
+                            source_type="sql_ast",
+                            confidence=confidence,
+                            file_path=file_path,
+                            extracted_at=now,
+                            alias_resolved=both_resolved,
+                        )
+                    ],
+                    final_confidence=confidence,
+                )
+            )
 
         return edges
 
@@ -199,19 +211,23 @@ class SqlAstEdgeExtractor:
                 if source_table == cte_name:
                     continue
 
-                edges.append(DependencyEdge(
-                    from_element=source_table,
-                    to_element=cte_name,
-                    direction="upstream",
-                    usage_type="transform",
-                    sources=[DependencySource(
-                        source_type="sql_ast",
-                        confidence=CONFIDENCE_CTE,
-                        file_path=file_path,
-                        extracted_at=now,
-                    )],
-                    final_confidence=CONFIDENCE_CTE,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=source_table,
+                        to_element=cte_name,
+                        direction="upstream",
+                        usage_type="transform",
+                        sources=[
+                            DependencySource(
+                                source_type="sql_ast",
+                                confidence=CONFIDENCE_CTE,
+                                file_path=file_path,
+                                extracted_at=now,
+                            )
+                        ],
+                        final_confidence=CONFIDENCE_CTE,
+                    )
+                )
 
         return edges
 
@@ -233,19 +249,23 @@ class SqlAstEdgeExtractor:
                     continue
                 source_table = source_table.lower()
 
-                edges.append(DependencyEdge(
-                    from_element=source_table,
-                    to_element=subquery_alias,
-                    direction="upstream",
-                    usage_type="select",
-                    sources=[DependencySource(
-                        source_type="sql_ast",
-                        confidence=CONFIDENCE_SUBQUERY,
-                        file_path=file_path,
-                        extracted_at=now,
-                    )],
-                    final_confidence=CONFIDENCE_SUBQUERY,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=source_table,
+                        to_element=subquery_alias,
+                        direction="upstream",
+                        usage_type="select",
+                        sources=[
+                            DependencySource(
+                                source_type="sql_ast",
+                                confidence=CONFIDENCE_SUBQUERY,
+                                file_path=file_path,
+                                extracted_at=now,
+                            )
+                        ],
+                        final_confidence=CONFIDENCE_SUBQUERY,
+                    )
+                )
 
         return edges
 
@@ -276,18 +296,22 @@ class SqlAstEdgeExtractor:
             if source_table == target_table:
                 continue
 
-            edges.append(DependencyEdge(
-                from_element=source_table,
-                to_element=target_table,
-                direction="upstream",
-                usage_type="transform",
-                sources=[DependencySource(
-                    source_type="sql_ast",
-                    confidence=CONFIDENCE_INSERT_SELECT,
-                    file_path=file_path,
-                    extracted_at=now,
-                )],
-                final_confidence=CONFIDENCE_INSERT_SELECT,
-            ))
+            edges.append(
+                DependencyEdge(
+                    from_element=source_table,
+                    to_element=target_table,
+                    direction="upstream",
+                    usage_type="transform",
+                    sources=[
+                        DependencySource(
+                            source_type="sql_ast",
+                            confidence=CONFIDENCE_INSERT_SELECT,
+                            file_path=file_path,
+                            extracted_at=now,
+                        )
+                    ],
+                    final_confidence=CONFIDENCE_INSERT_SELECT,
+                )
+            )
 
         return edges

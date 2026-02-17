@@ -4,7 +4,6 @@ Verifies that criticality escalates based on downstream dependency count,
 row count, and byte size, and that the max of all signals is used.
 """
 
-
 from schemint.drift.context_assembler import ContextAssembler, CriticalityThresholds
 from schemint.drift.models import (
     DependencyGraph,

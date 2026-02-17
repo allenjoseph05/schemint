@@ -31,9 +31,7 @@ class DatabaseIntrospector(Protocol):
         """Return all user table names in the given schema."""
         ...
 
-    def fetch_columns(
-        self, schema_name: str, table_name: str
-    ) -> dict[str, ColumnSnapshot]:
+    def fetch_columns(self, schema_name: str, table_name: str) -> dict[str, ColumnSnapshot]:
         """Return columns for a table, ordered by ordinal position."""
         ...
 
@@ -49,9 +47,7 @@ class DatabaseIntrospector(Protocol):
         """Return foreign key metadata for a table."""
         ...
 
-    def fetch_check_constraints(
-        self, schema_name: str, table_name: str
-    ) -> list[str]:
+    def fetch_check_constraints(self, schema_name: str, table_name: str) -> list[str]:
         """Return CHECK constraint expressions for a table."""
         ...
 
@@ -93,9 +89,7 @@ class DriftStoreProtocol(Protocol):
         """Get the most recent snapshot for a project."""
         ...
 
-    def save_dependency_graph(
-        self, project_id: str, graph: DependencyGraph
-    ) -> None:
+    def save_dependency_graph(self, project_id: str, graph: DependencyGraph) -> None:
         """Save a dependency graph (replaces existing for project)."""
         ...
 

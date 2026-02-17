@@ -37,104 +37,118 @@ CREATE TABLE user_activity (
 
 def create_ecommerce_context() -> ProjectContext:
     """Create an e-commerce project context."""
-    return load_context({
-        "project_name": "E-Commerce Platform",
-        "description": "Online shopping platform with strict financial requirements",
-        "schema": {
-            "tables": [
-                {
-                    "name": "customers",
-                    "description": "Customer accounts",
-                    "columns": [
-                        {"name": "id", "type": "INT", "description": "Primary key"},
-                        {"name": "email", "type": "VARCHAR(255)"},
-                    ],
-                },
-                {
-                    "name": "orders",
-                    "description": "Customer orders - financial data",
-                    "columns": [
-                        {"name": "id", "type": "INT"},
-                        {"name": "customer_id", "type": "INT", "foreign_key_to": "customers.id"},
-                        {"name": "total", "type": "DECIMAL(19,4)", "description": "Order total - must use DECIMAL for money"},
-                        {"name": "status", "type": "VARCHAR(20)"},
-                        {"name": "created_at", "type": "DATETIME"},
-                        {"name": "updated_at", "type": "DATETIME"},
-                    ],
-                },
-            ],
-            "database_type": "mysql",
-        },
-        "conventions": {
-            "naming_conventions": {"case": "snake_case"},
-            "required_columns": ["created_at", "updated_at"],
-            "preferred_types": {"money": "DECIMAL(19,4)"},
-            "require_soft_delete": True,
-            "soft_delete_column": "deleted_at",
-        },
-    })
+    return load_context(
+        {
+            "project_name": "E-Commerce Platform",
+            "description": "Online shopping platform with strict financial requirements",
+            "schema": {
+                "tables": [
+                    {
+                        "name": "customers",
+                        "description": "Customer accounts",
+                        "columns": [
+                            {"name": "id", "type": "INT", "description": "Primary key"},
+                            {"name": "email", "type": "VARCHAR(255)"},
+                        ],
+                    },
+                    {
+                        "name": "orders",
+                        "description": "Customer orders - financial data",
+                        "columns": [
+                            {"name": "id", "type": "INT"},
+                            {
+                                "name": "customer_id",
+                                "type": "INT",
+                                "foreign_key_to": "customers.id",
+                            },
+                            {
+                                "name": "total",
+                                "type": "DECIMAL(19,4)",
+                                "description": "Order total - must use DECIMAL for money",
+                            },
+                            {"name": "status", "type": "VARCHAR(20)"},
+                            {"name": "created_at", "type": "DATETIME"},
+                            {"name": "updated_at", "type": "DATETIME"},
+                        ],
+                    },
+                ],
+                "database_type": "mysql",
+            },
+            "conventions": {
+                "naming_conventions": {"case": "snake_case"},
+                "required_columns": ["created_at", "updated_at"],
+                "preferred_types": {"money": "DECIMAL(19,4)"},
+                "require_soft_delete": True,
+                "soft_delete_column": "deleted_at",
+            },
+        }
+    )
 
 
 def create_blog_context() -> ProjectContext:
     """Create a simple blog project context (less strict requirements)."""
-    return load_context({
-        "project_name": "Personal Blog",
-        "description": "Simple blog with minimal requirements",
-        "schema": {
-            "tables": [
-                {
-                    "name": "posts",
-                    "description": "Blog posts",
-                    "columns": [
-                        {"name": "id", "type": "INT"},
-                        {"name": "title", "type": "VARCHAR(255)"},
-                        {"name": "content", "type": "TEXT"},
-                    ],
-                },
-            ],
-            "database_type": "mysql",
-        },
-        "conventions": {
-            "naming_conventions": {"case": "snake_case"},
-            # No required columns, no soft delete, simpler requirements
-        },
-    })
+    return load_context(
+        {
+            "project_name": "Personal Blog",
+            "description": "Simple blog with minimal requirements",
+            "schema": {
+                "tables": [
+                    {
+                        "name": "posts",
+                        "description": "Blog posts",
+                        "columns": [
+                            {"name": "id", "type": "INT"},
+                            {"name": "title", "type": "VARCHAR(255)"},
+                            {"name": "content", "type": "TEXT"},
+                        ],
+                    },
+                ],
+                "database_type": "mysql",
+            },
+            "conventions": {
+                "naming_conventions": {"case": "snake_case"},
+                # No required columns, no soft delete, simpler requirements
+            },
+        }
+    )
 
 
 def create_context_with_deprecations() -> ProjectContext:
     """Create a context with deprecated columns."""
-    return load_context({
-        "project_name": "Legacy Migration Project",
-        "description": "Project undergoing schema migration",
-        "schema": {
-            "tables": [
-                {
-                    "name": "user_activity",
-                    "description": "User activity tracking",
-                    "columns": [
-                        {"name": "id", "type": "INT"},
-                        {"name": "user_id", "type": "INT"},
-                        {
-                            "name": "legacy_status",
-                            "type": "INT",
-                            "deprecated": True,
-                            "deprecated_reason": "Use activity_type enum instead",
-                            "deprecated_since": "v2.0",
-                            "renamed_to": "activity_type",
-                        },
-                        {
-                            "name": "activity_type",
-                            "type": "VARCHAR(50)",
-                            "renamed_from": "legacy_status",
-                            "description": "New activity type field",
-                        },
-                        {"name": "created_at", "type": "DATETIME"},
-                    ],
-                },
-            ],
-        },
-        "conventions": {},
-    })
+    return load_context(
+        {
+            "project_name": "Legacy Migration Project",
+            "description": "Project undergoing schema migration",
+            "schema": {
+                "tables": [
+                    {
+                        "name": "user_activity",
+                        "description": "User activity tracking",
+                        "columns": [
+                            {"name": "id", "type": "INT"},
+                            {"name": "user_id", "type": "INT"},
+                            {
+                                "name": "legacy_status",
+                                "type": "INT",
+                                "deprecated": True,
+                                "deprecated_reason": "Use activity_type enum instead",
+                                "deprecated_since": "v2.0",
+                                "renamed_to": "activity_type",
+                            },
+                            {
+                                "name": "activity_type",
+                                "type": "VARCHAR(50)",
+                                "renamed_from": "legacy_status",
+                                "description": "New activity type field",
+                            },
+                            {"name": "created_at", "type": "DATETIME"},
+                        ],
+                    },
+                ],
+            },
+            "conventions": {},
+        }
+    )
 
 
 class TestContextAwareAnalysis:
@@ -153,8 +167,13 @@ class TestContextAwareAnalysis:
             "issues": [],
             "good_practices": ["Primary keys present"],
             "recommendations": [],
-            "score": {"total": 85, "structural": 90, "performance": 80,
-                      "naming": 85, "best_practices": 80},
+            "score": {
+                "total": 85,
+                "structural": 90,
+                "performance": 80,
+                "naming": 85,
+                "best_practices": 80,
+            },
         }
         mock_get_agent.return_value = mock_agent
 
@@ -202,8 +221,13 @@ class TestContextAwareAnalysis:
             ],
             "good_practices": [],
             "recommendations": ["Rename legacy_status to activity_type"],
-            "score": {"total": 75, "structural": 80, "performance": 90,
-                      "naming": 70, "best_practices": 60},
+            "score": {
+                "total": 75,
+                "structural": 80,
+                "performance": 90,
+                "naming": 70,
+                "best_practices": 60,
+            },
         }
         mock_get_agent.return_value = mock_agent
 
@@ -215,7 +239,8 @@ class TestContextAwareAnalysis:
 
         # Agent should flag deprecated column
         deprecated_issues = [
-            i for i in result.issues
+            i
+            for i in result.issues
             if "deprecated" in i.title.lower() or "deprecated" in (i.description or "").lower()
         ]
         assert len(deprecated_issues) > 0
@@ -251,19 +276,26 @@ class TestContextAwareAnalysis:
             ],
             "good_practices": [],
             "recommendations": [],
-            "score": {"total": 70, "structural": 90, "performance": 80,
-                      "naming": 50, "best_practices": 60},
+            "score": {
+                "total": 70,
+                "structural": 90,
+                "performance": 80,
+                "naming": 50,
+                "best_practices": 60,
+            },
         }
         mock_get_agent.return_value = mock_agent
 
-        strict_context = load_context({
-            "project_name": "Strict Naming Project",
-            "conventions": {
-                "naming_conventions": {"case": "snake_case"},
-                "forbidden_column_names": ["type", "status", "data"],
-                "require_fk_indexes": True,
-            },
-        })
+        strict_context = load_context(
+            {
+                "project_name": "Strict Naming Project",
+                "conventions": {
+                    "naming_conventions": {"case": "snake_case"},
+                    "forbidden_column_names": ["type", "status", "data"],
+                    "require_fk_indexes": True,
+                },
+            }
+        )
 
         sql_with_forbidden = """
         CREATE TABLE items (
@@ -297,21 +329,23 @@ class TestProjectContextModels:
 
     def test_load_context_from_dict(self):
         """Test loading context from a dictionary."""
-        context = load_context({
-            "project_name": "Test Project",
-            "description": "A test project",
-            "schema": {
-                "tables": [
-                    {
-                        "name": "users",
-                        "columns": [
-                            {"name": "id", "type": "INT"},
-                            {"name": "email", "type": "VARCHAR(255)"},
-                        ],
-                    },
-                ],
-            },
-        })
+        context = load_context(
+            {
+                "project_name": "Test Project",
+                "description": "A test project",
+                "schema": {
+                    "tables": [
+                        {
+                            "name": "users",
+                            "columns": [
+                                {"name": "id", "type": "INT"},
+                                {"name": "email", "type": "VARCHAR(255)"},
+                            ],
+                        },
+                    ],
+                },
+            }
+        )
 
         assert context.project_name == "Test Project"
         assert context.description == "A test project"
@@ -426,7 +460,9 @@ def demonstrate_context_difference():
     print("=" * 70)
     ecommerce_result = analyze_sql(TEST_SQL, project_context=create_ecommerce_context())
     print(f"\nScore: {ecommerce_result.score.total}/100 ({ecommerce_result.score.grade})")
-    print(f"Critical: {ecommerce_result.critical_count}, Warning: {ecommerce_result.warning_count}, Suggestion: {ecommerce_result.suggestion_count}")
+    print(
+        f"Critical: {ecommerce_result.critical_count}, Warning: {ecommerce_result.warning_count}, Suggestion: {ecommerce_result.suggestion_count}"
+    )
     print("\nIssues:")
     for issue in ecommerce_result.issues:
         print(f"  [{issue.severity.value}] {issue.title}")
@@ -439,7 +475,9 @@ def demonstrate_context_difference():
     print("=" * 70)
     blog_result = analyze_sql(TEST_SQL, project_context=create_blog_context())
     print(f"\nScore: {blog_result.score.total}/100 ({blog_result.score.grade})")
-    print(f"Critical: {blog_result.critical_count}, Warning: {blog_result.warning_count}, Suggestion: {blog_result.suggestion_count}")
+    print(
+        f"Critical: {blog_result.critical_count}, Warning: {blog_result.warning_count}, Suggestion: {blog_result.suggestion_count}"
+    )
     print("\nIssues:")
     for issue in blog_result.issues:
         print(f"  [{issue.severity.value}] {issue.title}")
@@ -450,7 +488,9 @@ def demonstrate_context_difference():
     print("=" * 70)
     no_context_result = analyze_sql(TEST_SQL)
     print(f"\nScore: {no_context_result.score.total}/100 ({no_context_result.score.grade})")
-    print(f"Critical: {no_context_result.critical_count}, Warning: {no_context_result.warning_count}, Suggestion: {no_context_result.suggestion_count}")
+    print(
+        f"Critical: {no_context_result.critical_count}, Warning: {no_context_result.warning_count}, Suggestion: {no_context_result.suggestion_count}"
+    )
     print("\nIssues:")
     for issue in no_context_result.issues:
         print(f"  [{issue.severity.value}] {issue.title}")

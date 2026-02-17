@@ -4,7 +4,6 @@ Covers sequence, enum, function, materialized view, and extension extraction
 from DDL strings, plus integration with DDLSnapshotCapture.
 """
 
-
 from schemint.drift.snapshot_pkg.ddl_object_capture import (
     extract_enums_from_ddl,
     extract_extensions_from_ddl,

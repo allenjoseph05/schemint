@@ -1,6 +1,5 @@
 """Tests for drift action templates registry."""
 
-
 from schemint.drift.action_templates import (
     ACTION_REGISTRY,
     ActionTemplate,

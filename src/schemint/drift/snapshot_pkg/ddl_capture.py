@@ -45,7 +45,9 @@ class DDLSnapshotCapture:
         parsed = parse_sql(sql, database_type=database_type)
         check_constraints = extract_check_constraints(sql)
         snapshot = self._parsed_schema_to_snapshot(
-            parsed, source="ddl", schema_name=schema_name,
+            parsed,
+            source="ddl",
+            schema_name=schema_name,
             check_constraints=check_constraints,
         )
         snapshot.views = extract_views_from_ddl(sql)

@@ -267,7 +267,9 @@ class MemoryStore:
             external_id=row["external_id"],
             name=row["name"],
             created_at=row["created_at"],
-            settings=row["settings"] if isinstance(row["settings"], dict) else json.loads(row["settings"]),
+            settings=row["settings"]
+            if isinstance(row["settings"], dict)
+            else json.loads(row["settings"]),
         )
 
     # =========================================================================
@@ -298,7 +300,8 @@ class MemoryStore:
             reason=reason,
             accepted_by=accepted_by,
             expires_at=expires_at,
-            context=context or {
+            context=context
+            or {
                 "table": finding.table_name,
                 "column": finding.column_name,
             },
@@ -408,7 +411,9 @@ class MemoryStore:
             accepted_by=row["accepted_by"],
             accepted_at=row["accepted_at"],
             expires_at=row["expires_at"],
-            context=row["context"] if isinstance(row["context"], dict) else json.loads(row["context"]),
+            context=row["context"]
+            if isinstance(row["context"], dict)
+            else json.loads(row["context"]),
         )
 
     # =========================================================================
@@ -681,7 +686,9 @@ class MemoryStore:
             business_rules_count=rules_count,
             semantic_entries_count=semantics_count,
             inflection_points_count=inflection_count,
-            last_analysis=history_row["last_created"] if history_row and history_row["last_created"] else None,
+            last_analysis=history_row["last_created"]
+            if history_row and history_row["last_created"]
+            else None,
             total_analyses=history_row["total"] if history_row else 0,
         )
 
@@ -761,18 +768,20 @@ class MemoryStore:
             if isinstance(memory_applied, str):
                 memory_applied = json.loads(memory_applied)
 
-            results.append(AnalysisHistory(
-                id=UUID(row["id"]),
-                project_id=UUID(row["project_id"]),
-                ref=row["ref"],
-                event_type=row["event_type"],
-                status=row["status"],
-                finding_count=row["finding_count"],
-                findings_hash=row["findings_hash"],
-                memory_applied=memory_applied,
-                duration_ms=row["duration_ms"],
-                created_at=row["created_at"],
-            ))
+            results.append(
+                AnalysisHistory(
+                    id=UUID(row["id"]),
+                    project_id=UUID(row["project_id"]),
+                    ref=row["ref"],
+                    event_type=row["event_type"],
+                    status=row["status"],
+                    finding_count=row["finding_count"],
+                    findings_hash=row["findings_hash"],
+                    memory_applied=memory_applied,
+                    duration_ms=row["duration_ms"],
+                    created_at=row["created_at"],
+                )
+            )
 
         return results
 

@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 # Try to import anthropic SDK
 try:
     import anthropic
+
     CLAUDE_AVAILABLE = True
 except ImportError:
     CLAUDE_AVAILABLE = False
@@ -166,6 +167,7 @@ SUBMIT_ANALYSIS_TOOL = ANALYSIS_TOOL
 # AgentAnalyzer
 # ---------------------------------------------------------------------------
 
+
 class AgentAnalyzer:
     """Multi-turn agentic schema analyzer using Anthropic tool-use loop."""
 
@@ -173,15 +175,11 @@ class AgentAnalyzer:
         settings = get_settings()
 
         if not CLAUDE_AVAILABLE:
-            raise RuntimeError(
-                "anthropic not installed. "
-                "Install with: pip install anthropic"
-            )
+            raise RuntimeError("anthropic not installed. Install with: pip install anthropic")
 
         if not settings.claude_api_key:
             raise RuntimeError(
-                "CLAUDE_API_KEY not set. "
-                "Get your key from: https://console.anthropic.com/"
+                "CLAUDE_API_KEY not set. Get your key from: https://console.anthropic.com/"
             )
 
         self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
@@ -217,7 +215,10 @@ class AgentAnalyzer:
 
         # Build initial message (lightweight overview, NOT full schema)
         initial_message = self._build_initial_message(
-            schema, app_type, project_context, memory_context,
+            schema,
+            app_type,
+            project_context,
+            memory_context,
         )
 
         messages: list[dict[str, Any]] = [
@@ -230,21 +231,20 @@ class AgentAnalyzer:
                 response = self.client.messages.create(
                     model=model,
                     max_tokens=4096,
-                    system=[{
-                        "type": "text",
-                        "text": AGENT_SYSTEM_PROMPT,
-                        "cache_control": {"type": "ephemeral"},
-                    }],
+                    system=[
+                        {
+                            "type": "text",
+                            "text": AGENT_SYSTEM_PROMPT,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
                     messages=messages,  # type: ignore[arg-type]
                     tools=tools,  # type: ignore[arg-type]
                 )
 
                 # Check for terminal tool (submit_analysis)
                 for block in response.content:
-                    if (
-                        block.type == "tool_use"
-                        and block.name == "submit_analysis"
-                    ):
+                    if block.type == "tool_use" and block.name == "submit_analysis":
                         return self._normalize_result(block.input)
 
                 # Process non-terminal tool calls
@@ -252,23 +252,29 @@ class AgentAnalyzer:
                 for block in response.content:
                     if block.type == "tool_use":
                         result = self._execute_tool(
-                            block, schema, pre_analysis,
+                            block,
+                            schema,
+                            pre_analysis,
                         )
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": result,
-                        })
+                        tool_results.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": result,
+                            }
+                        )
 
                 if not tool_results:
                     # No tool calls — shouldn't happen, but break to avoid
                     # infinite loop
                     break
 
-                messages.append({
-                    "role": "assistant",
-                    "content": response.content,
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": response.content,
+                    }
+                )
                 messages.append({"role": "user", "content": tool_results})
 
         except Exception as e:
@@ -315,8 +321,7 @@ class AgentAnalyzer:
             idx_count = len(table.indexes)
             col_count = len(table.columns)
             parts.append(
-                f"  {table.name} ({col_count} columns, "
-                f"{fk_count} FKs, {idx_count} indexes)"
+                f"  {table.name} ({col_count} columns, {fk_count} FKs, {idx_count} indexes)"
             )
         parts.append("")
 
@@ -430,7 +435,9 @@ class AgentAnalyzer:
         if table.foreign_keys:
             lines.append("FOREIGN KEYS:")
             for fk in table.foreign_keys:
-                on_del = f" ON DELETE {fk.on_delete}" if fk.on_delete else " (no ON DELETE specified)"
+                on_del = (
+                    f" ON DELETE {fk.on_delete}" if fk.on_delete else " (no ON DELETE specified)"
+                )
                 lines.append(
                     f"  {fk.column} -> {fk.references_table}.{fk.references_column}{on_del}"
                 )
@@ -467,8 +474,7 @@ class AgentAnalyzer:
 
         # Detected patterns for this table
         table_patterns = [
-            p for p in pre_analysis.column_patterns
-            if p.table.lower() == table.name.lower()
+            p for p in pre_analysis.column_patterns if p.table.lower() == table.name.lower()
         ]
         if table_patterns:
             lines.append("DETECTED PATTERNS:")
@@ -478,8 +484,7 @@ class AgentAnalyzer:
 
         # Risk signals for this table
         table_risks = [
-            r for r in pre_analysis.risk_signals
-            if r.table.lower() == table.name.lower()
+            r for r in pre_analysis.risk_signals if r.table.lower() == table.name.lower()
         ]
         if table_risks:
             lines.append("RISKS:")
@@ -500,6 +505,7 @@ class AgentAnalyzer:
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
+
 
 def get_agent_analyzer() -> AgentAnalyzer | None:
     """Get agent analyzer if available and configured."""

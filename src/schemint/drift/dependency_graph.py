@@ -91,9 +91,7 @@ class DependencyGraphBuilder:
         valid_edges = [e for e in all_edges if len(e.sources) > 0]
         if len(valid_edges) < len(all_edges):
             dropped = len(all_edges) - len(valid_edges)
-            logger.warning(
-                "Dropped %d edges with no provenance sources", dropped
-            )
+            logger.warning("Dropped %d edges with no provenance sources", dropped)
 
         merged = self._merge_edges(valid_edges)
         return DependencyGraph(
@@ -125,9 +123,7 @@ class DependencyGraphBuilder:
     # SQL AST parsing
     # =========================================================================
 
-    def from_sql_ast(
-        self, sql: str, file_path: str | None = None
-    ) -> list[DependencyEdge]:
+    def from_sql_ast(self, sql: str, file_path: str | None = None) -> list[DependencyEdge]:
         """Extract dependency edges from SQL statements using sqlglot AST.
 
         Also extracts column-level lineage from SELECT clauses.
@@ -150,9 +146,7 @@ class DependencyGraphBuilder:
         for statement in statements:
             if statement is None:
                 continue
-            edges.extend(
-                self._lineage_extractor.extract(statement, now, file_path)
-            )
+            edges.extend(self._lineage_extractor.extract(statement, now, file_path))
 
         return edges
 
@@ -164,27 +158,39 @@ class DependencyGraphBuilder:
         """Resolve a column reference to table.column using the alias map."""
         return resolve_column_ref(col, aliases)
 
-    def _extract_join_edges_from_ast(self, statement: Any, aliases: dict[str, str], now: datetime, file_path: str | None) -> list[DependencyEdge]:
+    def _extract_join_edges_from_ast(
+        self, statement: Any, aliases: dict[str, str], now: datetime, file_path: str | None
+    ) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_join_edges(statement, aliases, now, file_path)
 
-    def _extract_where_edges_from_ast(self, statement: Any, aliases: dict[str, str], now: datetime, file_path: str | None) -> list[DependencyEdge]:
+    def _extract_where_edges_from_ast(
+        self, statement: Any, aliases: dict[str, str], now: datetime, file_path: str | None
+    ) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_where_edges(statement, aliases, now, file_path)
 
-    def _extract_cte_edges(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
+    def _extract_cte_edges(
+        self, statement: Any, now: datetime, file_path: str | None
+    ) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_cte_edges(statement, now, file_path)
 
-    def _extract_subquery_edges(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
+    def _extract_subquery_edges(
+        self, statement: Any, now: datetime, file_path: str | None
+    ) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_subquery_edges(statement, now, file_path)
 
-    def _extract_insert_select_edges(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
+    def _extract_insert_select_edges(
+        self, statement: Any, now: datetime, file_path: str | None
+    ) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_insert_select_edges(statement, now, file_path)
 
-    def _extract_column_lineage(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
+    def _extract_column_lineage(
+        self, statement: Any, now: datetime, file_path: str | None
+    ) -> list[DependencyEdge]:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor.extract(statement, now, file_path)
 
@@ -192,13 +198,28 @@ class DependencyGraphBuilder:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor._determine_target_name(statement)
 
-    def _extract_select_column_lineage(self, select_node: Any, aliases: dict[str, str], target_name: str, now: datetime, file_path: str | None) -> list[DependencyEdge]:
+    def _extract_select_column_lineage(
+        self,
+        select_node: Any,
+        aliases: dict[str, str],
+        target_name: str,
+        now: datetime,
+        file_path: str | None,
+    ) -> list[DependencyEdge]:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor._extract_select_column_lineage(
             select_node, aliases, target_name, now, file_path
         )
 
-    def _extract_insert_column_lineage(self, select_node: Any, aliases: dict[str, str], target_table: str, insert_cols: list[str], now: datetime, file_path: str | None) -> list[DependencyEdge]:
+    def _extract_insert_column_lineage(
+        self,
+        select_node: Any,
+        aliases: dict[str, str],
+        target_table: str,
+        insert_cols: list[str],
+        now: datetime,
+        file_path: str | None,
+    ) -> list[DependencyEdge]:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor._extract_insert_column_lineage(
             select_node, aliases, target_table, insert_cols, now, file_path
@@ -212,9 +233,7 @@ class DependencyGraphBuilder:
     # Batch SQL file processing
     # =========================================================================
 
-    def from_sql_files(
-        self, sql_files: dict[str, str]
-    ) -> tuple[list[DependencyEdge], ParseHealth]:
+    def from_sql_files(self, sql_files: dict[str, str]) -> tuple[list[DependencyEdge], ParseHealth]:
         """Extract edges from multiple SQL files, tracking parse failures."""
         all_edges: list[DependencyEdge] = []
         health = ParseHealth(total_files=len(sql_files))
@@ -234,9 +253,7 @@ class DependencyGraphBuilder:
     # View definitions
     # =========================================================================
 
-    def from_view_definitions(
-        self, views: dict[str, str]
-    ) -> list[DependencyEdge]:
+    def from_view_definitions(self, views: dict[str, str]) -> list[DependencyEdge]:
         """Extract dependency edges from CREATE VIEW AS SELECT statements."""
         return self._view_extractor.extract(views)
 
@@ -244,9 +261,7 @@ class DependencyGraphBuilder:
         """Extract dependency edges from views in a schema snapshot."""
         return self._view_extractor.extract_from_schema(schema)
 
-    def from_trigger_definitions(
-        self, schema: SchemaSnapshot
-    ) -> list[DependencyEdge]:
+    def from_trigger_definitions(self, schema: SchemaSnapshot) -> list[DependencyEdge]:
         """Extract dependency edges from triggers in a schema snapshot."""
         return self._trigger_extractor.extract(schema)
 

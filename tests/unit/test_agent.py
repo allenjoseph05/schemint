@@ -27,13 +27,19 @@ from schemint.services.agent import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_schema() -> ParsedSchema:
     """Create a small test schema with 3 tables."""
     users = Table(
         name="users",
         columns=[
-            Column(name="id", data_type=DataType.INT, raw_type="INT",
-                   is_primary_key=True, nullable=False),
+            Column(
+                name="id",
+                data_type=DataType.INT,
+                raw_type="INT",
+                is_primary_key=True,
+                nullable=False,
+            ),
             Column(name="email", data_type=DataType.VARCHAR, raw_type="VARCHAR(255)"),
             Column(name="password", data_type=DataType.VARCHAR, raw_type="VARCHAR(255)"),
             Column(name="created_at", data_type=DataType.TIMESTAMP, raw_type="TIMESTAMP"),
@@ -44,8 +50,13 @@ def _make_schema() -> ParsedSchema:
     orders = Table(
         name="orders",
         columns=[
-            Column(name="id", data_type=DataType.INT, raw_type="INT",
-                   is_primary_key=True, nullable=False),
+            Column(
+                name="id",
+                data_type=DataType.INT,
+                raw_type="INT",
+                is_primary_key=True,
+                nullable=False,
+            ),
             Column(name="user_id", data_type=DataType.INT, raw_type="INT"),
             Column(name="total", data_type=DataType.FLOAT, raw_type="FLOAT"),
             Column(name="status", data_type=DataType.VARCHAR, raw_type="VARCHAR(20)"),
@@ -53,15 +64,19 @@ def _make_schema() -> ParsedSchema:
         ],
         primary_key=["id"],
         foreign_keys=[
-            ForeignKey(column="user_id", references_table="users",
-                       references_column="id"),
+            ForeignKey(column="user_id", references_table="users", references_column="id"),
         ],
     )
     products = Table(
         name="products",
         columns=[
-            Column(name="id", data_type=DataType.INT, raw_type="INT",
-                   is_primary_key=True, nullable=False),
+            Column(
+                name="id",
+                data_type=DataType.INT,
+                raw_type="INT",
+                is_primary_key=True,
+                nullable=False,
+            ),
             Column(name="name", data_type=DataType.VARCHAR, raw_type="VARCHAR(100)"),
             Column(name="price", data_type=DataType.FLOAT, raw_type="FLOAT"),
         ],
@@ -143,14 +158,17 @@ SAMPLE_ANALYSIS = {
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class TestAgentInitialMessage:
     @patch("schemint.services.agent.get_settings")
     def test_initial_message_is_lightweight(self, mock_settings_fn):
         """Initial message should only have table names/counts, NOT full schema."""
         mock_settings_fn.return_value = _mock_settings()
 
-        with patch("schemint.services.agent.anthropic"), \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic"),
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             agent = AgentAnalyzer()
             schema = _make_schema()
             msg = agent._build_initial_message(schema, "ecommerce", None, None)
@@ -175,8 +193,10 @@ class TestExecuteTool:
         """get_schema_overview should return pre-analysis data."""
         mock_settings_fn.return_value = _mock_settings()
 
-        with patch("schemint.services.agent.anthropic"), \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic"),
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             agent = AgentAnalyzer()
             schema = _make_schema()
             pre = run_pre_analysis(schema, "ecommerce")
@@ -193,8 +213,10 @@ class TestExecuteTool:
         """inspect_table should return correct table details."""
         mock_settings_fn.return_value = _mock_settings()
 
-        with patch("schemint.services.agent.anthropic"), \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic"),
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             agent = AgentAnalyzer()
             schema = _make_schema()
             pre = run_pre_analysis(schema)
@@ -212,8 +234,10 @@ class TestExecuteTool:
         """inspect_table for missing table should return error, not crash."""
         mock_settings_fn.return_value = _mock_settings()
 
-        with patch("schemint.services.agent.anthropic"), \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic"),
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             agent = AgentAnalyzer()
             schema = _make_schema()
             pre = run_pre_analysis(schema)
@@ -230,8 +254,10 @@ class TestAgentLoop:
         """Loop should exit when submit_analysis is called."""
         mock_settings_fn.return_value = _mock_settings()
 
-        with patch("schemint.services.agent.anthropic") as mock_anthropic, \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic") as mock_anthropic,
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             mock_client = MagicMock()
 
             # Turn 1: call get_schema_overview
@@ -265,8 +291,10 @@ class TestAgentLoop:
         settings.claude_max_agent_turns = 2
         mock_settings_fn.return_value = settings
 
-        with patch("schemint.services.agent.anthropic") as mock_anthropic, \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic") as mock_anthropic,
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             mock_client = MagicMock()
 
             # Every turn returns a non-terminal tool call
@@ -290,14 +318,18 @@ class TestAgentNormalization:
         """findings should be mapped to issues key."""
         mock_settings_fn.return_value = _mock_settings()
 
-        with patch("schemint.services.agent.anthropic"), \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic"),
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             agent = AgentAnalyzer()
-            result = agent._normalize_result({
-                "findings": [{"title": "test"}],
-                "score": {"total": 80},
-                "summary": "ok",
-            })
+            result = agent._normalize_result(
+                {
+                    "findings": [{"title": "test"}],
+                    "score": {"total": 80},
+                    "summary": "ok",
+                }
+            )
 
             assert "issues" in result
             assert result["issues"] == [{"title": "test"}]
@@ -309,15 +341,21 @@ class TestAgentMemoryContext:
         """Memory context should appear in initial message."""
         mock_settings_fn.return_value = _mock_settings()
 
-        with patch("schemint.services.agent.anthropic"), \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic"),
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             agent = AgentAnalyzer()
             schema = _make_schema()
 
             memory = {
                 "accepted_findings": [
-                    {"type": "missing_timestamps", "table": "orders",
-                     "reason": "ok", "scope": "once"}
+                    {
+                        "type": "missing_timestamps",
+                        "table": "orders",
+                        "reason": "ok",
+                        "scope": "once",
+                    }
                 ]
             }
             msg = agent._build_initial_message(schema, None, None, memory)
@@ -342,8 +380,10 @@ class TestAgentFallback:
         """On API failure, agent should return error dict, not crash."""
         mock_settings_fn.return_value = _mock_settings()
 
-        with patch("schemint.services.agent.anthropic") as mock_anthropic, \
-             patch("schemint.services.agent.CLAUDE_AVAILABLE", True):
+        with (
+            patch("schemint.services.agent.anthropic") as mock_anthropic,
+            patch("schemint.services.agent.CLAUDE_AVAILABLE", True),
+        ):
             mock_client = MagicMock()
             mock_client.messages.create.side_effect = Exception("API rate limit")
             mock_anthropic.Anthropic.return_value = mock_client

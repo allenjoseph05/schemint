@@ -74,7 +74,9 @@ class TestAnalyzeStaleness:
 
 class TestSeqScanRatio:
     def test_high_seq_scan_ratio(self):
-        stats = TableStatistics(table_name="t", row_count=1000, seq_scan_count=90, idx_scan_count=10)
+        stats = TableStatistics(
+            table_name="t", row_count=1000, seq_scan_count=90, idx_scan_count=10
+        )
         signals = ContextAssembler._compute_data_quality_signals(stats)
         assert signals is not None
         assert signals.seq_scan_ratio == 0.9

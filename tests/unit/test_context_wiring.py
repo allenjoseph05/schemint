@@ -4,7 +4,6 @@ Verifies that column statistics, permissions, and functions from the schema
 snapshot are correctly plumbed into the ContextPackage during assembly.
 """
 
-
 from schemint.drift.context_assembler import ContextAssembler
 from schemint.drift.models import (
     ColumnSnapshot,
@@ -41,10 +40,16 @@ class TestColumnStatsWiring:
     def test_column_stats_populated_for_changed_table(self):
         stats = [
             ColumnStatistics(column_name="id", table_name="users", null_frac=0.0, n_distinct=-1.0),
-            ColumnStatistics(column_name="email", table_name="users", null_frac=0.05, n_distinct=-0.9),
+            ColumnStatistics(
+                column_name="email", table_name="users", null_frac=0.05, n_distinct=-0.9
+            ),
         ]
         schema = _make_schema(
-            tables={"users": TableSnapshot(name="users", columns={"id": ColumnSnapshot(name="id", type="integer")})},
+            tables={
+                "users": TableSnapshot(
+                    name="users", columns={"id": ColumnSnapshot(name="id", type="integer")}
+                )
+            },
             column_statistics={"users": stats},
         )
         change = _make_change("column_added", "users", column="email")

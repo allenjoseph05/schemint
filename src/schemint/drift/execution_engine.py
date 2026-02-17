@@ -416,9 +416,7 @@ class ExecutionEngine:
             return "failed"
         return "success"
 
-    def _compute_rollback_need(
-        self, results: list[ExecutionResult], had_failure: bool
-    ) -> bool:
+    def _compute_rollback_need(self, results: list[ExecutionResult], had_failure: bool) -> bool:
         """Determine if rollback is needed.
 
         Rollback is needed if any previously successful step was

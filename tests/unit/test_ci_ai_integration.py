@@ -69,9 +69,15 @@ def _make_decision(
         status=DecisionStatus.PASS,
         findings=findings,
         duration_ms=100,
-        report_score=report_score or CIReportScore(
-            total=85, grade="B", label="Good",
-            structural=90, performance=80, naming=85, best_practices=75,
+        report_score=report_score
+        or CIReportScore(
+            total=85,
+            grade="B",
+            label="Good",
+            structural=90,
+            performance=80,
+            naming=85,
+            best_practices=75,
         ),
     )
 
@@ -133,14 +139,14 @@ class TestAnalyzeDiffPassesProjectId:
             mock_result = _make_analysis_result(ai_summary="Analysis done.")
             mock_analyze.return_value = mock_result
 
-            _findings, _results = await handler._analyze_diff(
-                diff, project_id, mock_store
-            )
+            _findings, _results = await handler._analyze_diff(diff, project_id, mock_store)
 
             mock_analyze.assert_called_once()
             call_kwargs = mock_analyze.call_args
             # Check project_id is passed as string
-            called_project_id = call_kwargs.kwargs.get("project_id") or call_kwargs[1].get("project_id")
+            called_project_id = call_kwargs.kwargs.get("project_id") or call_kwargs[1].get(
+                "project_id"
+            )
             assert called_project_id == str(project_id)
 
     @pytest.mark.asyncio
@@ -172,9 +178,7 @@ class TestAnalyzeDiffPassesProjectId:
             mock_result = _make_analysis_result(ai_summary="Analysis done.")
             mock_analyze.return_value = mock_result
 
-            _findings, _results = await handler._analyze_diff(
-                diff, project_id, mock_store
-            )
+            _findings, _results = await handler._analyze_diff(diff, project_id, mock_store)
 
             call_kwargs = mock_analyze.call_args
             # use_ai should not be in the call
@@ -255,13 +259,19 @@ class TestReportScoring:
         results = [
             _make_analysis_result(
                 ai_summary="Analysis 1",
-                total=80, structural=90, performance=70,
-                naming=80, best_practices=60,
+                total=80,
+                structural=90,
+                performance=70,
+                naming=80,
+                best_practices=60,
             ),
             _make_analysis_result(
                 ai_summary="Analysis 2",
-                total=60, structural=70, performance=50,
-                naming=60, best_practices=40,
+                total=60,
+                structural=70,
+                performance=50,
+                naming=60,
+                best_practices=40,
             ),
         ]
 
@@ -319,9 +329,7 @@ class TestGracefulAIFailureInCI:
         with patch("schemint.ci.ingest.analyze_sql") as mock_analyze:
             mock_analyze.side_effect = Exception("AI service unavailable")
 
-            findings, results = await handler._analyze_diff(
-                diff, project_id, mock_store
-            )
+            findings, results = await handler._analyze_diff(diff, project_id, mock_store)
 
             # Should not crash — returns a parse_error finding instead
             assert len(findings) >= 1

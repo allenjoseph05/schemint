@@ -102,9 +102,7 @@ class GitHubProvider(BaseGitProvider):
 
             # Get content for added/modified files
             if change_type in ("added", "modified"):
-                content = await self.get_file_content(
-                    repo, head_ref, file_data["filename"]
-                )
+                content = await self.get_file_content(repo, head_ref, file_data["filename"])
                 diff_file.content = content
 
             files.append(diff_file)

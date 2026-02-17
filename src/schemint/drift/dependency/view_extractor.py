@@ -22,26 +22,28 @@ class ViewEdgeExtractor:
         now = datetime.now(timezone.utc)
 
         for view_name, view_sql in views.items():
-            source_tables = extract_tables_from_sql(
-                view_sql, context=f"view {view_name}"
-            )
+            source_tables = extract_tables_from_sql(view_sql, context=f"view {view_name}")
 
             for source_table in source_tables:
                 if source_table.lower() == view_name.lower():
                     continue
 
-                edges.append(DependencyEdge(
-                    from_element=source_table,
-                    to_element=view_name,
-                    direction="upstream",
-                    usage_type="select",
-                    sources=[DependencySource(
-                        source_type="view_definition",
-                        confidence=CONFIDENCE_VIEW_DEFINITION,
-                        extracted_at=now,
-                    )],
-                    final_confidence=CONFIDENCE_VIEW_DEFINITION,
-                ))
+                edges.append(
+                    DependencyEdge(
+                        from_element=source_table,
+                        to_element=view_name,
+                        direction="upstream",
+                        usage_type="select",
+                        sources=[
+                            DependencySource(
+                                source_type="view_definition",
+                                confidence=CONFIDENCE_VIEW_DEFINITION,
+                                extracted_at=now,
+                            )
+                        ],
+                        final_confidence=CONFIDENCE_VIEW_DEFINITION,
+                    )
+                )
 
         return edges
 

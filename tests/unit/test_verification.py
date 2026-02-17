@@ -10,7 +10,6 @@ Tests verify:
 - Goal satisfaction (all-or-nothing)
 """
 
-
 from schemint.drift.models import (
     ColumnSnapshot,
     DependencyEdge,
@@ -56,10 +55,7 @@ def _make_snapshot(
         tables = {"users": {"id": "integer", "name": "varchar"}}
     snap_tables = {}
     for tname, cols in tables.items():
-        snap_cols = {
-            cname: ColumnSnapshot(name=cname, type=ctype)
-            for cname, ctype in cols.items()
-        }
+        snap_cols = {cname: ColumnSnapshot(name=cname, type=ctype) for cname, ctype in cols.items()}
         snap_tables[tname] = TableSnapshot(name=tname, columns=snap_cols)
     return SchemaSnapshot(
         snapshot_id=snapshot_id,
@@ -74,7 +70,9 @@ def _make_graph(edges: list[tuple[str, str, str]] | None = None) -> DependencyGr
         edges = []
     dep_edges = [
         DependencyEdge(
-            from_element=f, to_element=t, usage_type=u,
+            from_element=f,
+            to_element=t,
+            usage_type=u,
             sources=[DependencySource(source_type="fk_constraint", confidence=1.0)],
             final_confidence=1.0,
         )
@@ -171,10 +169,12 @@ class TestDependencyValidation:
 
     def test_lost_edge_invalid(self):
         engine = VerificationEngine()
-        expected = _make_graph([
-            ("users.id", "orders.user_id", "fk"),
-            ("users.id", "payments.user_id", "fk"),
-        ])
+        expected = _make_graph(
+            [
+                ("users.id", "orders.user_id", "fk"),
+                ("users.id", "payments.user_id", "fk"),
+            ]
+        )
         actual = _make_graph([("users.id", "orders.user_id", "fk")])
         report = engine.verify(
             _make_execution_report(),
@@ -187,10 +187,12 @@ class TestDependencyValidation:
         """New edges (improved coverage) are OK."""
         engine = VerificationEngine()
         expected = _make_graph([("users.id", "orders.user_id", "fk")])
-        actual = _make_graph([
-            ("users.id", "orders.user_id", "fk"),
-            ("users.id", "payments.user_id", "fk"),
-        ])
+        actual = _make_graph(
+            [
+                ("users.id", "orders.user_id", "fk"),
+                ("users.id", "payments.user_id", "fk"),
+            ]
+        )
         report = engine.verify(
             _make_execution_report(),
             expected_graph=expected,
@@ -242,7 +244,9 @@ class TestDownstreamBreakage:
     def test_schema_related_error_triggers_breakage(self):
         engine = VerificationEngine()
         ci = CITestResults(
-            total_tests=5, passed=4, failed=1,
+            total_tests=5,
+            passed=4,
+            failed=1,
             errors=["column 'email' does not exist"],
         )
         report = engine.verify(_make_execution_report(), ci_results=ci)
@@ -251,7 +255,9 @@ class TestDownstreamBreakage:
     def test_non_schema_error_no_breakage(self):
         engine = VerificationEngine()
         ci = CITestResults(
-            total_tests=5, passed=4, failed=1,
+            total_tests=5,
+            passed=4,
+            failed=1,
             errors=["timeout waiting for response"],
         )
         report = engine.verify(_make_execution_report(), ci_results=ci)
@@ -270,10 +276,12 @@ class TestDownstreamBreakage:
 
     def test_no_breakage_when_all_tables_exist(self):
         engine = VerificationEngine()
-        snap = _make_snapshot({
-            "users": {"id": "integer"},
-            "orders": {"user_id": "integer"},
-        })
+        snap = _make_snapshot(
+            {
+                "users": {"id": "integer"},
+                "orders": {"user_id": "integer"},
+            }
+        )
         graph = _make_graph([("users.id", "orders.user_id", "fk")])
         report = engine.verify(
             _make_execution_report(),
@@ -297,7 +305,9 @@ class TestRollbackTrigger:
     def test_downstream_breakage_triggers_rollback(self):
         engine = VerificationEngine()
         ci = CITestResults(
-            total_tests=5, passed=4, failed=1,
+            total_tests=5,
+            passed=4,
+            failed=1,
             errors=["relation 'users' does not exist"],
         )
         report = engine.verify(_make_execution_report(), ci_results=ci)
@@ -412,7 +422,9 @@ class TestGoalSatisfaction:
     def test_downstream_breakage_not_satisfied(self):
         engine = VerificationEngine()
         ci = CITestResults(
-            total_tests=5, passed=4, failed=1,
+            total_tests=5,
+            passed=4,
+            failed=1,
             errors=["column 'missing_col' does not exist"],
         )
         report = engine.verify(_make_execution_report(), ci_results=ci)

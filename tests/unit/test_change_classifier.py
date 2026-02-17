@@ -1,6 +1,5 @@
 """Tests for the change risk classifier."""
 
-
 from schemint.drift.change_classifier import (
     _TYPE_TO_FAMILY,
     TYPE_FAMILIES,
@@ -184,45 +183,48 @@ class TestClassifyChange:
         assert classify_change(event) == "safe"
 
     def test_column_dropped_is_breaking(self):
-        event = SchemaChangeEvent(
-            change_type="column_dropped", table="users", column="email"
-        )
+        event = SchemaChangeEvent(change_type="column_dropped", table="users", column="email")
         assert classify_change(event) == "breaking"
 
     def test_column_added_is_safe(self):
-        event = SchemaChangeEvent(
-            change_type="column_added", table="users", column="bio"
-        )
+        event = SchemaChangeEvent(change_type="column_added", table="users", column="bio")
         assert classify_change(event) == "safe"
 
     def test_nullable_to_not_null_is_breaking(self):
         event = SchemaChangeEvent(
             change_type="column_nullable_change",
-            table="users", column="email",
-            old_value="True", new_value="False",
+            table="users",
+            column="email",
+            old_value="True",
+            new_value="False",
         )
         assert classify_change(event) == "potentially_breaking"
 
     def test_not_null_to_nullable_is_safe(self):
         event = SchemaChangeEvent(
             change_type="column_nullable_change",
-            table="users", column="email",
-            old_value="False", new_value="True",
+            table="users",
+            column="email",
+            old_value="False",
+            new_value="True",
         )
         assert classify_change(event) == "safe"
 
     def test_type_change_delegates_to_type_classifier(self):
         event = SchemaChangeEvent(
             change_type="column_type_change",
-            table="users", column="id",
-            old_value="integer", new_value="bigint",
+            table="users",
+            column="id",
+            old_value="integer",
+            new_value="bigint",
         )
         assert classify_change(event) == "safe"
 
     def test_fk_action_change_delegates(self):
         event = SchemaChangeEvent(
             change_type="fk_action_change",
-            table="orders", column="user_id",
+            table="orders",
+            column="user_id",
             old_value="ON DELETE CASCADE",
             new_value="ON DELETE RESTRICT",
         )
@@ -245,23 +247,29 @@ class TestClassifyChange:
     def test_default_added_is_safe(self):
         event = SchemaChangeEvent(
             change_type="column_default_change",
-            table="users", column="status",
-            old_value=None, new_value="'active'",
+            table="users",
+            column="status",
+            old_value=None,
+            new_value="'active'",
         )
         assert classify_change(event) == "safe"
 
     def test_default_removed_is_needs_review(self):
         event = SchemaChangeEvent(
             change_type="column_default_change",
-            table="users", column="status",
-            old_value="'active'", new_value=None,
+            table="users",
+            column="status",
+            old_value="'active'",
+            new_value=None,
         )
         assert classify_change(event) == "needs_review"
 
     def test_constraint_change_is_needs_review(self):
         event = SchemaChangeEvent(
             change_type="column_constraint_change",
-            table="users", column="age",
-            old_value="CHECK(age > 0)", new_value="CHECK(age > 18)",
+            table="users",
+            column="age",
+            old_value="CHECK(age > 0)",
+            new_value="CHECK(age > 18)",
         )
         assert classify_change(event) == "needs_review"

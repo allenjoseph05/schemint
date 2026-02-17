@@ -33,7 +33,12 @@ from schemint.drift.models import SchemaChangeEvent
 TYPE_FAMILIES: dict[str, list[str]] = {
     # Numeric — narrowest to widest
     "integer": ["tinyint", "smallint", "integer", "int", "bigint"],
-    "unsigned_integer": ["tinyint unsigned", "smallint unsigned", "integer unsigned", "bigint unsigned"],
+    "unsigned_integer": [
+        "tinyint unsigned",
+        "smallint unsigned",
+        "integer unsigned",
+        "bigint unsigned",
+    ],
     "float": ["real", "float", "double", "double precision"],
     "decimal": ["decimal", "numeric", "money"],
     "serial": ["smallserial", "serial", "bigserial"],
@@ -126,9 +131,9 @@ def _normalize_fk_action(action: str | None) -> str:
 # =============================================================================
 
 
-def classify_type_change(old_type: str, new_type: str) -> Literal[
-    "safe", "needs_review", "potentially_breaking", "breaking"
-]:
+def classify_type_change(
+    old_type: str, new_type: str
+) -> Literal["safe", "needs_review", "potentially_breaking", "breaking"]:
     """Classify the risk of a column type change.
 
     Rules:
@@ -202,9 +207,9 @@ def classify_fk_action_change(
     return "safe"  # less restrictive
 
 
-def classify_change(event: SchemaChangeEvent) -> Literal[
-    "safe", "needs_review", "potentially_breaking", "breaking"
-]:
+def classify_change(
+    event: SchemaChangeEvent,
+) -> Literal["safe", "needs_review", "potentially_breaking", "breaking"]:
     """Classify the risk of any schema change event.
 
     This is the main entry point. Handles all change_type values.
