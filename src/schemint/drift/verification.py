@@ -331,9 +331,7 @@ class VerificationEngine:
             return True
         if downstream_breakage:
             return True
-        if not schema_valid:
-            return True
-        return False
+        return bool(not schema_valid)
 
     # ----- Human escalation -----
 
@@ -350,9 +348,7 @@ class VerificationEngine:
         """
         if requires_rollback:
             return True
-        if source_requires_human_review:
-            return True
-        return False
+        return bool(source_requires_human_review)
 
     # ----- Goal satisfaction -----
 
@@ -377,6 +373,4 @@ class VerificationEngine:
             return False
         if not tests_passed:
             return False
-        if downstream_breakage:
-            return False
-        return True
+        return not downstream_breakage

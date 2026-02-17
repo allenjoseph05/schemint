@@ -10,9 +10,10 @@ from __future__ import annotations
 import ast
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 import sqlparse
-from sqlparse.sql import Identifier, IdentifierList, Parenthesis, Statement
+from sqlparse.sql import Statement
 from sqlparse.tokens import DDL, DML, Keyword, Name, Punctuation
 
 logger = logging.getLogger(__name__)
@@ -43,11 +44,10 @@ class DangerousPattern:
 
 def _strip_quotes(name: str) -> str:
     """Strip surrounding quotes/backticks/brackets from an identifier."""
-    if len(name) >= 2:
-        if (name[0] == '"' and name[-1] == '"') or \
+    if len(name) >= 2 and ((name[0] == '"' and name[-1] == '"') or \
            (name[0] == '`' and name[-1] == '`') or \
-           (name[0] == '[' and name[-1] == ']'):
-            return name[1:-1]
+           (name[0] == '[' and name[-1] == ']')):
+        return name[1:-1]
     return name
 
 
@@ -69,14 +69,13 @@ def _extract_table_name(token: sqlparse.sql.Token) -> str:
     return name
 
 
-def _get_next_meaningful(tokens: list, start_idx: int) -> tuple[int, sqlparse.sql.Token | None]:
+def _get_next_meaningful(tokens: list[Any], start_idx: int) -> tuple[int, sqlparse.sql.Token | None]:
     """Get the next non-whitespace, non-comment token after start_idx."""
     for i in range(start_idx + 1, len(tokens)):
         tok = tokens[i]
         if tok.ttype not in (sqlparse.tokens.Whitespace, sqlparse.tokens.Newline,
-                             sqlparse.tokens.Comment.Single, sqlparse.tokens.Comment.Multiline):
-            if not tok.is_whitespace:
-                return i, tok
+                             sqlparse.tokens.Comment.Single, sqlparse.tokens.Comment.Multiline) and not tok.is_whitespace:
+            return i, tok
     return -1, None
 
 
@@ -107,7 +106,7 @@ def analyze_sql_content(content: str) -> SQLAnalysis:
 def _analyze_statement(statement: Statement, result: SQLAnalysis) -> None:
     """Analyze a single SQL statement."""
     # Flatten tokens to make scanning easier
-    tokens = list(statement.flatten())
+    tokens: list[Any] = list(statement.flatten())  # type: ignore[no-untyped-call]
     i = 0
     while i < len(tokens):
         tok = tokens[i]
@@ -123,7 +122,7 @@ def _analyze_statement(statement: Statement, result: SQLAnalysis) -> None:
         i += 1
 
 
-def _skip_whitespace_and_keywords(tokens: list, start: int, skip_words: set) -> int:
+def _skip_whitespace_and_keywords(tokens: list[Any], start: int, skip_words: set[str]) -> int:
     """Skip whitespace and specific keyword tokens.
 
     Handles sqlparse's multi-word keyword tokens like 'IF NOT EXISTS' and 'IF EXISTS'
@@ -173,7 +172,7 @@ def _is_sql_keyword(tok_str: str) -> bool:
     return all(w in _SQL_KEYWORDS for w in upper.split())
 
 
-def _read_identifier(tokens: list, start: int) -> tuple[str, int]:
+def _read_identifier(tokens: list[Any], start: int) -> tuple[str, int]:
     """Read an identifier (possibly schema-qualified, possibly quoted) from flat tokens."""
     i = _skip_whitespace_and_keywords(tokens, start, set())
     if i >= len(tokens):
@@ -219,7 +218,7 @@ def _read_identifier(tokens: list, start: int) -> tuple[str, int]:
     return _strip_quotes(full_name), i
 
 
-def _handle_create(tokens: list, idx: int, result: SQLAnalysis) -> None:
+def _handle_create(tokens: list[Any], idx: int, result: SQLAnalysis) -> None:
     """Handle CREATE TABLE statement."""
     # Skip 'CREATE' and find 'TABLE'
     i = idx + 1
@@ -240,7 +239,7 @@ def _handle_create(tokens: list, idx: int, result: SQLAnalysis) -> None:
         result.tables_added.append(name)
 
 
-def _handle_alter(tokens: list, idx: int, result: SQLAnalysis) -> None:
+def _handle_alter(tokens: list[Any], idx: int, result: SQLAnalysis) -> None:
     """Handle ALTER TABLE statement."""
     i = idx + 1
     i = _skip_whitespace_and_keywords(tokens, i, set())
@@ -285,7 +284,7 @@ def _handle_alter(tokens: list, idx: int, result: SQLAnalysis) -> None:
             i += 1
 
 
-def _handle_drop(tokens: list, idx: int, result: SQLAnalysis) -> None:
+def _handle_drop(tokens: list[Any], idx: int, result: SQLAnalysis) -> None:
     """Handle DROP TABLE statement."""
     i = idx + 1
     i = _skip_whitespace_and_keywords(tokens, i, set())
@@ -324,7 +323,7 @@ def is_sql_content(content: str) -> bool:
             continue
 
         # Check if the statement starts with a DDL/DML keyword
-        for token in statement.flatten():
+        for token in statement.flatten():  # type: ignore[no-untyped-call]
             if token.is_whitespace:
                 continue
             if token.ttype in (DDL, DML):
@@ -353,13 +352,13 @@ def detect_dangerous_patterns(content: str) -> list[DangerousPattern]:
     parsed = sqlparse.parse(content)
 
     for statement in parsed:
-        tokens = list(statement.flatten())
+        tokens: list[Any] = list(statement.flatten())  # type: ignore[no-untyped-call]
         _detect_dangerous_in_tokens(tokens, patterns)
 
     return patterns
 
 
-def _detect_dangerous_in_tokens(tokens: list, patterns: list[DangerousPattern]) -> None:
+def _detect_dangerous_in_tokens(tokens: list[Any], patterns: list[DangerousPattern]) -> None:
     """Detect dangerous patterns in flattened tokens."""
     i = 0
     while i < len(tokens):
@@ -374,7 +373,7 @@ def _detect_dangerous_in_tokens(tokens: list, patterns: list[DangerousPattern]) 
             i += 1
 
 
-def _check_alter_dangers(tokens: list, idx: int, patterns: list[DangerousPattern]) -> int:
+def _check_alter_dangers(tokens: list[Any], idx: int, patterns: list[DangerousPattern]) -> int:
     """Check ALTER TABLE for dangerous patterns."""
     i = idx + 1
     i = _skip_whitespace_and_keywords(tokens, i, set())
@@ -472,7 +471,7 @@ def _check_alter_dangers(tokens: list, idx: int, patterns: list[DangerousPattern
     return i
 
 
-def _check_drop_table(tokens: list, idx: int, patterns: list[DangerousPattern]) -> int:
+def _check_drop_table(tokens: list[Any], idx: int, patterns: list[DangerousPattern]) -> int:
     """Check for DROP TABLE."""
     i = idx + 1
     i = _skip_whitespace_and_keywords(tokens, i, set())
@@ -577,9 +576,7 @@ def parse_sqlalchemy_models(content: str) -> SQLAnalysis:
         # Check if any base class contains 'Base'
         inherits_base = False
         for base in node.bases:
-            if isinstance(base, ast.Name) and "Base" in base.id:
-                inherits_base = True
-            elif isinstance(base, ast.Attribute) and "Base" in base.attr:
+            if (isinstance(base, ast.Name) and "Base" in base.id) or (isinstance(base, ast.Attribute) and "Base" in base.attr):
                 inherits_base = True
 
         if not inherits_base:
@@ -590,9 +587,8 @@ def parse_sqlalchemy_models(content: str) -> SQLAnalysis:
         for item in node.body:
             if isinstance(item, ast.Assign):
                 for target in item.targets:
-                    if isinstance(target, ast.Name) and target.id == "__tablename__":
-                        if isinstance(item.value, ast.Constant) and isinstance(item.value.value, str):
-                            tablename = item.value.value
+                    if isinstance(target, ast.Name) and target.id == "__tablename__" and isinstance(item.value, ast.Constant) and isinstance(item.value.value, str):
+                        tablename = item.value.value
 
         if tablename:
             result.tables_modified.append(tablename)

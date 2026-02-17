@@ -7,14 +7,13 @@ introspectors, and stores must satisfy.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from schemint.drift.models import (
     ColumnSnapshot,
     DependencyEdge,
     DependencyGraph,
     SchemaSnapshot,
-    TableSnapshot,
     TriggerSnapshot,
     ViewSnapshot,
 )
@@ -42,11 +41,11 @@ class DatabaseIntrospector(Protocol):
         """Return primary key column names, ordered by ordinal position."""
         ...
 
-    def fetch_indexes(self, schema_name: str, table_name: str) -> list[dict]:
+    def fetch_indexes(self, schema_name: str, table_name: str) -> list[dict[str, Any]]:
         """Return index metadata for a table."""
         ...
 
-    def fetch_foreign_keys(self, schema_name: str, table_name: str) -> list[dict]:
+    def fetch_foreign_keys(self, schema_name: str, table_name: str) -> list[dict[str, Any]]:
         """Return foreign key metadata for a table."""
         ...
 
@@ -73,7 +72,7 @@ class EdgeExtractor(Protocol):
     (FK constraints, SQL AST, dbt manifests, view definitions, etc.).
     """
 
-    def extract(self, **kwargs) -> list[DependencyEdge]:
+    def extract(self, **kwargs: Any) -> list[DependencyEdge]:
         """Extract dependency edges from the given source."""
         ...
 

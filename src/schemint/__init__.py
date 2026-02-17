@@ -18,10 +18,10 @@ from schemint.models.analysis import AnalysisResult
 from schemint.models.issue import Issue, IssueSeverity
 
 __all__ = [
-    "__version__",
-    "analyze",
-    "analyze_sql",
     "AnalysisResult",
     "Issue",
     "IssueSeverity",
+    "__version__",
+    "analyze",
+    "analyze_sql",
 ]

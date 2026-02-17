@@ -189,12 +189,12 @@ class AgentAnalyzer:
 
     def analyze(
         self,
-        schema: "ParsedSchema",
+        schema: ParsedSchema,
         app_type: str | None = None,
-        project_context: "ProjectContext | None" = None,
+        project_context: ProjectContext | None = None,
         *,
-        memory_context: dict | None = None,
-    ) -> dict:
+        memory_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Multi-turn agentic analysis.
 
         1. Pre-compute structural data for tools
@@ -235,8 +235,8 @@ class AgentAnalyzer:
                         "text": AGENT_SYSTEM_PROMPT,
                         "cache_control": {"type": "ephemeral"},
                     }],
-                    messages=messages,
-                    tools=tools,
+                    messages=messages,  # type: ignore[arg-type]
+                    tools=tools,  # type: ignore[arg-type]
                 )
 
                 # Check for terminal tool (submit_analysis)
@@ -296,10 +296,10 @@ class AgentAnalyzer:
 
     def _build_initial_message(
         self,
-        schema: "ParsedSchema",
+        schema: ParsedSchema,
         app_type: str | None,
-        project_context: "ProjectContext | None",
-        memory_context: dict | None,
+        project_context: ProjectContext | None,
+        memory_context: dict[str, Any] | None,
     ) -> str:
         """Build a lightweight initial message with table overview.
 
@@ -349,10 +349,10 @@ class AgentAnalyzer:
             # Deprecated/renamed columns for drift detection
             if project_context.schema_metadata:
                 deprecated_items = []
-                for table in project_context.schema_metadata.tables:
-                    for col in table.columns:
+                for meta_table in project_context.schema_metadata.tables:
+                    for col in meta_table.columns:
                         if col.deprecated:
-                            msg = f"  {table.name}.{col.name} DEPRECATED"
+                            msg = f"  {meta_table.name}.{col.name} DEPRECATED"
                             if col.deprecated_reason:
                                 msg += f": {col.deprecated_reason}"
                             if col.renamed_to:
@@ -380,7 +380,7 @@ class AgentAnalyzer:
     def _execute_tool(
         self,
         block: Any,
-        schema: "ParsedSchema",
+        schema: ParsedSchema,
         pre_analysis: SchemaPreAnalysis,
     ) -> str:
         """Execute a non-terminal tool and return the result string."""
@@ -395,7 +395,7 @@ class AgentAnalyzer:
 
     def _inspect_table(
         self,
-        schema: "ParsedSchema",
+        schema: ParsedSchema,
         pre_analysis: SchemaPreAnalysis,
         table_name: str,
     ) -> str:
@@ -489,7 +489,7 @@ class AgentAnalyzer:
 
         return "\n".join(lines)
 
-    def _normalize_result(self, result: dict) -> dict:
+    def _normalize_result(self, result: dict[str, Any]) -> dict[str, Any]:
         """Normalize agent output for backward compatibility."""
         # Map 'findings' to 'issues' key
         if "findings" in result and "issues" not in result:

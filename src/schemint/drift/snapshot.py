@@ -27,6 +27,7 @@ from schemint.drift.constants import CANONICAL_TYPES
 from schemint.drift.models import (
     MultiSchemaSnapshot,
     SchemaSnapshot,
+    ViewSnapshot,
 )
 from schemint.drift.snapshot_pkg.check_constraints import extract_check_constraints
 from schemint.drift.snapshot_pkg.ddl_capture import DDLSnapshotCapture
@@ -34,7 +35,6 @@ from schemint.drift.snapshot_pkg.live_db_capture import LiveDBSnapshotCapture
 from schemint.drift.snapshot_pkg.multi_schema import MultiSchemaCapture
 from schemint.drift.snapshot_pkg.view_capture import extract_views_from_ddl
 from schemint.drift.types import canonicalize_type
-
 
 # Backward-compatible aliases — existing tests import these.
 _canonicalize_type = canonicalize_type
@@ -63,17 +63,23 @@ class SnapshotService:
         sql: str,
         database_type: str = "postgresql",
         schema_name: str = "public",
+        environment: str = "default",
     ) -> SchemaSnapshot:
         """Capture a schema snapshot from DDL SQL strings."""
-        return self._ddl.capture(sql, database_type=database_type, schema_name=schema_name)
+        snapshot = self._ddl.capture(sql, database_type=database_type, schema_name=schema_name)
+        snapshot.environment = environment
+        return snapshot
 
     def capture_from_live_db(
         self,
         connection_string: str,
         schema_name: str = "public",
+        environment: str = "default",
     ) -> SchemaSnapshot:
         """Capture a schema snapshot from a live PostgreSQL database."""
-        return self._live.capture(connection_string, schema_name=schema_name)
+        snapshot = self._live.capture(connection_string, schema_name=schema_name)
+        snapshot.environment = environment
+        return snapshot
 
     def capture_multi_schema(
         self, connection_string: str, schema_names: list[str]
@@ -93,6 +99,6 @@ class SnapshotService:
         from schemint.drift.sql_utils import extract_tables_from_sql
         return extract_tables_from_sql(sql, context="view SQL")
 
-    def _extract_views_from_ddl(self, sql: str) -> dict:
+    def _extract_views_from_ddl(self, sql: str) -> dict[str, ViewSnapshot]:
         """Extract CREATE VIEW definitions from DDL using sqlglot."""
         return extract_views_from_ddl(sql)

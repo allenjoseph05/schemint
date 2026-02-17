@@ -262,7 +262,7 @@ class ProjectContext(BaseModel):
 
         return result
 
-    def check_deprecated_usage(self, table_name: str, column_name: str | None = None) -> dict | None:
+    def check_deprecated_usage(self, table_name: str, column_name: str | None = None) -> dict[str, Any] | None:
         """Check if a table or column is deprecated."""
         if not self.schema_metadata:
             return None

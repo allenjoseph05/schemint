@@ -4,9 +4,11 @@ CI Integration API Endpoints.
 Primary interface for CI/CD integration.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
 
-from schemint.ci.ingest import CIIngestHandler, ingest_ci_event
+from schemint.ci.ingest import ingest_ci_event
 from schemint.ci.models import (
     AnalysisDecision,
     CIEventType,
@@ -71,8 +73,7 @@ async def ingest_ci(
                 detail="CLAUDE_API_KEY is not configured. AI analysis requires a valid API key.",
             )
 
-        decision = await ingest_ci_event(request)
-        return decision
+        return await ingest_ci_event(request)
 
     except HTTPException:
         raise
@@ -81,17 +82,17 @@ async def ingest_ci(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"CI ingestion failed: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/webhook/github")
-async def github_webhook(payload: dict) -> dict:
+async def github_webhook(payload: dict[str, Any]) -> dict[str, Any]:
     """
     GitHub webhook endpoint for automated triggers.
 
@@ -110,7 +111,7 @@ async def github_webhook(payload: dict) -> dict:
     # TODO: Implement webhook signature verification
     # TODO: Parse GitHub webhook payload format
 
-    event_type = payload.get("action", "push")
+    payload.get("action", "push")
     repo = payload.get("repository", {}).get("full_name", "")
 
     if not repo:
@@ -142,7 +143,7 @@ async def github_webhook(payload: dict) -> dict:
 
 
 @router.post("/webhook/gitlab")
-async def gitlab_webhook(payload: dict) -> dict:
+async def gitlab_webhook(payload: dict[str, Any]) -> dict[str, Any]:
     """
     GitLab webhook endpoint for automated triggers.
 
@@ -197,7 +198,7 @@ async def gitlab_webhook(payload: dict) -> dict:
 
 
 @router.get("/status/{decision_id}")
-async def get_decision_status(decision_id: str) -> dict:
+async def get_decision_status(decision_id: str) -> dict[str, Any]:
     """
     Get status of a previous analysis decision.
 

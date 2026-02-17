@@ -6,9 +6,8 @@ or by accepting pre-computed diff data.
 """
 
 import asyncio
-import os
 import tempfile
-from pathlib import Path
+from typing import Any
 
 from schemint.ci.providers.base import BaseGitProvider, CheckStatus, DiffFile
 
@@ -122,7 +121,7 @@ class GenericGitProvider(BaseGitProvider):
 
     async def get_file_content(
         self,
-        repo: str,
+        _repo: str,
         ref: str,
         path: str,
     ) -> str | None:
@@ -142,19 +141,18 @@ class GenericGitProvider(BaseGitProvider):
             return None
 
         try:
-            content = await self._run_git_command(
+            return await self._run_git_command(
                 work_dir,
                 ["show", f"{ref}:{path}"],
             )
-            return content
         except Exception:
             return None
 
     async def set_check_status(
         self,
-        repo: str,
-        ref: str,
-        check_status: CheckStatus,
+        _repo: str,
+        _ref: str,
+        _check_status: CheckStatus,
     ) -> bool:
         """
         Set check status.
@@ -176,7 +174,7 @@ class GenericGitProvider(BaseGitProvider):
 
     async def get_diff_from_data(
         self,
-        diff_data: list[dict],
+        diff_data: list[dict[str, Any]],
     ) -> list[DiffFile]:
         """
         Create DiffFile list from pre-computed diff data.
@@ -221,12 +219,11 @@ class GenericGitProvider(BaseGitProvider):
 
     async def _cleanup_dir(self, path: str) -> None:
         """Remove temp directory."""
+        import contextlib
         import shutil
 
-        try:
+        with contextlib.suppress(Exception):
             shutil.rmtree(path)
-        except Exception:
-            pass  # Best effort cleanup
 
     async def _run_git_command(self, work_dir: str, args: list[str]) -> str:
         """Run a git command in the working directory."""

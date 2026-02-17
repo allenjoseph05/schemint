@@ -40,7 +40,7 @@ class TriggerEdgeExtractor:
                     direction="downstream",
                     usage_type="transform",
                     sources=[DependencySource(
-                        source_type="sql_ast",
+                        source_type="trigger_definition",
                         confidence=CONFIDENCE_TRIGGER,
                         extracted_at=now,
                     )],

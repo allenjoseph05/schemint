@@ -9,16 +9,16 @@ from schemint.models.issue import Issue, IssueCategory, IssueSeverity
 
 if TYPE_CHECKING:
     from schemint.core.context.models import ProjectContext, ProjectConventions
-    from schemint.models.schema import ParsedSchema
+    from schemint.models.schema import Column, ParsedSchema, Table
 
 
 class ConventionChecker:
     """Checks SQL schemas against project conventions."""
 
-    def __init__(self, conventions: "ProjectConventions") -> None:
+    def __init__(self, conventions: ProjectConventions) -> None:
         self.conventions = conventions
 
-    def check(self, schema: "ParsedSchema") -> list[Issue]:
+    def check(self, schema: ParsedSchema) -> list[Issue]:
         """
         Check schema against project conventions.
 
@@ -128,7 +128,7 @@ class ConventionChecker:
 
         return issues
 
-    def _check_required_columns(self, table: "ParsedSchema") -> list[Issue]:
+    def _check_required_columns(self, table: Table) -> list[Issue]:
         """Check that required columns are present."""
         from schemint.models.schema import Table
         if not isinstance(table, Table):
@@ -153,7 +153,7 @@ class ConventionChecker:
 
         return issues
 
-    def _check_forbidden_columns(self, table: "ParsedSchema") -> list[Issue]:
+    def _check_forbidden_columns(self, table: Table) -> list[Issue]:
         """Check for forbidden column names."""
         from schemint.models.schema import Table
         if not isinstance(table, Table):
@@ -175,7 +175,7 @@ class ConventionChecker:
 
         return issues
 
-    def _check_forbidden_types(self, col: "ParsedSchema", table_name: str) -> list[Issue]:
+    def _check_forbidden_types(self, col: Column, table_name: str) -> list[Issue]:
         """Check for forbidden data types."""
         from schemint.models.schema import Column
         if not isinstance(col, Column):
@@ -197,7 +197,7 @@ class ConventionChecker:
 
         return issues
 
-    def _check_preferred_types(self, col: "ParsedSchema", table_name: str) -> list[Issue]:
+    def _check_preferred_types(self, col: Column, table_name: str) -> list[Issue]:
         """Check that columns use preferred types for specific purposes."""
         from schemint.models.schema import Column
         if not isinstance(col, Column):
@@ -224,20 +224,19 @@ class ConventionChecker:
         # Check ID columns
         if col.name.lower() == "id" or col.name.lower().endswith("_id"):
             preferred_id = self.conventions.preferred_id_type
-            if col.data_type.value not in ["INT", "BIGINT"] and "SERIAL" not in col.raw_type.upper():
-                if "UUID" not in col.raw_type.upper():  # Allow UUID as ID
-                    issues.append(Issue(
-                        severity=IssueSeverity.SUGGESTION,
-                        category=IssueCategory.WRONG_DATA_TYPE,
-                        title=f"ID column should use {preferred_id}",
-                        description=f"Column '{col.name}' is an ID but uses {col.raw_type}",
-                        table_name=table_name,
-                        column_name=col.name,
-                    ))
+            if col.data_type.value not in ["INT", "BIGINT"] and "SERIAL" not in col.raw_type.upper() and "UUID" not in col.raw_type.upper():
+                issues.append(Issue(
+                    severity=IssueSeverity.SUGGESTION,
+                    category=IssueCategory.WRONG_DATA_TYPE,
+                    title=f"ID column should use {preferred_id}",
+                    description=f"Column '{col.name}' is an ID but uses {col.raw_type}",
+                    table_name=table_name,
+                    column_name=col.name,
+                ))
 
         return issues
 
-    def _check_fk_conventions(self, table: "ParsedSchema") -> list[Issue]:
+    def _check_fk_conventions(self, table: Table) -> list[Issue]:
         """Check foreign key conventions."""
         from schemint.models.schema import Table
         if not isinstance(table, Table):
@@ -247,19 +246,18 @@ class ConventionChecker:
 
         for fk in table.foreign_keys:
             # Check cascade actions
-            if self.conventions.require_cascade_actions:
-                if not fk.on_delete:
-                    issues.append(Issue(
-                        severity=IssueSeverity.WARNING,
-                        category=IssueCategory.MISSING_CASCADE,
-                        title=f"Foreign key missing ON DELETE action",
-                        description=f"FK on '{fk.column}' should have ON DELETE action",
-                        table_name=table.name,
-                        column_name=fk.column,
-                        fix_script=f"ALTER TABLE {table.name} DROP FOREIGN KEY {fk.name}; "
-                                   f"ALTER TABLE {table.name} ADD FOREIGN KEY ({fk.column}) "
-                                   f"REFERENCES {fk.references_table}({fk.references_column}) ON DELETE CASCADE;",
-                    ))
+            if self.conventions.require_cascade_actions and not fk.on_delete:
+                issues.append(Issue(
+                    severity=IssueSeverity.WARNING,
+                    category=IssueCategory.MISSING_CASCADE,
+                    title="Foreign key missing ON DELETE action",
+                    description=f"FK on '{fk.column}' should have ON DELETE action",
+                    table_name=table.name,
+                    column_name=fk.column,
+                    fix_script=f"ALTER TABLE {table.name} DROP FOREIGN KEY {fk.name}; "
+                               f"ALTER TABLE {table.name} ADD FOREIGN KEY ({fk.column}) "
+                               f"REFERENCES {fk.references_table}({fk.references_column}) ON DELETE CASCADE;",
+                ))
 
             # Check FK naming pattern
             if self.conventions.fk_naming_pattern and fk.name:
@@ -272,7 +270,7 @@ class ConventionChecker:
                     issues.append(Issue(
                         severity=IssueSeverity.SUGGESTION,
                         category=IssueCategory.NAMING_CONVENTION,
-                        title=f"FK name doesn't match convention",
+                        title="FK name doesn't match convention",
                         description=f"FK '{fk.name}' should be named '{expected}'",
                         table_name=table.name,
                         column_name=fk.column,
@@ -280,7 +278,7 @@ class ConventionChecker:
 
         return issues
 
-    def _check_soft_delete(self, table: "ParsedSchema") -> list[Issue]:
+    def _check_soft_delete(self, table: Table) -> list[Issue]:
         """Check soft delete column requirement."""
         from schemint.models.schema import Table
         if not isinstance(table, Table):
@@ -294,7 +292,7 @@ class ConventionChecker:
             return [Issue(
                 severity=IssueSeverity.WARNING,
                 category=IssueCategory.NO_SOFT_DELETE,
-                title=f"Missing soft delete column",
+                title="Missing soft delete column",
                 description=f"Table '{table.name}' should have '{col_name}' column for soft deletes",
                 table_name=table.name,
                 impact="Hard deletes can cause data loss and referential integrity issues",
@@ -303,7 +301,7 @@ class ConventionChecker:
 
         return []
 
-    def _check_tenant_column(self, table: "ParsedSchema") -> list[Issue]:
+    def _check_tenant_column(self, table: Table) -> list[Issue]:
         """Check tenant column requirement."""
         from schemint.models.schema import Table
         if not isinstance(table, Table):
@@ -317,7 +315,7 @@ class ConventionChecker:
             return [Issue(
                 severity=IssueSeverity.WARNING,
                 category=IssueCategory.NO_MULTI_TENANCY,
-                title=f"Missing tenant isolation column",
+                title="Missing tenant isolation column",
                 description=f"Table '{table.name}' should have '{col_name}' for multi-tenancy",
                 table_name=table.name,
                 impact="Without tenant isolation, data leakage between tenants is possible",
@@ -349,9 +347,9 @@ class ConventionChecker:
         name_lower = col_name.lower()
         if "created" in name_lower or "updated" in name_lower:
             return self.conventions.preferred_timestamp_type + " NOT NULL DEFAULT CURRENT_TIMESTAMP"
-        elif "deleted" in name_lower:
+        if "deleted" in name_lower:
             return self.conventions.preferred_timestamp_type + " NULL"
-        elif "tenant" in name_lower:
+        if "tenant" in name_lower:
             return self.conventions.preferred_id_type + " NOT NULL"
         return "VARCHAR(255)"
 
@@ -359,10 +357,10 @@ class ConventionChecker:
 class DeprecationChecker:
     """Checks SQL for usage of deprecated schema elements."""
 
-    def __init__(self, context: "ProjectContext") -> None:
+    def __init__(self, context: ProjectContext) -> None:
         self.context = context
 
-    def check(self, schema: "ParsedSchema") -> list[Issue]:
+    def check(self, schema: ParsedSchema) -> list[Issue]:
         """
         Check schema for deprecated element usage.
 
@@ -432,8 +430,8 @@ class DeprecationChecker:
 
 
 def check_conventions(
-    schema: "ParsedSchema",
-    context: "ProjectContext",
+    schema: ParsedSchema,
+    context: ProjectContext,
 ) -> list[Issue]:
     """
     Convenience function to check schema against project conventions.

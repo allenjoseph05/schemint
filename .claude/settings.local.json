@@ -9,7 +9,12 @@
       "Bash(ls -la \"C:\\\\Users\\\\Allen Joseph\\\\Desktop\\\\schemint\\\\src\\\\schemint\\\\drift\"\" 2>&1 || echo \"Directory may not exist \")",
       "Bash(ls \"C:\\\\Users\\\\Allen Joseph\\\\Desktop\\\\schemint\\\\docs\\\\drift\"\" 2>&1 || echo \"Directory does not exist \")",
       "Bash(wc:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(xargs:*)",
+      "Bash(__NEW_LINE_047502a687d0e46d__ echo \"\")",
+      "Bash(__NEW_LINE_ad67b571483720ea__ echo \"\")",
+      "Bash(ls:*)",
+      "Bash(git mv:*)"
     ]
   }
 }

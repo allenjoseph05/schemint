@@ -11,7 +11,11 @@ from dataclasses import dataclass, field
 from schemint.ci.file_detector import DetectedFile, DetectionResult, SQLFileDetector
 from schemint.ci.models import FileChange, SchemaDiff, SQLChange
 from schemint.ci.providers.base import BaseGitProvider, DiffFile
-from schemint.ci.sql_utils import analyze_sql_content, parse_alembic_migration, parse_sqlalchemy_models
+from schemint.ci.sql_utils import (
+    analyze_sql_content,
+    parse_alembic_migration,
+    parse_sqlalchemy_models,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -21,7 +21,6 @@ from typing import Literal
 
 from schemint.drift.models import SchemaChangeEvent
 
-
 # =============================================================================
 # Type Family System
 # =============================================================================
@@ -32,17 +31,41 @@ from schemint.drift.models import SchemaChangeEvent
 # A type moving to an EARLIER position = potentially breaking narrowing.
 
 TYPE_FAMILIES: dict[str, list[str]] = {
-    "integer": ["tinyint", "smallint", "integer", "bigint"],
-    "float": ["float", "double"],
-    "decimal": ["decimal", "numeric"],
-    "string": ["char", "varchar", "text"],
-    "binary": ["binary", "blob"],
-    "datetime": ["date", "time", "timestamp"],
-    "boolean": ["boolean"],
+    # Numeric — narrowest to widest
+    "integer": ["tinyint", "smallint", "integer", "int", "bigint"],
+    "unsigned_integer": ["tinyint unsigned", "smallint unsigned", "integer unsigned", "bigint unsigned"],
+    "float": ["real", "float", "double", "double precision"],
+    "decimal": ["decimal", "numeric", "money"],
+    "serial": ["smallserial", "serial", "bigserial"],
+    # String — narrowest to widest
+    "string": ["char", "varchar", "citext", "text"],
+    # Binary
+    "binary": ["binary", "bytea", "blob"],
+    # Date/Time — narrowest to widest
+    "datetime": ["date", "time", "timestamp", "timestamptz"],
+    "interval": ["interval"],
+    # Boolean
+    "boolean": ["boolean", "bool"],
+    # JSON — json is text-based, jsonb is binary-indexed
     "json": ["json", "jsonb"],
+    # UUID
     "uuid": ["uuid"],
-    "serial": ["serial", "bigserial"],
+    # Enum
     "enum": ["enum"],
+    # Network types
+    "network": ["inet", "cidr", "macaddr", "macaddr8"],
+    # Range types
+    "range": ["int4range", "int8range", "numrange", "tsrange", "tstzrange", "daterange"],
+    # Full-text search
+    "textsearch": ["tsvector", "tsquery"],
+    # XML
+    "xml": ["xml"],
+    # Array — all array types in one family
+    "array": ["array"],
+    # Geometric
+    "geometric": ["point", "line", "lseg", "box", "path", "polygon", "circle"],
+    # Bit string
+    "bit": ["bit", "bit varying", "varbit"],
 }
 
 # Reverse lookup: type_name → (family_name, position_in_family)
@@ -197,8 +220,10 @@ def classify_change(event: SchemaChangeEvent) -> Literal[
     if ct == "table_renamed":
         return "breaking"  # all downstream refs break
 
-    # Column additions — safe if nullable or has default
+    # Column additions — NOT NULL without DEFAULT is breaking on non-empty tables
     if ct == "column_added":
+        if event.new_value and "NOT NULL" in event.new_value and "DEFAULT" not in event.new_value:
+            return "potentially_breaking"
         return "safe"
 
     # Column drops — always breaking
@@ -231,11 +256,21 @@ def classify_change(event: SchemaChangeEvent) -> Literal[
     if ct == "column_constraint_change":
         return "needs_review"
 
+    # Primary key changes — always structurally significant
+    if ct == "pk_added":
+        return "needs_review"
+    if ct == "pk_dropped":
+        return "breaking"  # removes uniqueness + NOT NULL guarantee
+    if ct == "pk_changed":
+        return "potentially_breaking"  # may invalidate FK references
+
     # Index changes — generally safe (performance only)
     if ct == "index_added":
         return "safe"
     if ct == "index_dropped":
         return "needs_review"  # may affect query performance
+    if ct == "index_changed":
+        return "needs_review"  # property change (e.g. uniqueness)
 
     # FK changes
     if ct == "fk_added":
@@ -262,5 +297,67 @@ def classify_change(event: SchemaChangeEvent) -> Literal[
         return "needs_review"  # may remove expected side effects
     if ct == "trigger_changed":
         return "needs_review"
+
+    # Sequence changes
+    if ct == "sequence_added":
+        return "safe"
+    if ct == "sequence_dropped":
+        return "potentially_breaking"  # auto-increment columns depend on it
+    if ct == "sequence_changed":
+        return "needs_review"  # increment/bounds change may affect inserts
+
+    # Enum changes
+    if ct == "enum_added":
+        return "safe"
+    if ct == "enum_dropped":
+        return "breaking"  # columns referencing this type break
+    if ct == "enum_value_added":
+        return "safe"  # additive, existing data unaffected
+    if ct == "enum_value_removed":
+        return "breaking"  # existing rows may reference removed value
+
+    # Function changes
+    if ct == "function_added":
+        return "safe"
+    if ct == "function_dropped":
+        return "potentially_breaking"  # triggers/views may depend on it
+    if ct == "function_changed":
+        return "needs_review"  # silent behavior change for all callers
+
+    # Extension changes
+    if ct == "extension_added":
+        return "safe"
+    if ct == "extension_dropped":
+        return "breaking"  # all objects using extension types/operators break
+    if ct == "extension_version_changed":
+        return "needs_review"  # may change function behavior
+
+    # Permission changes
+    if ct == "permission_granted":
+        return "safe"  # additive, no existing access broken
+    if ct == "permission_revoked":
+        return "potentially_breaking"  # application queries may fail
+
+    # RLS Policy changes
+    if ct == "policy_added":
+        return "potentially_breaking"  # may silently filter existing queries
+    if ct == "policy_dropped":
+        return "potentially_breaking"  # may expose previously hidden rows
+    if ct == "policy_changed":
+        return "needs_review"  # may change visible data set
+
+    # Partition changes
+    if ct == "partition_added":
+        return "safe"  # extends data range
+    if ct == "partition_dropped":
+        return "breaking"  # data in that partition is lost/inaccessible
+
+    # Materialized view changes
+    if ct == "matview_added":
+        return "safe"
+    if ct == "matview_dropped":
+        return "breaking"  # queries referencing it break
+    if ct == "matview_definition_changed":
+        return "needs_review"  # next REFRESH will produce different data
 
     return "needs_review"

@@ -2,7 +2,6 @@
 Tests for CI Diff Extractor.
 """
 
-import pytest
 
 from schemint.ci.diff_extractor import DiffExtractor
 from schemint.ci.providers.base import DiffFile

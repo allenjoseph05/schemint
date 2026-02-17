@@ -40,46 +40,46 @@ from schemint.drift.types import TypeNormalizer, canonicalize_type
 from schemint.drift.verification import VerificationEngine
 
 __all__ = [
-    # Phase 0 — Snapshot & Dependencies
-    "SnapshotService",
-    "DependencyGraphBuilder",
-    "CoverageComputer",
-    # Phase 1 — Diffing
-    "SchemaDiffer",
-    "AlterParser",
-    "classify_change",
-    "classify_type_change",
-    "classify_fk_action_change",
-    # Phase 2 — Context Assembly
-    "ContextAssembler",
-    "CriticalityThresholds",
-    # Phase 3 — AI Agent Brain
-    "DriftAgent",
-    "get_drift_agent",
-    # Phase 4 — Planning
-    "PlanningAgent",
-    "get_planning_agent",
     "ACTION_REGISTRY",
     "ActionTemplate",
-    # Phase 5 — Execution
-    "ExecutionEngine",
-    # Phase 6 — Verification
-    "VerificationEngine",
-    # Utilities
-    "TypeNormalizer",
-    "canonicalize_type",
+    "AlterParser",
+    # Phase 2 — Context Assembly
+    "ContextAssembler",
+    "CoverageComputer",
+    "CriticalityThresholds",
+    "DDLParseError",
     # Protocols
     "DatabaseIntrospector",
-    "EdgeExtractor",
-    "DriftStoreProtocol",
+    "DependencyError",
+    "DependencyGraphBuilder",
+    "DiffError",
+    # Phase 3 — AI Agent Brain
+    "DriftAgent",
     # Exceptions
     "DriftError",
-    "SnapshotError",
-    "DDLParseError",
+    "DriftStoreProtocol",
+    "EdgeExtractor",
+    # Phase 5 — Execution
+    "ExecutionEngine",
     "LiveDBError",
-    "DependencyError",
-    "SqlParseError",
     "ManifestParseError",
-    "DiffError",
+    # Phase 4 — Planning
+    "PlanningAgent",
+    # Phase 1 — Diffing
+    "SchemaDiffer",
+    "SnapshotError",
+    # Phase 0 — Snapshot & Dependencies
+    "SnapshotService",
+    "SqlParseError",
     "StoreError",
+    # Utilities
+    "TypeNormalizer",
+    # Phase 6 — Verification
+    "VerificationEngine",
+    "canonicalize_type",
+    "classify_change",
+    "classify_fk_action_change",
+    "classify_type_change",
+    "get_drift_agent",
+    "get_planning_agent",
 ]

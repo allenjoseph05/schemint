@@ -13,6 +13,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from typing import ClassVar, Literal
 
 from schemint.drift.action_templates import validate_action_id
 from schemint.drift.models import (
@@ -63,7 +64,7 @@ class NotificationService(ToolAdapter):
     add_monitoring_alert, log_drift_event.
     """
 
-    _SUPPORTED_ACTIONS = {
+    _SUPPORTED_ACTIONS: ClassVar[set[str]] = {
         "notify_table_owner",
         "notify_downstream_teams",
         "create_review_ticket",
@@ -114,7 +115,7 @@ class SQLRunner(ToolAdapter):
     Covers: add_column_alias, add_default_value, create_migration_view.
     """
 
-    _SUPPORTED_ACTIONS = {
+    _SUPPORTED_ACTIONS: ClassVar[set[str]] = {
         "add_column_alias",
         "add_default_value",
         "create_migration_view",
@@ -161,7 +162,7 @@ class CIPipelineRunner(ToolAdapter):
     Covers: block_deploy, require_migration_review.
     """
 
-    _SUPPORTED_ACTIONS = {
+    _SUPPORTED_ACTIONS: ClassVar[set[str]] = {
         "block_deploy",
         "require_migration_review",
     }
@@ -215,7 +216,7 @@ class DBTRunner(ToolAdapter):
     ready for future dbt-specific remediation steps.
     """
 
-    _SUPPORTED_ACTIONS: set[str] = set()
+    _SUPPORTED_ACTIONS: ClassVar[set[str]] = set()
 
     def supports_action(self, action_id: str) -> bool:
         return action_id in self._SUPPORTED_ACTIONS
@@ -401,7 +402,7 @@ class ExecutionEngine:
 
     def _compute_overall_status(
         self, results: list[ExecutionResult]
-    ) -> str:
+    ) -> Literal["success", "partial_failure", "failed", "pending_approval"]:
         """Compute overall execution status from step results."""
         if not results:
             return "success"

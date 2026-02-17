@@ -1,7 +1,7 @@
 """Schemint - Main FastAPI Application."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,7 +46,7 @@ def create_app() -> FastAPI:
 
     # Root endpoint
     @app.get("/")
-    async def root() -> dict:
+    async def root() -> dict[str, str]:
         return {
             "name": "Schemint",
             "version": settings.app_version,

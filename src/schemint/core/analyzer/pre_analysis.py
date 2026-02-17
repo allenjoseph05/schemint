@@ -6,21 +6,50 @@ that agent tools return. Zero LLM tokens — pure Python.
 
 from __future__ import annotations
 
-import json
 from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from schemint.core.analyzer.rule_analyzer import (
-    DATE_WORDS,
-    FK_ID_EXCEPTIONS,
-    MONEY_WORDS,
-    PII_INDICATORS,
-    PII_ENCRYPTION_MARKERS,
-    SECURITY_SAFE_SUFFIXES,
-    SECURITY_SENSITIVE_NAMES,
-)
 from schemint.models.schema import ParsedSchema
+
+# ---------------------------------------------------------------------------
+# Word lists (moved from rule_analyzer.py)
+# ---------------------------------------------------------------------------
+
+# Words that suggest money/currency columns
+MONEY_WORDS = frozenset([
+    "price", "cost", "amount", "total", "balance", "salary", "fee", "payment",
+    "charge", "discount", "tax", "revenue", "profit", "budget", "rate",
+])
+
+# Words that suggest date/time columns
+DATE_WORDS = frozenset([
+    "date", "time", "created", "updated", "deleted", "modified", "timestamp",
+    "_at", "started", "ended", "expired", "published", "scheduled",
+])
+
+# Columns ending with _id that are NOT foreign key indicators
+FK_ID_EXCEPTIONS = frozenset([
+    "id", "external_id", "uuid", "device_id", "session_id",
+])
+
+# Security-sensitive column names (without safe suffixes)
+SECURITY_SENSITIVE_NAMES = frozenset([
+    "password", "secret", "token", "api_key",
+])
+
+# Safe suffixes for security columns
+SECURITY_SAFE_SUFFIXES = ("_hash", "_hashed", "_encrypted", "_digest")
+
+# PII column name indicators
+PII_INDICATORS = frozenset([
+    "email", "ssn", "social_security", "phone", "phone_number",
+    "address", "street_address", "date_of_birth", "dob",
+    "credit_card", "card_number",
+])
+
+# PII encryption markers in column names
+PII_ENCRYPTION_MARKERS = ("_encrypted", "_hash", "_hashed", "_masked", "_tokenized")
 
 
 # ---------------------------------------------------------------------------
@@ -216,24 +245,22 @@ def detect_column_patterns(schema: ParsedSchema) -> list[ColumnPattern]:
 
             # 2. money_as_float: FLOAT/DOUBLE for money columns
             if ("FLOAT" in col_type or "DOUBLE" in col_type
-                    or "FLOAT" in raw_upper or "DOUBLE" in raw_upper):
-                if any(word in col_lower for word in MONEY_WORDS):
-                    patterns.append(ColumnPattern(
-                        table=table.name,
-                        column=col.name,
-                        pattern="money_as_float",
-                        detail=f"{col.name} uses {col.raw_type} for money (should be DECIMAL)",
-                    ))
+                    or "FLOAT" in raw_upper or "DOUBLE" in raw_upper) and any(word in col_lower for word in MONEY_WORDS):
+                patterns.append(ColumnPattern(
+                    table=table.name,
+                    column=col.name,
+                    pattern="money_as_float",
+                    detail=f"{col.name} uses {col.raw_type} for money (should be DECIMAL)",
+                ))
 
             # 3. bool_as_int: INT for boolean-like columns
-            if col_type == "DATATYPE.INT" or raw_upper.startswith("INT"):
-                if col_lower.startswith("is_") or col_lower.startswith("has_"):
-                    patterns.append(ColumnPattern(
-                        table=table.name,
-                        column=col.name,
-                        pattern="bool_as_int",
-                        detail=f"{col.name} uses INT for boolean (should be BOOLEAN)",
-                    ))
+            if (col_type == "DATATYPE.INT" or raw_upper.startswith("INT")) and col_lower.startswith(("is_", "has_")):
+                patterns.append(ColumnPattern(
+                    table=table.name,
+                    column=col.name,
+                    pattern="bool_as_int",
+                    detail=f"{col.name} uses INT for boolean (should be BOOLEAN)",
+                ))
 
             # 4. pii_unencrypted: PII column without encryption marker
             if col_lower in PII_INDICATORS:
@@ -264,14 +291,13 @@ def detect_column_patterns(schema: ParsedSchema) -> list[ColumnPattern]:
                     break  # Only flag once per column
 
             # 6. date_as_string: VARCHAR/CHAR/TEXT for date columns
-            if "VARCHAR" in col_type or "CHAR" in col_type or "TEXT" in col_type:
-                if any(word in col_lower for word in DATE_WORDS):
-                    patterns.append(ColumnPattern(
-                        table=table.name,
-                        column=col.name,
-                        pattern="date_as_string",
-                        detail=f"{col.name} uses string type for date (should be TIMESTAMP/DATE)",
-                    ))
+            if ("VARCHAR" in col_type or "CHAR" in col_type or "TEXT" in col_type) and any(word in col_lower for word in DATE_WORDS):
+                patterns.append(ColumnPattern(
+                    table=table.name,
+                    column=col.name,
+                    pattern="date_as_string",
+                    detail=f"{col.name} uses string type for date (should be TIMESTAMP/DATE)",
+                ))
 
     return patterns
 
@@ -366,7 +392,7 @@ def detect_risk_signals(schema: ParsedSchema) -> list[RiskSignal]:
                 detail=f"Table '{table.name}' has {len(table.columns)} columns but no indexes",
             ))
 
-        # wide_table (15+ columns)
+        # Flag wide tables with 15 or more columns
         if len(table.columns) >= 15:
             signals.append(RiskSignal(
                 table=table.name,

@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from schemint.models.issue import Issue
 
 
-def normalize_pattern(finding: "Issue") -> dict[str, Any]:
+def normalize_pattern(finding: Issue) -> dict[str, Any]:
     """
     Extract a normalized pattern from a finding.
 
@@ -52,7 +52,7 @@ def normalize_pattern(finding: "Issue") -> dict[str, Any]:
         "category": finding.category.value,
         "severity": finding.severity.value,
 
-        # Location (structural, not positional)
+        # Structural location fields
         "table": finding.table_name.lower() if finding.table_name else None,
         "column": finding.column_name.lower() if finding.column_name else None,
 
@@ -69,7 +69,7 @@ def normalize_pattern(finding: "Issue") -> dict[str, Any]:
     return pattern
 
 
-def compute_finding_hash(finding: "Issue") -> str:
+def compute_finding_hash(finding: Issue) -> str:
     """
     Compute a deterministic SHA256 hash for a finding pattern.
 
@@ -204,10 +204,7 @@ def patterns_match(pattern1: dict[str, Any], pattern2: dict[str, Any]) -> bool:
         return False
 
     # Must have same data type (if specified)
-    if pattern1.get("data_type") != pattern2.get("data_type"):
-        return False
-
-    return True
+    return pattern1.get("data_type") == pattern2.get("data_type")
 
 
 def create_rule_pattern(finding_type: str) -> dict[str, Any]:

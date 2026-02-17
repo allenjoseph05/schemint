@@ -11,15 +11,9 @@ from typing import Any
 from uuid import UUID
 
 from schemint.ci.diff_extractor import DiffExtractor
-
-logger = logging.getLogger(__name__)
-from schemint.ci.file_detector import SQLFileDetector
-from schemint.ci.report_builder import CIReportBuilder
-from schemint.ci.sql_utils import detect_dangerous_patterns, is_sql_content
 from schemint.ci.models import (
     AnalysisDecision,
     AnalysisFinding,
-    CIEventType,
     CIIngestRequest,
     DecisionStatus,
     FindingLocation,
@@ -30,15 +24,18 @@ from schemint.ci.providers.base import BaseGitProvider, CheckStatus
 from schemint.ci.providers.generic import GenericGitProvider
 from schemint.ci.providers.github import GitHubProvider
 from schemint.ci.providers.gitlab import GitLabProvider
+from schemint.ci.report_builder import CIReportBuilder
+from schemint.ci.sql_utils import detect_dangerous_patterns, is_sql_content
 from schemint.core.analyzer import analyze_sql
-from schemint.models.analysis import AnalysisResult
 from schemint.memory import MemoryStore, get_memory_store
+from schemint.models.analysis import AnalysisResult
+
+logger = logging.getLogger(__name__)
 
 
 class CIIngestError(Exception):
     """Error during CI ingestion."""
 
-    pass
 
 
 class CIIngestHandler:
@@ -78,10 +75,9 @@ class CIIngestHandler:
         """Create git provider based on request."""
         if request.provider == GitProvider.GITHUB:
             return GitHubProvider(token=request.provider_token)
-        elif request.provider == GitProvider.GITLAB:
+        if request.provider == GitProvider.GITLAB:
             return GitLabProvider(token=request.provider_token)
-        else:
-            return GenericGitProvider(token=request.provider_token)
+        return GenericGitProvider(token=request.provider_token)
 
     async def ingest(self, request: CIIngestRequest) -> AnalysisDecision:
         """
@@ -287,7 +283,7 @@ class CIIngestHandler:
         store: MemoryStore,
         project_id: UUID,
         issue: Any,
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Check if finding should be suppressed by memory."""
         try:
             accepted = store.check_finding_accepted(project_id, issue)

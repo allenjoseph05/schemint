@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 from schemint.drift.dependency.column_lineage import ColumnLineageExtractor
 from schemint.drift.dependency.coverage import CoverageComputer
@@ -52,10 +53,8 @@ from schemint.drift.models import (
     DependencyCoverage,
     DependencyEdge,
     DependencyGraph,
-    DependencySource,
     ParseHealth,
     SchemaSnapshot,
-    ViewSnapshot,
 )
 from schemint.drift.sql_utils import (
     extract_aliases_from_ast,
@@ -118,7 +117,7 @@ class DependencyGraphBuilder:
         """Extract dependency edges from a dbt manifest.json."""
         return self._dbt_extractor.extract(manifest_path)
 
-    def _dbt_fqn(self, node: dict) -> str:
+    def _dbt_fqn(self, node: dict[str, Any]) -> str:
         """Build a fully-qualified name from dbt node metadata."""
         return self._dbt_extractor._dbt_fqn(node)
 
@@ -157,55 +156,55 @@ class DependencyGraphBuilder:
 
         return edges
 
-    def _extract_aliases_from_ast(self, statement) -> dict[str, str]:
+    def _extract_aliases_from_ast(self, statement: Any) -> dict[str, str]:
         """Extract table alias -> real table name from sqlglot AST."""
         return extract_aliases_from_ast(statement)
 
-    def _resolve_column_ref(self, col, aliases: dict[str, str]) -> tuple[str, bool]:
+    def _resolve_column_ref(self, col: Any, aliases: dict[str, str]) -> tuple[str, bool]:
         """Resolve a column reference to table.column using the alias map."""
         return resolve_column_ref(col, aliases)
 
-    def _extract_join_edges_from_ast(self, statement, aliases, now, file_path):
+    def _extract_join_edges_from_ast(self, statement: Any, aliases: dict[str, str], now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_join_edges(statement, aliases, now, file_path)
 
-    def _extract_where_edges_from_ast(self, statement, aliases, now, file_path):
+    def _extract_where_edges_from_ast(self, statement: Any, aliases: dict[str, str], now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_where_edges(statement, aliases, now, file_path)
 
-    def _extract_cte_edges(self, statement, now, file_path):
+    def _extract_cte_edges(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_cte_edges(statement, now, file_path)
 
-    def _extract_subquery_edges(self, statement, now, file_path):
+    def _extract_subquery_edges(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_subquery_edges(statement, now, file_path)
 
-    def _extract_insert_select_edges(self, statement, now, file_path):
+    def _extract_insert_select_edges(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Backward-compatible — delegates to sql_ast_extractor."""
         return self._sql_extractor._extract_insert_select_edges(statement, now, file_path)
 
-    def _extract_column_lineage(self, statement, now, file_path):
+    def _extract_column_lineage(self, statement: Any, now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor.extract(statement, now, file_path)
 
-    def _determine_target_name(self, statement):
+    def _determine_target_name(self, statement: Any) -> str | None:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor._determine_target_name(statement)
 
-    def _extract_select_column_lineage(self, select_node, aliases, target_name, now, file_path):
+    def _extract_select_column_lineage(self, select_node: Any, aliases: dict[str, str], target_name: str, now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor._extract_select_column_lineage(
             select_node, aliases, target_name, now, file_path
         )
 
-    def _extract_insert_column_lineage(self, select_node, aliases, target_table, insert_cols, now, file_path):
+    def _extract_insert_column_lineage(self, select_node: Any, aliases: dict[str, str], target_table: str, insert_cols: list[str], now: datetime, file_path: str | None) -> list[DependencyEdge]:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor._extract_insert_column_lineage(
             select_node, aliases, target_table, insert_cols, now, file_path
         )
 
-    def _get_output_name(self, expr):
+    def _get_output_name(self, expr: Any) -> str | None:
         """Backward-compatible — delegates to column_lineage extractor."""
         return self._lineage_extractor._get_output_name(expr)
 

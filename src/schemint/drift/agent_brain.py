@@ -167,20 +167,20 @@ class DriftAgent:
         # Try direct parse first
         text = text.strip()
         if text.startswith("{"):
-            return json.loads(text)
+            return json.loads(text)  # type: ignore[no-any-return]
         # Try to find JSON block in markdown
         if "```json" in text:
             start = text.index("```json") + 7
             end = text.index("```", start)
-            return json.loads(text[start:end].strip())
+            return json.loads(text[start:end].strip())  # type: ignore[no-any-return]
         if "```" in text:
             start = text.index("```") + 3
             end = text.index("```", start)
-            return json.loads(text[start:end].strip())
+            return json.loads(text[start:end].strip())  # type: ignore[no-any-return]
         # Last resort: find first { ... }
         start = text.index("{")
         end = text.rindex("}") + 1
-        return json.loads(text[start:end])
+        return json.loads(text[start:end])  # type: ignore[no-any-return]
 
     # ----- invariant enforcement -----
 
@@ -191,10 +191,10 @@ class DriftAgent:
         severity_floor: str,
     ) -> AgentDecision:
         """Apply post-AI invariants. These CANNOT be weakened by the LLM."""
-        severity = decision.severity
+        severity: str = decision.severity
         confidence = decision.confidence_in_decision
         requires_human = decision.requires_human_review
-        categories = list(decision.recommended_action_categories)
+        categories: list[str] = list(decision.recommended_action_categories)
         context_quality = decision.context_quality
 
         # 1. LLM cannot undercut severity floor
@@ -206,9 +206,8 @@ class DriftAgent:
             confidence = min(confidence, 0.6)
 
         # 3. Critical criticality → severity ≥ high
-        if context.impact_metrics.criticality == "critical":
-            if _sev_index(severity) < _sev_index("high"):
-                severity = "high"
+        if context.impact_metrics.criticality == "critical" and _sev_index(severity) < _sev_index("high"):
+            severity = "high"
 
         # 4. Insufficient context → human review, severity ≥ medium, no backward_compat
         if context_quality == "insufficient":
@@ -246,11 +245,11 @@ class DriftAgent:
             categories = _truncate_categories(categories, 3)
 
         return AgentDecision(
-            severity=severity,
+            severity=severity,  # type: ignore[arg-type]
             confidence_in_decision=confidence,
             requires_human_review=requires_human,
             rationale=decision.rationale,
-            recommended_action_categories=categories,
+            recommended_action_categories=categories,  # type: ignore[arg-type]
             context_quality=context_quality,
         )
 

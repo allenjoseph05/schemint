@@ -6,7 +6,6 @@ context_assembler, and change_classifier modules.
 
 from __future__ import annotations
 
-
 # =============================================================================
 # Confidence Levels (used by DependencyGraphBuilder)
 # =============================================================================
@@ -82,31 +81,94 @@ ALL_INSUFFICIENT_THRESHOLD: float = 0.5
 # =============================================================================
 
 CANONICAL_TYPES: dict[str, str] = {
+    # Integer family
     "int": "integer",
+    "int2": "smallint",
+    "int4": "integer",
+    "int8": "bigint",
     "integer": "integer",
     "bigint": "bigint",
     "smallint": "smallint",
     "tinyint": "tinyint",
+    # Serial family
+    "serial": "serial",
+    "serial4": "serial",
+    "serial8": "bigserial",
+    "smallserial": "smallserial",
+    "serial2": "smallserial",
+    "bigserial": "bigserial",
+    # Float family
     "float": "float",
-    "double": "double",
+    "float4": "real",
+    "float8": "double precision",
+    "real": "real",
+    "double": "double precision",
+    "double precision": "double precision",
+    # Decimal family
     "decimal": "decimal",
     "numeric": "numeric",
+    "money": "money",
+    # String family
     "varchar": "varchar",
+    "character varying": "varchar",
     "char": "char",
+    "character": "char",
     "text": "text",
     "longtext": "text",
-    "date": "date",
-    "time": "time",
-    "datetime": "timestamp",
-    "timestamp": "timestamp",
+    "citext": "citext",
+    # Binary family
+    "bytea": "bytea",
     "blob": "blob",
     "binary": "binary",
+    # Date/Time family
+    "date": "date",
+    "time": "time",
+    "time without time zone": "time",
+    "time with time zone": "timetz",
+    "timetz": "timetz",
+    "datetime": "timestamp",
+    "timestamp": "timestamp",
+    "timestamp without time zone": "timestamp",
+    "timestamp with time zone": "timestamptz",
+    "timestamptz": "timestamptz",
+    "interval": "interval",
+    # Boolean
     "boolean": "boolean",
     "bool": "boolean",
+    # JSON
     "json": "json",
     "jsonb": "jsonb",
+    # UUID
     "uuid": "uuid",
+    # Enum
     "enum": "enum",
-    "serial": "serial",
-    "bigserial": "bigserial",
+    # Network types
+    "inet": "inet",
+    "cidr": "cidr",
+    "macaddr": "macaddr",
+    "macaddr8": "macaddr8",
+    # Full-text search
+    "tsvector": "tsvector",
+    "tsquery": "tsquery",
+    # XML
+    "xml": "xml",
+    # Range types
+    "int4range": "int4range",
+    "int8range": "int8range",
+    "numrange": "numrange",
+    "tsrange": "tsrange",
+    "tstzrange": "tstzrange",
+    "daterange": "daterange",
+    # Geometric types
+    "point": "point",
+    "line": "line",
+    "lseg": "lseg",
+    "box": "box",
+    "path": "path",
+    "polygon": "polygon",
+    "circle": "circle",
+    # Bit string
+    "bit": "bit",
+    "bit varying": "varbit",
+    "varbit": "varbit",
 }

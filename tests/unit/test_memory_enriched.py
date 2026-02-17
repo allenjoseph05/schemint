@@ -2,7 +2,6 @@
 
 Tests cover:
 - build_memory_context formatting
-- Memory section injection into user message
 - Suppressed findings filtering
 - AI score override
 - Graceful fallback when DB is unavailable
@@ -13,14 +12,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-import pytest
-
-from schemint.models.issue import Issue, IssueCategory, IssueSeverity
 from schemint.models.schema import Column, DataType, ParsedSchema, Table
 from schemint.services.claude import build_memory_context
-
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -56,16 +51,16 @@ def _make_accepted_finding(**overrides):
     """Create a mock AcceptedFinding."""
     from schemint.memory.models import AcceptedFinding, FeedbackScope
 
-    defaults = dict(
-        id=uuid4(),
-        project_id=uuid4(),
-        finding_type="wrong_data_type_float",
-        pattern_hash="abc123",
-        scope=FeedbackScope.PATTERN,
-        reason="Sensor data, not financial",
-        accepted_by="test@example.com",
-        context={"table": "metrics", "column": "value"},
-    )
+    defaults = {
+        "id": uuid4(),
+        "project_id": uuid4(),
+        "finding_type": "wrong_data_type_float",
+        "pattern_hash": "abc123",
+        "scope": FeedbackScope.PATTERN,
+        "reason": "Sensor data, not financial",
+        "accepted_by": "test@example.com",
+        "context": {"table": "metrics", "column": "value"},
+    }
     defaults.update(overrides)
     return AcceptedFinding(**defaults)
 
@@ -74,16 +69,16 @@ def _make_business_rule(**overrides):
     """Create a mock BusinessRule."""
     from schemint.memory.models import BusinessRule, FindingSeverity
 
-    defaults = dict(
-        id=uuid4(),
-        project_id=uuid4(),
-        rule_type="require_tenant_id",
-        rule_config={},
-        severity=FindingSeverity.CRITICAL,
-        applies_to={"tables": ["*"], "except": ["migrations"]},
-        rationale="Multi-tenant architecture",
-        created_by="test@example.com",
-    )
+    defaults = {
+        "id": uuid4(),
+        "project_id": uuid4(),
+        "rule_type": "require_tenant_id",
+        "rule_config": {},
+        "severity": FindingSeverity.CRITICAL,
+        "applies_to": {"tables": ["*"], "except": ["migrations"]},
+        "rationale": "Multi-tenant architecture",
+        "created_by": "test@example.com",
+    }
     defaults.update(overrides)
     return BusinessRule(**defaults)
 
@@ -92,15 +87,15 @@ def _make_schema_semantics(**overrides):
     """Create a mock SchemaSemantics."""
     from schemint.memory.models import ElementType, SchemaSemantics
 
-    defaults = dict(
-        id=uuid4(),
-        project_id=uuid4(),
-        element_type=ElementType.COLUMN,
-        element_path="orders.total",
-        semantic_tags=["money", "usd"],
-        description="Total order amount in USD",
-        constraints={},
-    )
+    defaults = {
+        "id": uuid4(),
+        "project_id": uuid4(),
+        "element_type": ElementType.COLUMN,
+        "element_path": "orders.total",
+        "semantic_tags": ["money", "usd"],
+        "description": "Total order amount in USD",
+        "constraints": {},
+    }
     defaults.update(overrides)
     return SchemaSemantics(**defaults)
 
@@ -118,7 +113,7 @@ def _mock_tool_use_response(tool_input: dict) -> MagicMock:
 
 
 # ---------------------------------------------------------------------------
-# Tests: build_memory_context
+# Tests -- build_memory_context
 # ---------------------------------------------------------------------------
 
 
@@ -163,71 +158,6 @@ class TestBuildMemoryContext:
         assert "semantics" not in result
 
 
-# ---------------------------------------------------------------------------
-# Tests: Memory section in user message
-# ---------------------------------------------------------------------------
-
-
-class TestMemoryInUserMessage:
-    """Test that memory context appears in the user message."""
-
-    @patch("schemint.services.claude.get_settings")
-    def test_memory_section_present(self, mock_settings):
-        mock_settings.return_value = MagicMock(
-            claude_api_key="test-key",
-            claude_model="claude-sonnet-4-20250514",
-            claude_model_simple="claude-haiku-4-5-20251001",
-            claude_model_complex="claude-sonnet-4-5-20250929",
-            ai_enabled=True,
-        )
-
-        with patch("schemint.services.claude.anthropic") as mock_anthropic, \
-             patch("schemint.services.claude.CLAUDE_AVAILABLE", True):
-            from schemint.services.claude import ClaudeAnalyzer, compress_schema
-
-            analyzer = ClaudeAnalyzer()
-            schema = _make_schema()
-            compressed = compress_schema(schema)
-
-            memory = {
-                "accepted_findings": [
-                    {"type": "wrong_data_type_float", "table": "metrics",
-                     "column": "value", "reason": "Sensor data", "scope": "pattern"}
-                ]
-            }
-
-            msg = analyzer._build_user_message(
-                compressed, "ecommerce", None, "mysql",
-                memory_context=memory,
-            )
-
-        assert "MEMORY (previously accepted findings for this project):" in msg
-        assert "wrong_data_type_float" in msg
-
-    @patch("schemint.services.claude.get_settings")
-    def test_no_memory_section_without_context(self, mock_settings):
-        mock_settings.return_value = MagicMock(
-            claude_api_key="test-key",
-            claude_model="claude-sonnet-4-20250514",
-            claude_model_simple="claude-haiku-4-5-20251001",
-            claude_model_complex="claude-sonnet-4-5-20250929",
-            ai_enabled=True,
-        )
-
-        with patch("schemint.services.claude.anthropic") as mock_anthropic, \
-             patch("schemint.services.claude.CLAUDE_AVAILABLE", True):
-            from schemint.services.claude import ClaudeAnalyzer, compress_schema
-
-            analyzer = ClaudeAnalyzer()
-            schema = _make_schema()
-            compressed = compress_schema(schema)
-
-            msg = analyzer._build_user_message(
-                compressed, None, None, "mysql",
-            )
-
-        assert "MEMORY: No previous findings accepted." in msg
-
 
 # ---------------------------------------------------------------------------
 # Tests: Suppressed findings filtering
@@ -237,20 +167,31 @@ class TestMemoryInUserMessage:
 class TestSuppressedFindings:
     """Test that suppressed findings from AI response are filtered."""
 
-    @patch("schemint.services.claude.get_settings")
     @patch("schemint.core.analyzer.analyzer.get_settings")
-    def test_suppressed_findings_filtered(self, mock_analyzer_settings, mock_claude_settings):
-        mock_claude_settings.return_value = MagicMock(
-            claude_api_key="test-key",
-            claude_model="claude-sonnet-4-20250514",
-            claude_model_simple="claude-haiku-4-5-20251001",
-            claude_model_complex="claude-sonnet-4-5-20250929",
-            ai_enabled=True,
-        )
+    @patch("schemint.services.agent.get_agent_analyzer")
+    def test_suppressed_findings_filtered(self, mock_get_agent, mock_analyzer_settings):
         mock_analyzer_settings.return_value = MagicMock(ai_enabled=True)
 
-        tool_input = {
+        agent_result = {
             "findings": [
+                {
+                    "severity": "warning",
+                    "category": "performance",
+                    "title": "FLOAT used for value column",
+                    "description": "FLOAT may cause precision issues",
+                    "impact": "Data precision risk",
+                    "reasoning": "FLOAT is imprecise for financial data",
+                },
+                {
+                    "severity": "warning",
+                    "category": "structural",
+                    "title": "Missing FK on orders.user_id",
+                    "description": "No FK constraint",
+                    "impact": "No referential integrity",
+                    "reasoning": "Column name suggests relationship",
+                },
+            ],
+            "issues": [
                 {
                     "severity": "warning",
                     "category": "performance",
@@ -286,18 +227,14 @@ class TestSuppressedFindings:
             "summary": "Schema looks good.",
         }
 
-        mock_message = _mock_tool_use_response(tool_input)
+        mock_agent = MagicMock()
+        mock_agent.analyze.return_value = agent_result
+        mock_get_agent.return_value = mock_agent
 
-        with patch("schemint.services.claude.anthropic") as mock_anthropic, \
-             patch("schemint.services.claude.CLAUDE_AVAILABLE", True):
-            mock_client = MagicMock()
-            mock_client.messages.create.return_value = mock_message
-            mock_anthropic.Anthropic.return_value = mock_client
+        from schemint.core.analyzer.analyzer import analyze_schema
 
-            from schemint.core.analyzer.analyzer import analyze_schema
-
-            schema = _make_schema()
-            result = analyze_schema(schema, use_ai=True)
+        schema = _make_schema()
+        result = analyze_schema(schema)
 
         # The "FLOAT used for value column" finding has AI category "performance"
         # which maps to IssueCategory.MISSING_INDEX (value "missing_index").
@@ -321,20 +258,14 @@ class TestSuppressedFindings:
 class TestAIScoreOverride:
     """Test that AI-computed scores override deterministic scores."""
 
-    @patch("schemint.services.claude.get_settings")
     @patch("schemint.core.analyzer.analyzer.get_settings")
-    def test_ai_scores_used_when_present(self, mock_analyzer_settings, mock_claude_settings):
-        mock_claude_settings.return_value = MagicMock(
-            claude_api_key="test-key",
-            claude_model="claude-sonnet-4-20250514",
-            claude_model_simple="claude-haiku-4-5-20251001",
-            claude_model_complex="claude-sonnet-4-5-20250929",
-            ai_enabled=True,
-        )
+    @patch("schemint.services.agent.get_agent_analyzer")
+    def test_ai_scores_used_when_present(self, mock_get_agent, mock_analyzer_settings):
         mock_analyzer_settings.return_value = MagicMock(ai_enabled=True)
 
-        tool_input = {
+        agent_result = {
             "findings": [],
+            "issues": [],
             "score": {
                 "total": 42,
                 "structural": 55,
@@ -346,20 +277,16 @@ class TestAIScoreOverride:
             "summary": "Test.",
         }
 
-        mock_message = _mock_tool_use_response(tool_input)
+        mock_agent = MagicMock()
+        mock_agent.analyze.return_value = agent_result
+        mock_get_agent.return_value = mock_agent
 
-        with patch("schemint.services.claude.anthropic") as mock_anthropic, \
-             patch("schemint.services.claude.CLAUDE_AVAILABLE", True):
-            mock_client = MagicMock()
-            mock_client.messages.create.return_value = mock_message
-            mock_anthropic.Anthropic.return_value = mock_client
+        from schemint.core.analyzer.analyzer import analyze_schema
 
-            from schemint.core.analyzer.analyzer import analyze_schema
+        schema = _make_schema()
+        result = analyze_schema(schema)
 
-            schema = _make_schema()
-            result = analyze_schema(schema, use_ai=True)
-
-        # AI scores should be used, not deterministic
+        # AI scores should be used directly
         assert result.score.total == 42
         assert result.score.structural == 55
         assert result.score.performance == 60

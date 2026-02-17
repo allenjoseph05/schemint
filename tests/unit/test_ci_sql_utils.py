@@ -2,11 +2,8 @@
 Tests for CI SQL Utilities.
 """
 
-import pytest
 
 from schemint.ci.sql_utils import (
-    SQLAnalysis,
-    DangerousPattern,
     analyze_sql_content,
     detect_dangerous_patterns,
     is_sql_content,

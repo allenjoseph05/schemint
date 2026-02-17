@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -16,6 +14,8 @@ from schemint.drift.models import (
     DependencyGraph,
     ExecutionPlan,
     ExecutionReport,
+    MigrationGap,
+    MigrationRecord,
     SchemaDiffResult,
     SchemaSnapshot,
     VerificationReport,
@@ -33,11 +33,13 @@ router = APIRouter()
 class DDLSnapshotRequest(BaseModel):
     sql: str
     database_type: str = "postgresql"
+    environment: str = "default"
     project_id: str | None = None
 
 
 class LiveSnapshotRequest(BaseModel):
     connection_string: str
+    environment: str = "default"
     project_id: str | None = None
 
 
@@ -57,10 +59,11 @@ async def capture_ddl_snapshot(request: DDLSnapshotRequest) -> SchemaSnapshot:
     """Capture a schema snapshot from DDL SQL."""
     try:
         service = SnapshotService()
-        snapshot = service.capture_from_ddl(request.sql, request.database_type)
-        return snapshot
+        return service.capture_from_ddl(
+            request.sql, request.database_type, environment=request.environment,
+        )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/snapshot/live", response_model=SchemaSnapshot)
@@ -68,10 +71,11 @@ async def capture_live_snapshot(request: LiveSnapshotRequest) -> SchemaSnapshot:
     """Capture a schema snapshot from a live PostgreSQL database."""
     try:
         service = SnapshotService()
-        snapshot = service.capture_from_live_db(request.connection_string)
-        return snapshot
+        return service.capture_from_live_db(
+            request.connection_string, environment=request.environment,
+        )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/snapshot/{project_id}/latest", response_model=SchemaSnapshot | None)
@@ -82,7 +86,7 @@ async def get_latest_snapshot(project_id: str) -> SchemaSnapshot | None:
         store = get_drift_store()
         return store.get_latest_snapshot(project_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # =============================================================================
@@ -115,7 +119,7 @@ async def build_dependency_graph(
 
         # SQL files
         if request.sql_files:
-            for filename, sql_content in request.sql_files.items():
+            for _filename, sql_content in request.sql_files.items():
                 all_edges.extend(builder.from_sql_ast(sql_content))
 
         # View definitions
@@ -134,7 +138,7 @@ async def build_dependency_graph(
 
         return graph
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/graph/{project_id}", response_model=DependencyGraph | None)
@@ -145,7 +149,7 @@ async def get_dependency_graph(project_id: str) -> DependencyGraph | None:
         store = get_drift_store()
         return store.get_dependency_graph(project_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # =============================================================================
@@ -162,18 +166,17 @@ async def diff_snapshots(project_id: str) -> SchemaDiffResult:
 
         # Get the two most recent snapshots
         from psycopg2.extras import RealDictCursor
-        with store._get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    """
-                    SELECT snapshot_data FROM schema_snapshots
-                    WHERE project_id = %s
-                    ORDER BY captured_at DESC
-                    LIMIT 2
-                    """,
-                    (project_id,),
-                )
-                rows = cur.fetchall()
+        with store._get_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT snapshot_data FROM schema_snapshots
+                WHERE project_id = %s
+                ORDER BY captured_at DESC
+                LIMIT 2
+                """,
+                (project_id,),
+            )
+            rows = cur.fetchall()
 
         if len(rows) < 2:
             raise HTTPException(
@@ -197,7 +200,7 @@ async def diff_snapshots(project_id: str) -> SchemaDiffResult:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # =============================================================================
@@ -223,19 +226,19 @@ async def assemble_context(project_id: str) -> list[ContextPackage]:
 
         # Get the two most recent snapshots for diffing
         import json
+
         from psycopg2.extras import RealDictCursor
-        with store._get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    """
-                    SELECT snapshot_data FROM schema_snapshots
-                    WHERE project_id = %s
-                    ORDER BY captured_at DESC
-                    LIMIT 2
-                    """,
-                    (project_id,),
-                )
-                rows = cur.fetchall()
+        with store._get_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT snapshot_data FROM schema_snapshots
+                WHERE project_id = %s
+                ORDER BY captured_at DESC
+                LIMIT 2
+                """,
+                (project_id,),
+            )
+            rows = cur.fetchall()
 
         if len(rows) < 2:
             return []
@@ -258,7 +261,7 @@ async def assemble_context(project_id: str) -> list[ContextPackage]:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # =============================================================================
@@ -283,12 +286,11 @@ async def judge_schema_change(
     Uses AI with deterministic guardrails. Falls back to deterministic
     judgment if Claude is unavailable.
     """
-    from schemint.drift.agent_brain import DriftAgent, get_drift_agent
+    from schemint.drift.agent_brain import get_drift_agent
 
     agent = get_drift_agent()
     if agent is None:
         # Deterministic fallback — no AI available
-        from schemint.drift.models import ImpactMetrics
 
         ctx = request.context
         return AgentDecision(
@@ -312,8 +314,8 @@ async def plan_schema_change(
     Falls back to notification-only plan if AI is unavailable.
     """
     from schemint.drift.agent_brain import get_drift_agent
-    from schemint.drift.planning_agent import PlanningAgent, get_planning_agent
     from schemint.drift.models import PlanStep
+    from schemint.drift.planning_agent import get_planning_agent
 
     ctx = request.context
 
@@ -403,3 +405,111 @@ async def verify_execution(
         execution_report=request.execution_report,
         source_requires_human_review=request.source_requires_human_review,
     )
+
+
+# =============================================================================
+# Desired state endpoints
+# =============================================================================
+
+
+class DesiredStateRequest(BaseModel):
+    sql: str
+    database_type: str = "postgresql"
+
+
+@router.post("/desired-state/{project_id}", response_model=SchemaSnapshot)
+async def save_desired_state(
+    project_id: str,
+    request: DesiredStateRequest,
+    environment: str = "default",
+) -> SchemaSnapshot:
+    """Save a desired state snapshot from DDL."""
+    try:
+        service = SnapshotService()
+        snapshot = service.capture_from_ddl(
+            request.sql, request.database_type, environment=environment,
+        )
+        snapshot.source = "desired_state"
+        snapshot.is_desired_state = True
+
+        from schemint.drift.store import get_drift_store
+        store = get_drift_store()
+        store.save_desired_state(project_id, snapshot, environment)
+
+        return snapshot
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/desired-state/{project_id}/{environment}", response_model=SchemaSnapshot | None)
+async def get_desired_state(project_id: str, environment: str) -> SchemaSnapshot | None:
+    """Get the active desired state for a project and environment."""
+    try:
+        from schemint.drift.store import get_drift_store
+        store = get_drift_store()
+        return store.get_desired_state(project_id, environment)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/migration-gap/{project_id}/{environment}", response_model=MigrationGap)
+async def compute_migration_gap(
+    project_id: str, environment: str
+) -> MigrationGap:
+    """Diff current state vs desired state to compute migration gap."""
+    try:
+        from schemint.drift.store import get_drift_store
+        store = get_drift_store()
+
+        current = store.get_latest_snapshot_for_environment(project_id, environment)
+        if not current:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No current snapshot found for environment '{environment}'",
+            )
+
+        desired = store.get_desired_state(project_id, environment)
+        if not desired:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No desired state found for environment '{environment}'",
+            )
+
+        differ = SchemaDiffer()
+        return differ.diff_against_desired(current, desired, environment)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Migration history endpoints
+# =============================================================================
+
+
+@router.get("/migrations/{project_id}/{environment}", response_model=list[MigrationRecord])
+async def get_migration_history(
+    project_id: str, environment: str, limit: int = 100
+) -> list[MigrationRecord]:
+    """Get migration history for a project and environment."""
+    try:
+        from schemint.drift.store import get_drift_store
+        store = get_drift_store()
+        return store.get_migration_history(project_id, environment, limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/migrations/{project_id}/{environment}/check/{checksum}")
+async def check_migration_applied(
+    project_id: str, environment: str, checksum: str
+) -> dict[str, bool]:
+    """Check if a migration with this checksum has already been applied."""
+    try:
+        from schemint.drift.store import get_drift_store
+        store = get_drift_store()
+        applied = store.has_migration_been_applied(project_id, environment, checksum)
+        return {"applied": applied}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e

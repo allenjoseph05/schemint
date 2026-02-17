@@ -143,8 +143,7 @@ class GitHubProvider(BaseGitProvider):
 
         # Content is base64 encoded
         if "content" in data:
-            content = base64.b64decode(data["content"]).decode("utf-8")
-            return content
+            return base64.b64decode(data["content"]).decode("utf-8")
 
         return None
 

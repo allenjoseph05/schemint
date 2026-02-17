@@ -23,6 +23,9 @@ __all__ = [
     "AnalysisRequest",
     "AnalysisResult",
     "AnalysisSummary",
+    "Column",
+    "ForeignKey",
+    "Index",
     # Issues
     "Issue",
     "IssueCategory",
@@ -30,7 +33,4 @@ __all__ = [
     # Schema
     "ParsedSchema",
     "Table",
-    "Column",
-    "ForeignKey",
-    "Index",
 ]

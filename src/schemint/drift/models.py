@@ -8,10 +8,9 @@ Design invariant:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # =============================================================================
 # Snapshot Models (Phase 0)
@@ -74,12 +73,12 @@ class TableSnapshot(BaseModel):
     name: str
     columns: dict[str, ColumnSnapshot] = Field(default_factory=dict)
     primary_key: list[str] = Field(default_factory=list)
-    indexes: list[ForeignKeySnapshot | IndexSnapshot | dict] = Field(default_factory=list)
-    foreign_keys: list[ForeignKeySnapshot | dict] = Field(default_factory=list)
+    indexes: list[ForeignKeySnapshot | IndexSnapshot | dict[str, Any]] = Field(default_factory=list)
+    foreign_keys: list[ForeignKeySnapshot | dict[str, Any]] = Field(default_factory=list)
 
     @field_validator("foreign_keys", mode="before")
     @classmethod
-    def coerce_foreign_keys(cls, v: list) -> list:
+    def coerce_foreign_keys(cls, v: list[Any]) -> list[Any]:
         """Coerce raw dicts to ForeignKeySnapshot models."""
         _str_fields = {"name", "column", "references_table", "references_column"}
         result = []
@@ -100,7 +99,7 @@ class TableSnapshot(BaseModel):
 
     @field_validator("indexes", mode="before")
     @classmethod
-    def coerce_indexes(cls, v: list) -> list:
+    def coerce_indexes(cls, v: list[Any]) -> list[Any]:
         """Coerce raw dicts to IndexSnapshot models."""
         result = []
         for item in v:
@@ -142,6 +141,197 @@ class TriggerSnapshot(BaseModel):
     definition: str | None = None  # Full trigger body if available
 
 
+class SequenceSnapshot(BaseModel):
+    """Snapshot of a database sequence.
+
+    Sequence changes affect auto-increment columns. Resetting a sequence
+    can cause duplicate key violations; exhausting the range causes INSERT
+    failures.
+    """
+
+    name: str
+    data_type: str = "bigint"
+    start_value: int = 1
+    increment_by: int = 1
+    min_value: int = 1
+    max_value: int | None = None
+    cache_size: int = 1
+    cycle: bool = False
+    last_value: int | None = None
+
+
+class EnumSnapshot(BaseModel):
+    """Snapshot of a PostgreSQL enum type.
+
+    Value ordering matters: many applications rely on enum ordering
+    for business logic. Value removal is always breaking (existing
+    data references the removed value).
+    """
+
+    name: str
+    values: list[str] = Field(default_factory=list)
+
+
+class FunctionSnapshot(BaseModel):
+    """Snapshot of a database function or procedure.
+
+    Triggers call functions. Computed columns use functions. Views may
+    reference functions. A function change silently changes the behavior
+    of everything that depends on it.
+    """
+
+    name: str
+    argument_types: str = ""
+    return_type: str = ""
+    language: str = "sql"
+    volatility: Literal["volatile", "stable", "immutable"] = "volatile"
+    definition: str | None = None
+
+
+class TableStatistics(BaseModel):
+    """Runtime statistics for a table from pg_stat_user_tables.
+
+    The AI agent uses these to gauge migration risk:
+    - row_count: ALTER on 100 rows is safe; on 500M rows it locks for minutes
+    - dead_tuple_ratio: indicates table health / vacuum needs
+    - size: determines lock duration for DDL operations
+    """
+
+    table_name: str
+    row_count: int = 0
+    dead_tuples: int = 0
+    total_size_bytes: int = 0
+    table_size_bytes: int = 0
+    index_size_bytes: int = 0
+    seq_scan_count: int = 0
+    idx_scan_count: int = 0
+    last_vacuum: datetime | None = None
+    last_analyze: datetime | None = None
+
+
+class IndexStatistics(BaseModel):
+    """Runtime statistics for an index from pg_stat_user_indexes.
+
+    When index_dropped is detected, the AI needs to know whether the
+    index was actively used (breaking) or unused (safe cleanup).
+    """
+
+    index_name: str
+    table_name: str
+    idx_scan: int = 0
+    idx_tup_read: int = 0
+    idx_tup_fetch: int = 0
+    size_bytes: int = 0
+
+
+class ExtensionSnapshot(BaseModel):
+    """Snapshot of an installed PostgreSQL extension.
+
+    Extension version changes can alter available functions, operators,
+    and types. Extension removal breaks all objects that depend on it
+    (e.g. removing pg_trgm breaks GIN indexes using gin_trgm_ops).
+    """
+
+    name: str
+    version: str = ""
+    installed_schema: str = "public"
+
+
+class PermissionSnapshot(BaseModel):
+    """Snapshot of table-level permissions/ACLs.
+
+    Permission changes can silently break applications that rely on
+    specific grants. Revoking SELECT from an application role causes
+    immediate query failures.
+    """
+
+    table_name: str
+    grantee: str
+    privilege_type: str  # SELECT, INSERT, UPDATE, DELETE, etc.
+    is_grantable: bool = False
+
+
+class PolicySnapshot(BaseModel):
+    """Snapshot of a Row-Level Security (RLS) policy.
+
+    RLS policy changes silently filter query results — a policy change
+    can cause an application to return zero rows where it previously
+    returned thousands, with no error.
+    """
+
+    name: str
+    table: str
+    command: str = "ALL"  # SELECT, INSERT, UPDATE, DELETE, ALL
+    permissive: bool = True  # True = PERMISSIVE, False = RESTRICTIVE
+    roles: list[str] = Field(default_factory=list)
+    qual_expression: str | None = None  # USING clause
+    with_check_expression: str | None = None  # WITH CHECK clause
+
+
+class PartitionInfo(BaseModel):
+    """Snapshot of a single partition within a partitioned table.
+
+    Partition boundary changes affect which rows land in which partition.
+    Missing partitions for new data ranges cause INSERT failures.
+    """
+
+    partition_name: str
+    parent_table: str
+    partition_bound: str = ""  # e.g. "FOR VALUES FROM ('2024-01-01') TO ('2024-02-01')"
+
+
+class MaterializedViewSnapshot(BaseModel):
+    """Snapshot of a materialized view.
+
+    Unlike regular views, materialized views store data physically.
+    They must be explicitly refreshed — stale matviews serve outdated data.
+    Dropping/changing a matview's source tables does NOT error, it just
+    makes REFRESH fail later.
+    """
+
+    name: str
+    definition: str = ""
+    is_populated: bool = True
+    tablespace: str | None = None
+    source_tables: list[str] = Field(default_factory=list)
+
+
+class ColumnStatistics(BaseModel):
+    """Column-level statistics from pg_stats.
+
+    Detects data distribution drift — if null_frac changes from 0.01
+    to 0.5, something is wrong upstream. Useful for the AI agent to
+    assess whether a NOT NULL constraint is safe to add.
+    """
+
+    column_name: str
+    table_name: str
+    null_frac: float = 0.0  # Fraction of NULLs (0.0 = no nulls, 1.0 = all nulls)
+    n_distinct: float = 0.0  # Estimated distinct values (-1 = all unique)
+    avg_width: int = 0  # Average width in bytes
+    correlation: float = 0.0  # Physical vs logical row ordering correlation
+
+
+class DataQualitySignals(BaseModel):
+    """Data quality signals derived from table statistics.
+
+    Provides actionable indicators for the AI agent:
+    - dead_tuple_ratio: high ratio indicates vacuum needed
+    - seq_scan_ratio: high ratio indicates missing indexes
+    - last_vacuum_age_hours: hours since last vacuum
+    - last_analyze_age_hours: hours since last analyze
+    - is_vacuum_needed: True if dead_tuple_ratio > 10%
+    - is_analyze_stale: True if last_analyze > 72 hours ago
+    """
+
+    dead_tuple_ratio: float = 0.0
+    seq_scan_ratio: float = 0.0
+    last_vacuum_age_hours: float | None = None
+    last_analyze_age_hours: float | None = None
+    is_vacuum_needed: bool = False
+    is_analyze_stale: bool = False
+
+
 class SchemaSnapshot(BaseModel):
     """Complete snapshot of a single database schema at a point in time.
 
@@ -152,12 +342,25 @@ class SchemaSnapshot(BaseModel):
 
     snapshot_id: str  # Timestamp-based, never random — e.g. "ddl_20240101_120000"
     captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    source: Literal["ddl", "live_db", "composed"]
+    source: Literal["ddl", "live_db", "composed", "desired_state"]
     database_type: str = "postgresql"
     schema_name: str = "public"  # The single schema this snapshot covers
+    environment: str = "default"  # e.g. "dev", "staging", "prod"
+    is_desired_state: bool = False  # True if this represents desired (target) state
     tables: dict[str, TableSnapshot] = Field(default_factory=dict)
     views: dict[str, ViewSnapshot] = Field(default_factory=dict)
     triggers: dict[str, TriggerSnapshot] = Field(default_factory=dict)
+    sequences: dict[str, SequenceSnapshot] = Field(default_factory=dict)
+    enums: dict[str, EnumSnapshot] = Field(default_factory=dict)
+    functions: dict[str, FunctionSnapshot] = Field(default_factory=dict)
+    table_statistics: dict[str, TableStatistics] = Field(default_factory=dict)
+    index_statistics: dict[str, IndexStatistics] = Field(default_factory=dict)
+    extensions: dict[str, ExtensionSnapshot] = Field(default_factory=dict)
+    permissions: list[PermissionSnapshot] = Field(default_factory=list)
+    policies: dict[str, PolicySnapshot] = Field(default_factory=dict)
+    partitions: dict[str, list[PartitionInfo]] = Field(default_factory=dict)
+    materialized_views: dict[str, MaterializedViewSnapshot] = Field(default_factory=dict)
+    column_statistics: dict[str, list[ColumnStatistics]] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -172,7 +375,7 @@ class DependencySource(BaseModel):
     No edge may exist without proof of origin.
     """
 
-    source_type: Literal["dbt_manifest", "sql_ast", "view_definition", "fk_constraint"]
+    source_type: Literal["dbt_manifest", "sql_ast", "view_definition", "fk_constraint", "trigger_definition"]
     confidence: float = Field(..., ge=0.0, le=1.0)
     file_path: str | None = None
     line_number: int | None = None
@@ -195,14 +398,17 @@ class DependencySource(BaseModel):
 class DependencyEdge(BaseModel):
     """A directed dependency between two schema elements.
 
-    Direction semantics:
-        from_element is UPSTREAM (depended upon).
-        to_element is DOWNSTREAM (depends on from_element).
+    Direction semantics (consistent across ALL extractors):
+        from_element = UPSTREAM (depended upon, data source).
+        to_element   = DOWNSTREAM (depends on from_element, data consumer).
+
+    BFS downstream traversal follows from_element → to_element.
+    BFS upstream traversal follows to_element → from_element.
 
     Example: FK orders.user_id → users.id means
-        from_element="orders.user_id" (downstream, has the FK)
-        to_element="users.id" (upstream, referenced)
-        direction="upstream"
+        from_element="users.id"       (upstream, referenced)
+        to_element="orders.user_id"   (downstream, has the FK)
+        direction="downstream"
 
     Every edge MUST have ≥1 source. Edges without proof are forbidden.
     final_confidence = max(source confidences), never averaged.
@@ -267,8 +473,12 @@ class SchemaChangeEvent(BaseModel):
         "table_added",
         "table_dropped",
         "table_renamed",
+        "pk_added",
+        "pk_dropped",
+        "pk_changed",
         "index_added",
         "index_dropped",
+        "index_changed",
         "fk_added",
         "fk_dropped",
         "fk_action_change",
@@ -278,6 +488,29 @@ class SchemaChangeEvent(BaseModel):
         "trigger_added",
         "trigger_dropped",
         "trigger_changed",
+        "sequence_added",
+        "sequence_dropped",
+        "sequence_changed",
+        "enum_added",
+        "enum_dropped",
+        "enum_value_added",
+        "enum_value_removed",
+        "function_added",
+        "function_dropped",
+        "function_changed",
+        "extension_added",
+        "extension_dropped",
+        "extension_version_changed",
+        "permission_granted",
+        "permission_revoked",
+        "policy_added",
+        "policy_dropped",
+        "policy_changed",
+        "partition_added",
+        "partition_dropped",
+        "matview_added",
+        "matview_dropped",
+        "matview_definition_changed",
     ]
     table: str
     column: str | None = None
@@ -362,12 +595,19 @@ class ContextPackage(BaseModel):
     """
 
     schema_change: SchemaChangeEvent
+    environment: str = "default"  # Environment this context was assembled from
     impacted_dependencies: list[ImpactAssessment] = Field(default_factory=list)
     impact_metrics: ImpactMetrics = Field(default_factory=ImpactMetrics)
     dependency_coverage: DependencyCoverage = Field(default_factory=DependencyCoverage)
     context_quality: Literal["complete", "partial", "insufficient"] = "complete"
     context_gaps: ContextGaps | None = None
     upstream_impacts: list[ImpactAssessment] = Field(default_factory=list)
+    affected_table_stats: TableStatistics | None = None
+    affected_index_stats: list[IndexStatistics] = Field(default_factory=list)
+    affected_column_stats: list[ColumnStatistics] = Field(default_factory=list)
+    affected_permissions: list[PermissionSnapshot] = Field(default_factory=list)
+    affected_functions: list[FunctionSnapshot] = Field(default_factory=list)
+    data_quality_signals: DataQualitySignals | None = None
 
 
 # =============================================================================
@@ -481,6 +721,45 @@ class VerificationReport(BaseModel):
     requires_rollback: bool = False
     requires_human_escalation: bool = False
     verified_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# =============================================================================
+# Desired State + Migration Models (Infrastructure)
+# =============================================================================
+
+
+class MigrationGap(BaseModel):
+    """Gap between current schema state and desired target state.
+
+    Produced by diffing a live/DDL snapshot against a desired-state snapshot.
+    The changes list describes what migrations are needed to reach the target.
+    """
+
+    current_snapshot_id: str
+    desired_snapshot_id: str
+    environment: str = "default"
+    changes: list[SchemaChangeEvent] = Field(default_factory=list)
+    detected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class MigrationRecord(BaseModel):
+    """Record of a single migration applied to an environment.
+
+    Tracks what was applied, where, when, and whether it succeeded.
+    The checksum enables duplicate detection across environments.
+    """
+
+    migration_id: str
+    project_id: str
+    environment: str = "default"
+    migration_type: Literal["ddl_script", "alter_table", "data_migration", "rollback"]
+    migration_sql: str | None = None
+    checksum: str  # SHA256 of whitespace-normalized SQL
+    applied_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    applied_by: str | None = None
+    execution_time_ms: int | None = None
+    success: bool = True
+    error_message: str | None = None
 
 
 # =============================================================================

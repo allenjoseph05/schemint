@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # API
     api_v1_prefix: str = "/api/v1"
 
-    # AI (Claude)
+    # Claude AI settings
     claude_api_key: str | None = None
     claude_model: str = "claude-sonnet-4-20250514"
     claude_model_simple: str = "claude-haiku-4-5-20251001"  # 1-3 tables

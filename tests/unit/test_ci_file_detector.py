@@ -2,10 +2,8 @@
 Tests for CI File Detector.
 """
 
-import pytest
 
 from schemint.ci.file_detector import (
-    DEFAULT_PATTERNS,
     DetectedFile,
     DetectionResult,
     SQLFileDetector,

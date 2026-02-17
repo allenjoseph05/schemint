@@ -7,13 +7,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from schemint.models.issue import Issue, IssueSeverity
+from schemint.models.schema import Table
+
 
 def _utc_now() -> datetime:
     """Get current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
-
-from schemint.models.issue import Issue, IssueSeverity
-from schemint.models.schema import Table
 
 
 class AnalysisContext(BaseModel):

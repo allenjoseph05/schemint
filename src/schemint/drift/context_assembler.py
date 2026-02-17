@@ -30,6 +30,7 @@ from schemint.drift.constants import (
 from schemint.drift.models import (
     ContextGaps,
     ContextPackage,
+    DataQualitySignals,
     DependencyCoverage,
     DependencyGraph,
     ImpactAssessment,
@@ -38,22 +39,53 @@ from schemint.drift.models import (
     SchemaChangeEvent,
     SchemaDiffResult,
     SchemaSnapshot,
+    TableStatistics,
 )
 
 
 @dataclass
 class CriticalityThresholds:
-    """Configurable thresholds for computing criticality from downstream count.
+    """Configurable thresholds for computing criticality from downstream count and table size.
 
     Avoids hardcoded magic numbers. Users can tune these per project.
+    Size thresholds allow large tables (by row count or byte size) to
+    escalate criticality even with zero downstream dependencies.
     """
 
     critical: int = 10
     high: int = 5
     medium: int = 2
 
-    def compute(self, downstream_table_count: int) -> str:
-        """Map downstream table count to criticality level."""
+    # Row count thresholds
+    critical_row_count: int = 100_000_000  # 100M rows
+    high_row_count: int = 10_000_000  # 10M rows
+    medium_row_count: int = 1_000_000  # 1M rows
+
+    # Byte size thresholds
+    critical_size_bytes: int = 10 * 1024 * 1024 * 1024  # 10GB
+    high_size_bytes: int = 1 * 1024 * 1024 * 1024  # 1GB
+    medium_size_bytes: int = 100 * 1024 * 1024  # 100MB
+
+    def compute(
+        self,
+        downstream_table_count: int,
+        table_stats: TableStatistics | None = None,
+    ) -> str:
+        """Map downstream table count and table size to criticality level.
+
+        Returns the maximum of dependency-based and size-based criticality.
+        Backward compatible: table_stats defaults to None.
+        """
+        dep_criticality = self._from_deps(downstream_table_count)
+
+        if table_stats is None:
+            return dep_criticality
+
+        size_criticality = self._from_size(table_stats)
+        return self._max_criticality(dep_criticality, size_criticality)
+
+    def _from_deps(self, downstream_table_count: int) -> str:
+        """Criticality from downstream dependency count."""
         if downstream_table_count > self.critical:
             return "critical"
         if downstream_table_count > self.high:
@@ -61,6 +93,32 @@ class CriticalityThresholds:
         if downstream_table_count > self.medium:
             return "medium"
         return "low"
+
+    def _from_size(self, stats: TableStatistics) -> str:
+        """Criticality from table size (row count and byte size)."""
+        row_level = "low"
+        if stats.row_count >= self.critical_row_count:
+            row_level = "critical"
+        elif stats.row_count >= self.high_row_count:
+            row_level = "high"
+        elif stats.row_count >= self.medium_row_count:
+            row_level = "medium"
+
+        size_level = "low"
+        if stats.total_size_bytes >= self.critical_size_bytes:
+            size_level = "critical"
+        elif stats.total_size_bytes >= self.high_size_bytes:
+            size_level = "high"
+        elif stats.total_size_bytes >= self.medium_size_bytes:
+            size_level = "medium"
+
+        return self._max_criticality(row_level, size_level)
+
+    @staticmethod
+    def _max_criticality(a: str, b: str) -> str:
+        """Return the higher criticality level."""
+        order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+        return a if order.get(a, 0) >= order.get(b, 0) else b
 
 
 class ContextAssembler:
@@ -134,7 +192,7 @@ class ContextAssembler:
 
         # Aggregate upstream impacts
         upstream_table_impacts: dict[str, _TableAgg] = {}
-        for element, depth, usage, confidence in upstream_results:
+        for element, _depth, usage, confidence in upstream_results:
             table = element.split(".")[0]
             if table not in upstream_table_impacts:
                 upstream_table_impacts[table] = _TableAgg()
@@ -153,15 +211,18 @@ class ContextAssembler:
                 confidence=agg.max_confidence,
             ))
 
-        # Compute criticality with configurable thresholds
+        # Attach table statistics for the affected table (needed for criticality)
+        affected_table_stats = schema.table_statistics.get(change.table)
+
+        # Compute criticality with configurable thresholds (includes table size)
         num_downstream = len(downstream_tables)
-        criticality = self.thresholds.compute(num_downstream)
+        criticality = self.thresholds.compute(num_downstream, affected_table_stats)
 
         metrics = ImpactMetrics(
             downstream_tables=len(downstream_tables),
             downstream_columns=len(downstream_columns),
             max_depth=max_depth,
-            criticality=criticality,
+            criticality=criticality,  # type: ignore[arg-type]
         )
 
         # Compute coverage (uses extracted CoverageComputer — no circular import)
@@ -178,14 +239,42 @@ class ContextAssembler:
             change, graph, schema, coverage, impacted, parse_health
         )
 
+        # Attach index statistics for affected table's indexes
+        affected_index_stats = [
+            stat for stat in schema.index_statistics.values()
+            if stat.table_name == change.table
+        ]
+
+        # Attach column statistics for the affected table
+        affected_column_stats = schema.column_statistics.get(change.table, [])
+
+        # Attach permissions for the affected table
+        affected_permissions = [
+            perm for perm in schema.permissions
+            if perm.table_name == change.table
+        ]
+
+        # Attach functions that reference the affected table
+        affected_functions = [
+            fn for fn in schema.functions.values()
+            if fn.definition and change.table in fn.definition
+        ]
+
         return ContextPackage(
             schema_change=change,
+            environment=schema.environment,
             impacted_dependencies=impacted,
             impact_metrics=metrics,
             dependency_coverage=coverage,
-            context_quality=context_quality,
+            context_quality=context_quality,  # type: ignore[arg-type]
             context_gaps=context_gaps,
             upstream_impacts=upstream_impacts,
+            affected_table_stats=affected_table_stats,
+            affected_index_stats=affected_index_stats,
+            affected_column_stats=affected_column_stats,
+            affected_permissions=affected_permissions,
+            affected_functions=affected_functions,
+            data_quality_signals=self._compute_data_quality_signals(affected_table_stats),
         )
 
     def assemble_all(
@@ -211,6 +300,11 @@ class ContextAssembler:
         plus the bare table name, so BFS can find all downstream edges.
         For view changes: uses the view name as a seed.
         For trigger changes: uses the trigger's table as a seed.
+        For sequence changes: finds tables with nextval('seq') defaults.
+        For enum changes: finds columns using that enum type.
+        For function changes: finds triggers/views referencing the function.
+        For matview changes: seeds with source tables.
+        For extension/permission/policy/partition: seeds with the table name.
         """
         ct = change.change_type
 
@@ -232,14 +326,126 @@ class ContextAssembler:
                     seeds.append(f"{change.table}.{col_name}")
             return seeds
 
+        # Sequence changes — find tables using nextval('seq_name')
+        if ct in ("sequence_added", "sequence_dropped", "sequence_changed"):
+            seq_name = change.table
+            seeds = [seq_name]
+            for tbl_name, tbl_snap in schema.tables.items():
+                for col_snap in tbl_snap.columns.values():
+                    if col_snap.default and seq_name in col_snap.default:
+                        seeds.append(tbl_name)
+                        seeds.append(f"{tbl_name}.{col_snap.name}")
+            return seeds
+
+        # Enum changes — find columns using that enum type
+        if ct in ("enum_added", "enum_dropped", "enum_value_added", "enum_value_removed"):
+            enum_name = change.table
+            seeds = [enum_name]
+            for tbl_name, tbl_snap in schema.tables.items():
+                for col_snap in tbl_snap.columns.values():
+                    if col_snap.type == enum_name:
+                        seeds.append(tbl_name)
+                        seeds.append(f"{tbl_name}.{col_snap.name}")
+            return seeds
+
+        # Function changes — find triggers/views referencing the function
+        if ct in ("function_added", "function_dropped", "function_changed"):
+            fn_name = change.table
+            seeds = [fn_name]
+            for trigger in schema.triggers.values():
+                if trigger.function_name == fn_name:
+                    seeds.append(trigger.table)
+            for view in schema.views.values():
+                if fn_name in view.definition:
+                    seeds.append(view.name)
+            return seeds
+
+        # Materialized view changes — seed with source tables
+        if ct in ("matview_added", "matview_dropped", "matview_definition_changed"):
+            mv_name = change.table
+            seeds = [mv_name]
+            mv_snap = schema.materialized_views.get(mv_name)
+            if mv_snap:
+                for src_table in mv_snap.source_tables:
+                    seeds.append(src_table)
+            return seeds
+
+        # Extension/permission/policy/partition — seed with table name
+        if ct in (
+            "extension_added", "extension_dropped", "extension_version_changed",
+            "permission_granted", "permission_revoked",
+            "policy_added", "policy_dropped", "policy_changed",
+            "partition_added", "partition_dropped",
+        ):
+            return self._expand_table_seeds(change.table, schema)
+
         if change.column:
             return [f"{change.table}.{change.column}"]
 
-        seeds = [change.table]
-        table_snap = schema.tables.get(change.table)
+        return self._expand_table_seeds(change.table, schema)
+
+    @staticmethod
+    def _compute_data_quality_signals(
+        table_stats: TableStatistics | None,
+    ) -> DataQualitySignals | None:
+        """Derive data quality signals from table statistics.
+
+        Returns None if no stats are available. Otherwise computes:
+        - dead_tuple_ratio: dead_tuples / (row_count + dead_tuples)
+        - seq_scan_ratio: seq_scans / (seq_scans + idx_scans)
+        - is_vacuum_needed: dead_tuple_ratio > 10%
+        - is_analyze_stale: last_analyze > 72 hours ago
+        """
+        if table_stats is None:
+            return None
+
+        total_rows = table_stats.row_count + table_stats.dead_tuples
+        dead_tuple_ratio = (
+            table_stats.dead_tuples / total_rows if total_rows > 0 else 0.0
+        )
+
+        total_scans = table_stats.seq_scan_count + table_stats.idx_scan_count
+        seq_scan_ratio = (
+            table_stats.seq_scan_count / total_scans if total_scans > 0 else 0.0
+        )
+
+        last_vacuum_age_hours: float | None = None
+        if table_stats.last_vacuum:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            delta = now - table_stats.last_vacuum.replace(tzinfo=timezone.utc) if table_stats.last_vacuum.tzinfo is None else now - table_stats.last_vacuum
+            last_vacuum_age_hours = delta.total_seconds() / 3600
+
+        last_analyze_age_hours: float | None = None
+        if table_stats.last_analyze:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            delta = now - table_stats.last_analyze.replace(tzinfo=timezone.utc) if table_stats.last_analyze.tzinfo is None else now - table_stats.last_analyze
+            last_analyze_age_hours = delta.total_seconds() / 3600
+
+        is_vacuum_needed = dead_tuple_ratio > 0.1
+        is_analyze_stale = (
+            last_analyze_age_hours is not None and last_analyze_age_hours > 72
+        )
+
+        return DataQualitySignals(
+            dead_tuple_ratio=dead_tuple_ratio,
+            seq_scan_ratio=seq_scan_ratio,
+            last_vacuum_age_hours=last_vacuum_age_hours,
+            last_analyze_age_hours=last_analyze_age_hours,
+            is_vacuum_needed=is_vacuum_needed,
+            is_analyze_stale=is_analyze_stale,
+        )
+
+    def _expand_table_seeds(
+        self, table_name: str, schema: SchemaSnapshot
+    ) -> list[str]:
+        """Expand a table name to seeds including all its columns."""
+        seeds = [table_name]
+        table_snap = schema.tables.get(table_name)
         if table_snap:
             for col_name in table_snap.columns:
-                seeds.append(f"{change.table}.{col_name}")
+                seeds.append(f"{table_name}.{col_name}")
         return seeds
 
     def _traverse_downstream(
@@ -353,7 +559,7 @@ class ContextAssembler:
         graph: DependencyGraph,
         schema: SchemaSnapshot,
         coverage: DependencyCoverage,
-        impacted: list[ImpactAssessment],
+        _impacted: list[ImpactAssessment],
         parse_health: ParseHealth | None,
     ) -> ContextGaps:
         """Explicitly surface what information is missing from context.

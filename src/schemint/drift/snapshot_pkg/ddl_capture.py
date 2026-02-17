@@ -6,6 +6,7 @@ Handles parsing DDL SQL strings into SchemaSnapshot models.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Literal
 
 from schemint.core.parser.sql_parser import parse_sql
 from schemint.drift.models import (
@@ -14,6 +15,13 @@ from schemint.drift.models import (
     TableSnapshot,
 )
 from schemint.drift.snapshot_pkg.check_constraints import extract_check_constraints
+from schemint.drift.snapshot_pkg.ddl_object_capture import (
+    extract_enums_from_ddl,
+    extract_extensions_from_ddl,
+    extract_functions_from_ddl,
+    extract_materialized_views_from_ddl,
+    extract_sequences_from_ddl,
+)
 from schemint.drift.snapshot_pkg.view_capture import extract_views_from_ddl
 from schemint.drift.types import canonicalize_type
 from schemint.models.schema import ParsedSchema
@@ -41,12 +49,17 @@ class DDLSnapshotCapture:
             check_constraints=check_constraints,
         )
         snapshot.views = extract_views_from_ddl(sql)
+        snapshot.sequences = extract_sequences_from_ddl(sql)
+        snapshot.enums = extract_enums_from_ddl(sql)
+        snapshot.functions = extract_functions_from_ddl(sql)
+        snapshot.materialized_views = extract_materialized_views_from_ddl(sql)
+        snapshot.extensions = extract_extensions_from_ddl(sql)
         return snapshot
 
     def _parsed_schema_to_snapshot(
         self,
         schema: ParsedSchema,
-        source: str,
+        source: Literal["ddl", "live_db", "composed", "desired_state"],
         schema_name: str = "public",
         check_constraints: dict[str, list[str]] | None = None,
     ) -> SchemaSnapshot:
@@ -107,8 +120,8 @@ class DDLSnapshotCapture:
                 name=table.name,
                 columns=columns,
                 primary_key=table.primary_key,
-                indexes=indexes,
-                foreign_keys=foreign_keys,
+                indexes=list(indexes),
+                foreign_keys=list(foreign_keys),
             )
 
         return SchemaSnapshot(

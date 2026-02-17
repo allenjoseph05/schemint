@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from typing import Any
 
 from schemint.drift.constants import CONFIDENCE_DBT
 from schemint.drift.models import (
@@ -25,7 +26,7 @@ class DbtEdgeExtractor:
         nodes = manifest.get("nodes", {})
         sources = manifest.get("sources", {})
 
-        for node_id, node in nodes.items():
+        for _node_id, node in nodes.items():
             if node.get("resource_type") not in ("model", "snapshot", "seed"):
                 continue
 
@@ -75,11 +76,11 @@ class DbtEdgeExtractor:
 
         return edges
 
-    def _dbt_fqn(self, node: dict) -> str:
+    def _dbt_fqn(self, node: dict[str, Any]) -> str:
         """Build a fully-qualified name from dbt node metadata."""
-        name = node.get("name", "")
-        schema = node.get("schema", "")
-        database = node.get("database", "")
+        name: str = node.get("name", "")
+        schema: str = node.get("schema", "")
+        database: str = node.get("database", "")
 
         if database and schema:
             return f"{database}.{schema}.{name}"

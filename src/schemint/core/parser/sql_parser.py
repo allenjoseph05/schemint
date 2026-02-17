@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import ClassVar
 
 import sqlparse
 from sqlparse.sql import Parenthesis, Statement
@@ -20,14 +21,13 @@ from schemint.models.schema import (
 class SQLParserError(Exception):
     """Error during SQL parsing."""
 
-    pass
 
 
 class SQLParser:
     """Parses SQL CREATE TABLE statements into structured schema."""
 
     # Map SQL types to our DataType enum
-    TYPE_MAP: dict[str, DataType] = {
+    TYPE_MAP: ClassVar[dict[str, DataType]] = {
         "int": DataType.INT,
         "integer": DataType.INT,
         "bigint": DataType.BIGINT,
@@ -111,14 +111,14 @@ class SQLParser:
 
     def _is_create_table(self, statement: Statement) -> bool:
         """Check if statement is CREATE TABLE."""
-        from sqlparse import tokens as T
+        from sqlparse import tokens as sqlparse_tokens
 
         # Skip whitespace and comments to find the first real tokens
         tokens = [
             t for t in statement.tokens
-            if not t.is_whitespace and t.ttype not in (T.Comment.Single, T.Comment.Multiline)
+            if not t.is_whitespace and t.ttype not in (sqlparse_tokens.Comment.Single, sqlparse_tokens.Comment.Multiline)
             and not (hasattr(t, 'tokens') and all(
-                getattr(sub, 'ttype', None) in (T.Comment.Single, T.Comment.Multiline, T.Newline, T.Whitespace)
+                getattr(sub, 'ttype', None) in (sqlparse_tokens.Comment.Single, sqlparse_tokens.Comment.Multiline, sqlparse_tokens.Newline, sqlparse_tokens.Whitespace)
                 for sub in t.flatten()
             ))
         ]

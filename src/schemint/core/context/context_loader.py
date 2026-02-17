@@ -18,11 +18,11 @@ from schemint.core.context.models import (
 
 # Try to import YAML support
 try:
-    import yaml
+    import yaml  # type: ignore[import-untyped]
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
-    yaml = None  # type: ignore[assignment]
+    yaml = None
 
 
 class ContextLoader:
@@ -280,5 +280,4 @@ def load_context(source: str | Path | dict[str, Any]) -> ProjectContext:
 
     if path.is_dir():
         return loader.load_from_directory(path)
-    else:
-        return loader.load_from_file(path)
+    return loader.load_from_file(path)

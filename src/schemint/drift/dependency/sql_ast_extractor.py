@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 import sqlglot
 from sqlglot import exp as sqlglot_exp
@@ -79,7 +80,7 @@ class SqlAstEdgeExtractor:
         return all_edges, health
 
     def _extract_join_edges(
-        self, statement, aliases: dict[str, str],
+        self, statement: Any, aliases: dict[str, str],
         now: datetime, file_path: str | None,
     ) -> list[DependencyEdge]:
         """Extract edges from JOIN ON conditions."""
@@ -124,7 +125,7 @@ class SqlAstEdgeExtractor:
         return edges
 
     def _extract_where_edges(
-        self, statement, aliases: dict[str, str],
+        self, statement: Any, aliases: dict[str, str],
         now: datetime, file_path: str | None,
     ) -> list[DependencyEdge]:
         """Extract edges from WHERE clause column=column comparisons."""
@@ -178,7 +179,7 @@ class SqlAstEdgeExtractor:
         return edges
 
     def _extract_cte_edges(
-        self, statement, now: datetime, file_path: str | None
+        self, statement: Any, now: datetime, file_path: str | None
     ) -> list[DependencyEdge]:
         """Extract edges from CTE (WITH ... AS) definitions."""
         edges: list[DependencyEdge] = []
@@ -215,7 +216,7 @@ class SqlAstEdgeExtractor:
         return edges
 
     def _extract_subquery_edges(
-        self, statement, now: datetime, file_path: str | None
+        self, statement: Any, now: datetime, file_path: str | None
     ) -> list[DependencyEdge]:
         """Extract table references from subqueries."""
         edges: list[DependencyEdge] = []
@@ -249,7 +250,7 @@ class SqlAstEdgeExtractor:
         return edges
 
     def _extract_insert_select_edges(
-        self, statement, now: datetime, file_path: str | None
+        self, statement: Any, now: datetime, file_path: str | None
     ) -> list[DependencyEdge]:
         """Extract dependencies from INSERT INTO ... SELECT ... FROM."""
         edges: list[DependencyEdge] = []

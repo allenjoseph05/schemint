@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import Any
 
 from sqlglot import exp as sqlglot_exp
 
@@ -24,7 +25,7 @@ class ColumnLineageExtractor:
     """Extract column-level lineage from SELECT clauses."""
 
     def extract(
-        self, statement, now: datetime, file_path: str | None
+        self, statement: Any, now: datetime, file_path: str | None
     ) -> list[DependencyEdge]:
         """Extract column-level lineage from a SQL statement."""
         edges: list[DependencyEdge] = []
@@ -80,7 +81,7 @@ class ColumnLineageExtractor:
 
         return edges
 
-    def _determine_target_name(self, statement) -> str | None:
+    def _determine_target_name(self, statement: Any) -> str | None:
         """Determine the target name for column lineage edges."""
         if isinstance(statement, sqlglot_exp.Insert):
             table = statement.find(sqlglot_exp.Table)
@@ -103,7 +104,7 @@ class ColumnLineageExtractor:
         return None
 
     def _extract_select_column_lineage(
-        self, select_node, aliases: dict[str, str],
+        self, select_node: Any, aliases: dict[str, str],
         target_name: str, now: datetime, file_path: str | None,
     ) -> list[DependencyEdge]:
         """Extract column-level lineage from a SELECT clause."""
@@ -114,7 +115,7 @@ class ColumnLineageExtractor:
             output_name = self._get_output_name(expr)
 
             if isinstance(expr, sqlglot_exp.Star):
-                for alias_name, real_table in aliases.items():
+                for _alias_name, real_table in aliases.items():
                     edges.append(DependencyEdge(
                         from_element=f"{real_table}.*",
                         to_element=f"{target_name}.*",
@@ -170,7 +171,7 @@ class ColumnLineageExtractor:
         return edges
 
     def _extract_insert_column_lineage(
-        self, select_node, aliases: dict[str, str],
+        self, select_node: Any, aliases: dict[str, str],
         target_table: str, insert_cols: list[str],
         now: datetime, file_path: str | None,
     ) -> list[DependencyEdge]:
@@ -209,7 +210,7 @@ class ColumnLineageExtractor:
 
         return edges
 
-    def _get_output_name(self, expr) -> str | None:
+    def _get_output_name(self, expr: Any) -> str | None:
         """Get the output column name from a SELECT expression."""
         if hasattr(expr, "alias") and expr.alias:
             return str(expr.alias).lower()

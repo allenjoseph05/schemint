@@ -7,6 +7,7 @@ and dependency_graph.py. Uses sqlglot for deterministic AST parsing.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import sqlglot
 from sqlglot import exp as sqlglot_exp
@@ -41,7 +42,7 @@ def extract_tables_from_sql(sql: str, context: str = "unknown") -> list[str]:
     return sorted(tables)
 
 
-def extract_aliases_from_ast(statement) -> dict[str, str]:
+def extract_aliases_from_ast(statement: Any) -> dict[str, str]:
     """Extract table alias -> real table name from a sqlglot AST node.
 
     Returns a dict mapping lowercase alias -> lowercase table name.

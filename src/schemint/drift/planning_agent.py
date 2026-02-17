@@ -16,9 +16,7 @@ from typing import Any
 from schemint.config import get_settings
 from schemint.drift.action_templates import (
     get_templates_for_categories,
-    validate_action_id,
 )
-from schemint.drift.agent_brain import _sev_index
 from schemint.drift.models import (
     AgentDecision,
     ContextPackage,
@@ -122,9 +120,8 @@ class PlanningAgent:
             return self._notification_only_plan(decision, context)
 
         # Scope registry to allowed categories
-        scoped_templates = get_templates_for_categories(
-            decision.recommended_action_categories
-        )
+        cats: list[str] = list(decision.recommended_action_categories)
+        scoped_templates = get_templates_for_categories(cats)
         if not scoped_templates:
             return self._notification_only_plan(decision, context)
 
@@ -166,7 +163,7 @@ class PlanningAgent:
         self,
         decision: AgentDecision,
         context: ContextPackage,
-        scoped_templates: list,
+        scoped_templates: list[Any],
     ) -> list[PlanStep]:
         """Call Claude with scoped action templates."""
         templates_desc = "\n".join(
@@ -206,18 +203,18 @@ class PlanningAgent:
         """Extract JSON from Claude's response text."""
         text = text.strip()
         if text.startswith("{"):
-            return json.loads(text)
+            return json.loads(text)  # type: ignore[no-any-return]
         if "```json" in text:
             start = text.index("```json") + 7
             end = text.index("```", start)
-            return json.loads(text[start:end].strip())
+            return json.loads(text[start:end].strip())  # type: ignore[no-any-return]
         if "```" in text:
             start = text.index("```") + 3
             end = text.index("```", start)
-            return json.loads(text[start:end].strip())
+            return json.loads(text[start:end].strip())  # type: ignore[no-any-return]
         start = text.index("{")
         end = text.rindex("}") + 1
-        return json.loads(text[start:end])
+        return json.loads(text[start:end])  # type: ignore[no-any-return]
 
     # ----- post-processing -----
 
@@ -226,7 +223,7 @@ class PlanningAgent:
         steps: list[PlanStep],
         decision: AgentDecision,
         context: ContextPackage,
-        scoped_templates: list,
+        scoped_templates: list[Any],
     ) -> ExecutionPlan:
         """Apply deterministic invariants after Claude generates the plan."""
         scoped_ids = {t.action_id for t in scoped_templates}

@@ -82,19 +82,18 @@ async def analyze_schema(
         if request.context:
             app_type = request.context.app_type
 
-        result = analyze_sql(
+        return analyze_sql(
             sql=request.sql,
             database_type=request.database_type,
             app_type=app_type,
             project_id=project_id,
         )
-        return result
 
     except SQLParserError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse SQL: {e!s}",
-        )
+        ) from e
 
     except HTTPException:
         raise
@@ -103,14 +102,14 @@ async def analyze_schema(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/quick", response_model=dict)
 async def quick_analyze(
     request: AnalysisRequest,
     project_id: str | None = Query(None, description="Project ID for memory-enriched analysis"),
-) -> dict:
+) -> dict[str, Any]:
     """
     Quick analysis - returns just score and issue counts.
 
@@ -150,7 +149,7 @@ async def quick_analyze(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse SQL: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/with-context", response_model=AnalysisResult)
@@ -186,19 +185,18 @@ async def analyze_with_context(
         # Load project context from dict
         project_context = load_context(request.project_context)
 
-        result = analyze_sql(
+        return analyze_sql(
             sql=request.sql,
             database_type=request.database_type,
             app_type=request.app_type,
             project_context=project_context,
         )
-        return result
 
     except SQLParserError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse SQL: {e!s}",
-        )
+        ) from e
 
     except HTTPException:
         raise
@@ -207,7 +205,7 @@ async def analyze_with_context(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Context-aware analysis failed: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/validate-context", response_model=ProjectContextResponse)
@@ -244,4 +242,4 @@ async def validate_context(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid context: {e!s}",
-        )
+        ) from e

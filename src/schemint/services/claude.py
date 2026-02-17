@@ -2,23 +2,13 @@
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 
 from schemint.config import get_settings
 
 if TYPE_CHECKING:
-    from schemint.core.context.models import ProjectContext
     from schemint.memory.models import AcceptedFinding, BusinessRule, SchemaSemantics
     from schemint.models.schema import ParsedSchema
-
-# Try to import anthropic SDK
-try:
-    import anthropic
-    CLAUDE_AVAILABLE = True
-except ImportError:
-    CLAUDE_AVAILABLE = False
-    anthropic = None  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +166,7 @@ ANALYSIS_TOOL = {
 }
 
 
-def compress_schema(schema: "ParsedSchema") -> dict:
+def compress_schema(schema: ParsedSchema) -> dict[str, Any]:
     """Compress a ParsedSchema into a compact dict for the prompt.
 
     Strips null/false/default fields, shortens keys, and omits redundant data.
@@ -232,7 +222,7 @@ def compress_schema(schema: "ParsedSchema") -> dict:
     return {"tables": tables, "db": schema.database_type}
 
 
-def select_model(schema: "ParsedSchema") -> str:
+def select_model(schema: ParsedSchema) -> str:
     """Select Claude model tier based on schema complexity.
 
     - Simple  (1-3 tables, <=20 cols): Haiku  (fast, cheap)
@@ -251,10 +241,10 @@ def select_model(schema: "ParsedSchema") -> str:
 
 
 def build_memory_context(
-    accepted_findings: list["AcceptedFinding"],
-    business_rules: list["BusinessRule"],
-    schema_semantics: list["SchemaSemantics"],
-) -> dict | None:
+    accepted_findings: list[AcceptedFinding],
+    business_rules: list[BusinessRule],
+    schema_semantics: list[SchemaSemantics],
+) -> dict[str, Any] | None:
     """Build memory context dict for injection into the Claude prompt.
 
     Returns a dict with accepted_findings, business_rules, and semantics
@@ -299,267 +289,3 @@ def build_memory_context(
         ]
 
     return context
-
-
-class ClaudeAnalyzer:
-    """Analyzes schemas using Claude AI with structured tool-use output."""
-
-    def __init__(self) -> None:
-        settings = get_settings()
-
-        if not CLAUDE_AVAILABLE:
-            raise RuntimeError(
-                "anthropic not installed. "
-                "Install with: pip install anthropic"
-            )
-
-        if not settings.claude_api_key:
-            raise RuntimeError(
-                "CLAUDE_API_KEY not set. "
-                "Get your key from: https://console.anthropic.com/"
-            )
-
-        self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
-
-    async def analyze(
-        self,
-        schema: "ParsedSchema",
-        app_type: str | None = None,
-        project_context: "ProjectContext | None" = None,
-        *,
-        model_override: str | None = None,
-        memory_context: dict | None = None,
-    ) -> dict:
-        """Analyze schema using Claude AI (async wrapper).
-
-        Args:
-            schema: Parsed schema to analyze
-            app_type: Optional application type for context
-            project_context: Optional project context for schema-aware analysis
-            model_override: Force a specific model (for enterprise/manual analysis)
-            memory_context: Optional memory context from build_memory_context()
-
-        Returns:
-            Dict with structured AI analysis results
-        """
-        return self.analyze_sync(
-            schema, app_type, project_context,
-            model_override=model_override, memory_context=memory_context,
-        )
-
-    def analyze_sync(
-        self,
-        schema: "ParsedSchema",
-        app_type: str | None = None,
-        project_context: "ProjectContext | None" = None,
-        *,
-        model_override: str | None = None,
-        memory_context: dict | None = None,
-    ) -> dict:
-        """Synchronous schema analysis using Claude with tool use.
-
-        1. Compress schema to compact JSON
-        2. Select model tier (or use override)
-        3. Build user message with context + memory
-        4. Call Claude with cached system prompt + forced tool use
-        5. Extract structured result from tool_use block
-        """
-        # 1. Compress schema
-        compressed = compress_schema(schema)
-
-        # 2. Select model
-        model = model_override or select_model(schema)
-
-        # 3. Build user message
-        user_message = self._build_user_message(
-            compressed, app_type, project_context, schema.database_type,
-            memory_context=memory_context,
-        )
-
-        # 4. Call Claude with system prompt (cached) + tool use (forced)
-        try:
-            message = self.client.messages.create(
-                model=model,
-                max_tokens=4096,
-                system=[
-                    {
-                        "type": "text",
-                        "text": SYSTEM_PROMPT,
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                ],
-                messages=[{"role": "user", "content": user_message}],
-                tools=[ANALYSIS_TOOL],
-                tool_choice={"type": "tool", "name": "submit_analysis"},
-            )
-        except Exception as e:
-            return {
-                "summary": f"AI analysis failed: {e}",
-                "findings": [],
-                "issues": [],
-                "good_practices": [],
-                "recommendations": [],
-                "score": None,
-                "error": str(e),
-            }
-
-        # 5. Extract structured result from tool_use block
-        return self._extract_tool_result(message)
-
-    def _build_user_message(
-        self,
-        compressed_schema: dict,
-        app_type: str | None,
-        project_context: "ProjectContext | None",
-        database_type: str,
-        *,
-        memory_context: dict | None = None,
-    ) -> str:
-        """Build the user message with compressed schema, context, and memory."""
-        parts = ["Analyze this database schema:\n"]
-
-        parts.append(f"SCHEMA:\n{json.dumps(compressed_schema, separators=(',', ':'))}\n")
-
-        parts.append(f"DATABASE: {database_type}")
-        parts.append(f"APPLICATION TYPE: {app_type or 'general'}")
-
-        if project_context:
-            parts.append(self._build_project_context_section(project_context))
-
-        # Add memory section
-        if memory_context:
-            parts.append(
-                f"MEMORY (previously accepted findings for this project):\n"
-                f"{json.dumps(memory_context, separators=(',', ':'))}"
-            )
-        else:
-            parts.append("MEMORY: No previous findings accepted.")
-
-        return "\n\n".join(parts)
-
-    def _build_project_context_section(
-        self,
-        project_context: "ProjectContext",
-    ) -> str:
-        """Build the project context section for the prompt."""
-        sections = []
-
-        sections.append("PROJECT CONTEXT:")
-        sections.append(f"Project: {project_context.project_name}")
-
-        if project_context.description:
-            sections.append(f"Description: {project_context.description}")
-
-        # Schema metadata
-        if project_context.schema_metadata:
-            meta = project_context.schema_metadata
-            sections.append("\nKnown Schema:")
-
-            for table in meta.tables:
-                sections.append(f"\nTable: {table.name}")
-                if table.description:
-                    sections.append(f"  Purpose: {table.description}")
-
-                deprecated_cols = [c for c in table.columns if c.deprecated]
-                if deprecated_cols:
-                    sections.append("  DEPRECATED COLUMNS:")
-                    for col in deprecated_cols:
-                        msg = f"    - {col.name}"
-                        if col.deprecated_reason:
-                            msg += f": {col.deprecated_reason}"
-                        if col.renamed_to:
-                            msg += f" (renamed to: {col.renamed_to})"
-                        sections.append(msg)
-
-                renamed_cols = [c for c in table.columns if c.renamed_from]
-                if renamed_cols:
-                    sections.append("  RENAMED COLUMNS:")
-                    for col in renamed_cols:
-                        sections.append(f"    - {col.name} (was: {col.renamed_from})")
-
-        # Migration history
-        if project_context.migrations:
-            sections.append("\nRecent Schema Changes:")
-            for migration in project_context.migrations[-5:]:
-                sections.append(f"  - {migration.version}: {migration.description}")
-                if migration.deprecated_columns:
-                    for dep in migration.deprecated_columns:
-                        sections.append(f"      DEPRECATED: {dep}")
-                if migration.renamed_columns:
-                    for old, new in migration.renamed_columns.items():
-                        sections.append(f"      RENAMED: {old} -> {new}")
-
-        # Conventions
-        if project_context.conventions:
-            conv = project_context.conventions
-            sections.append("\nProject Conventions:")
-
-            if conv.naming_conventions:
-                sections.append("  Naming:")
-                for key, value in conv.naming_conventions.items():
-                    sections.append(f"    - {key}: {value}")
-
-            if conv.required_columns:
-                sections.append(
-                    f"  Required columns: {', '.join(conv.required_columns)}"
-                )
-
-            if conv.forbidden_column_names:
-                sections.append(
-                    f"  Forbidden names: {', '.join(conv.forbidden_column_names)}"
-                )
-
-            if conv.preferred_types:
-                sections.append("  Preferred types:")
-                for purpose, dtype in conv.preferred_types.items():
-                    sections.append(f"    - {purpose}: {dtype}")
-
-        sections.append("\nIMPORTANT:")
-        sections.append("- Flag any queries that reference deprecated columns")
-        sections.append("- Suggest using renamed columns instead of old names")
-        sections.append("- Enforce project-specific conventions")
-
-        return "\n".join(sections)
-
-    def _extract_tool_result(self, message: Any) -> dict:
-        """Extract the structured analysis from a tool_use response block."""
-        for block in message.content:
-            if block.type == "tool_use" and block.name == "submit_analysis":
-                result = block.input
-                # Normalize: map 'findings' to 'issues' key for backward compat
-                if "findings" in result and "issues" not in result:
-                    result["issues"] = result["findings"]
-                return result
-
-        # Fallback: no tool_use block found (shouldn't happen with forced tool)
-        response_text = ""
-        for block in message.content:
-            if block.type == "text":
-                response_text += block.text
-
-        return {
-            "summary": "AI analysis returned unexpected format",
-            "findings": [],
-            "issues": [],
-            "good_practices": [],
-            "recommendations": [],
-            "score": None,
-            "error": "No tool_use block in response",
-            "raw_response": response_text[:500],
-        }
-
-
-def get_claude_analyzer() -> ClaudeAnalyzer | None:
-    """Get Claude analyzer if available and configured."""
-    settings = get_settings()
-
-    if not settings.ai_enabled:
-        return None
-
-    if not CLAUDE_AVAILABLE:
-        return None
-
-    try:
-        return ClaudeAnalyzer()
-    except Exception:
-        return None

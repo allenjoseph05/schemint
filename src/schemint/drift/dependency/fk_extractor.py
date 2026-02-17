@@ -1,4 +1,16 @@
-"""FK constraint edge extraction — extracted from DependencyGraphBuilder."""
+"""FK constraint edge extraction — extracted from DependencyGraphBuilder.
+
+Edge direction convention (consistent with all other extractors):
+    from_element = UPSTREAM (referenced/depended-upon table)
+    to_element   = DOWNSTREAM (dependent table that holds the FK)
+
+Example: orders.user_id → users.id FK produces:
+    from_element = "users.id"     (upstream, referenced)
+    to_element   = "orders.user_id" (downstream, holds the FK)
+
+This ensures BFS downstream from "users.id" correctly discovers
+"orders.user_id" as a downstream dependent.
+"""
 
 from __future__ import annotations
 
@@ -13,10 +25,20 @@ from schemint.drift.models import (
 
 
 class FKEdgeExtractor:
-    """Extract dependency edges from FK constraints in a snapshot."""
+    """Extract dependency edges from FK constraints in a snapshot.
+
+    Edges flow from the referenced (upstream) table to the dependent
+    (downstream) table, matching the convention used by all other
+    extractors (view, CTE, dbt, trigger, etc.).
+    """
 
     def extract(self, schema: SchemaSnapshot) -> list[DependencyEdge]:
-        """Extract FK edges. Confidence = 1.0 (highest)."""
+        """Extract FK edges. Confidence = 1.0 (highest).
+
+        For each FK on table T referencing table R:
+            from_element = R.col  (upstream, referenced)
+            to_element   = T.col  (downstream, dependent)
+        """
         edges: list[DependencyEdge] = []
         now = datetime.now(timezone.utc)
 
@@ -30,9 +52,9 @@ class FKEdgeExtractor:
                     continue
 
                 edges.append(DependencyEdge(
-                    from_element=f"{table_name}.{col}",
-                    to_element=f"{ref_table}.{ref_col}",
-                    direction="upstream",
+                    from_element=f"{ref_table}.{ref_col}",
+                    to_element=f"{table_name}.{col}",
+                    direction="downstream",
                     usage_type="fk",
                     sources=[DependencySource(
                         source_type="fk_constraint",

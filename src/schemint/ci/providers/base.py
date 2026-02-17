@@ -7,8 +7,6 @@ Abstract base class for git provider integrations.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from schemint.ci.models import FileChange
-
 
 @dataclass
 class DiffFile:
@@ -65,7 +63,6 @@ class BaseGitProvider(ABC):
         Returns:
             List of files that changed
         """
-        pass
 
     @abstractmethod
     async def get_file_content(
@@ -85,7 +82,6 @@ class BaseGitProvider(ABC):
         Returns:
             File content or None if not found
         """
-        pass
 
     @abstractmethod
     async def set_check_status(
@@ -105,7 +101,6 @@ class BaseGitProvider(ABC):
         Returns:
             True if successful
         """
-        pass
 
     def _is_sql_file(self, path: str) -> bool:
         """Check if a file path is a SQL-related file."""

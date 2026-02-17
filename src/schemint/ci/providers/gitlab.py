@@ -228,12 +228,11 @@ class GitLabProvider(BaseGitProvider):
         """Determine the change type from GitLab diff data."""
         if diff.get("new_file"):
             return "added"
-        elif diff.get("deleted_file"):
+        if diff.get("deleted_file"):
             return "deleted"
-        elif diff.get("renamed_file"):
+        if diff.get("renamed_file"):
             return "modified"
-        else:
-            return "modified"
+        return "modified"
 
     def _map_status(self, status: str) -> str:
         """Map our status to GitLab commit status state."""

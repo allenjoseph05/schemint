@@ -10,7 +10,7 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from schemint.config import get_settings
@@ -49,7 +49,7 @@ def _map_ai_severity(severity: str) -> IssueSeverity:
     return severity_map.get(severity.lower(), IssueSeverity.SUGGESTION)
 
 
-def _convert_ai_issues(ai_issues: list[dict]) -> list[Issue]:
+def _convert_ai_issues(ai_issues: list[dict[str, Any]]) -> list[Issue]:
     """Convert AI response issues to Issue models."""
     issues = []
     for ai_issue in ai_issues:
@@ -102,7 +102,7 @@ def _resolve_project_id(project_id: str) -> UUID | None:
     return None
 
 
-def _retrieve_memory(project_id: str) -> dict | None:
+def _retrieve_memory(project_id: str) -> dict[str, Any] | None:
     """Retrieve memory context for a project. Returns None on any failure."""
     try:
         resolved_id = _resolve_project_id(project_id)
@@ -127,7 +127,7 @@ def _retrieve_memory(project_id: str) -> dict | None:
 def analyze_schema(
     schema: ParsedSchema,
     app_type: str | None = None,
-    project_context: "ProjectContext | None" = None,
+    project_context: ProjectContext | None = None,
     project_id: str | None = None,
 ) -> AnalysisResult:
     """
@@ -155,7 +155,7 @@ def analyze_schema(
     suppressed_count = 0
 
     # Retrieve memory context if project_id is provided
-    memory_context: dict | None = None
+    memory_context: dict[str, Any] | None = None
     if project_id:
         memory_context = _retrieve_memory(project_id)
 
@@ -290,7 +290,7 @@ def analyze_sql(
     sql: str,
     database_type: str = "mysql",
     app_type: str | None = None,
-    project_context: "ProjectContext | None" = None,
+    project_context: ProjectContext | None = None,
     project_id: str | None = None,
 ) -> AnalysisResult:
     """
@@ -317,7 +317,7 @@ def analyze_sql(
 
 def analyze_sql_with_context(
     sql: str,
-    context_source: str | dict,
+    context_source: str | dict[str, Any],
     database_type: str = "mysql",
     app_type: str | None = None,
 ) -> AnalysisResult:

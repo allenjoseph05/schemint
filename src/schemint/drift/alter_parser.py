@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import sqlglot
 from sqlglot import exp as sqlglot_exp
@@ -67,7 +68,7 @@ class AlterParser:
         """Extract the table name from an ALTER statement."""
         table_expr = statement.args.get("this")
         if table_expr and hasattr(table_expr, "name"):
-            return table_expr.name.lower()
+            return str(table_expr.name).lower()
         return ""
 
     def _parse_alter(
@@ -90,7 +91,7 @@ class AlterParser:
         return events
 
     def _parse_action(
-        self, action, table_name: str, now: datetime
+        self, action: Any, table_name: str, now: datetime
     ) -> list[SchemaChangeEvent]:
         """Parse a single ALTER TABLE action into change events."""
         events: list[SchemaChangeEvent] = []
