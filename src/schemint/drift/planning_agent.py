@@ -169,11 +169,13 @@ class PlanningAgent:
             for t in scoped_templates
         )
 
+        memory_section = self._build_memory_section(context)
         user_message = (
             "Generate an execution plan for this schema drift.\n\n"
             f"DECISION:\n{decision.model_dump_json(indent=2)}\n\n"
             f"CONTEXT:\n{context.model_dump_json(indent=2)}\n\n"
             f"ALLOWED ACTIONS (use ONLY these action_ids):\n{templates_desc}"
+            f"{memory_section}"
         )
 
         response = self.client.messages.create(
@@ -213,6 +215,42 @@ class PlanningAgent:
         start = text.index("{")
         end = text.rindex("}") + 1
         return json.loads(text[start:end])  # type: ignore[no-any-return]
+
+    # ----- memory section -----
+
+    @staticmethod
+    def _build_memory_section(context: ContextPackage) -> str:
+        """Format memory context into a text section for the Claude prompt.
+
+        Returns empty string if no memory context is available.
+        """
+        mem = context.memory_context
+        if mem is None:
+            return ""
+
+        parts: list[str] = ["\n\nAGENT MEMORY (from previous runs):"]
+
+        if mem.accepted_findings:
+            parts.append("\nPreviously accepted findings (do not re-flag):")
+            for finding in mem.accepted_findings:
+                parts.append(f"  - {finding}")
+
+        if mem.business_rules:
+            parts.append("\nBusiness rules to respect:")
+            for rule in mem.business_rules:
+                parts.append(f"  - {rule}")
+
+        if mem.schema_semantics:
+            parts.append("\nSchema semantics:")
+            for key, value in mem.schema_semantics.items():
+                parts.append(f"  - {key}: {value}")
+
+        if mem.table_change_frequency:
+            parts.append("\nTable change frequency (last 90 days):")
+            for table, count in mem.table_change_frequency.items():
+                parts.append(f"  - {table}: {count} changes")
+
+        return "\n".join(parts) if len(parts) > 1 else ""
 
     # ----- post-processing -----
 

@@ -129,13 +129,51 @@ class DriftAgent:
         """Deterministic severity floor from impact metrics."""
         return context.impact_metrics.criticality
 
+    # ----- memory section -----
+
+    @staticmethod
+    def _build_memory_section(context: ContextPackage) -> str:
+        """Format memory context into a text section for the Claude prompt.
+
+        Returns empty string if no memory context is available.
+        """
+        mem = context.memory_context
+        if mem is None:
+            return ""
+
+        parts: list[str] = ["\n\nAGENT MEMORY (from previous runs):"]
+
+        if mem.accepted_findings:
+            parts.append("\nPreviously accepted findings (do not re-flag):")
+            for finding in mem.accepted_findings:
+                parts.append(f"  - {finding}")
+
+        if mem.business_rules:
+            parts.append("\nBusiness rules to respect:")
+            for rule in mem.business_rules:
+                parts.append(f"  - {rule}")
+
+        if mem.schema_semantics:
+            parts.append("\nSchema semantics:")
+            for key, value in mem.schema_semantics.items():
+                parts.append(f"  - {key}: {value}")
+
+        if mem.table_change_frequency:
+            parts.append("\nTable change frequency (last 90 days):")
+            for table, count in mem.table_change_frequency.items():
+                parts.append(f"  - {table}: {count} changes")
+
+        return "\n".join(parts) if len(parts) > 1 else ""
+
     # ----- Claude call -----
 
     def _call_claude(self, context: ContextPackage) -> AgentDecision:
         """Call Claude for nuanced severity judgment."""
+        memory_section = self._build_memory_section(context)
         user_message = (
             "Analyze this schema change context and provide your severity judgment.\n\n"
             f"CONTEXT PACKAGE:\n{context.model_dump_json(indent=2)}"
+            f"{memory_section}"
         )
 
         response = self.client.messages.create(

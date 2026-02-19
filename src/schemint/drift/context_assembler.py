@@ -35,6 +35,7 @@ from schemint.drift.models import (
     DependencyGraph,
     ImpactAssessment,
     ImpactMetrics,
+    MemoryContext,
     ParseHealth,
     SchemaChangeEvent,
     SchemaDiffResult,
@@ -142,6 +143,7 @@ class ContextAssembler:
         graph: DependencyGraph,
         schema: SchemaSnapshot,
         parse_health: ParseHealth | None = None,
+        memory_context: MemoryContext | None = None,
     ) -> ContextPackage:
         """Build a context package for a single schema change.
 
@@ -273,6 +275,7 @@ class ContextAssembler:
             affected_permissions=affected_permissions,
             affected_functions=affected_functions,
             data_quality_signals=self._compute_data_quality_signals(affected_table_stats),
+            memory_context=memory_context,
         )
 
     def assemble_all(
@@ -281,9 +284,13 @@ class ContextAssembler:
         graph: DependencyGraph,
         schema: SchemaSnapshot,
         parse_health: ParseHealth | None = None,
+        memory_context: MemoryContext | None = None,
     ) -> list[ContextPackage]:
         """Assemble context packages for all changes in a diff result."""
-        return [self.assemble(change, graph, schema, parse_health) for change in diff.changes]
+        return [
+            self.assemble(change, graph, schema, parse_health, memory_context)
+            for change in diff.changes
+        ]
 
     def _get_affected_elements(
         self, change: SchemaChangeEvent, schema: SchemaSnapshot

@@ -26,6 +26,7 @@ from schemint.drift.models import (
     DependencyEdge,
     DependencyGraph,
     DependencySource,
+    DriftRunResult,
     MigrationRecord,
     SchemaDiffResult,
     SchemaSnapshot,
@@ -126,6 +127,28 @@ class DriftStore:
                 ON migration_records(project_id, environment, applied_at DESC);
             CREATE INDEX IF NOT EXISTS idx_migration_records_checksum
                 ON migration_records(project_id, environment, checksum);
+
+            CREATE TABLE IF NOT EXISTS drift_runs (
+                id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL UNIQUE,
+                project_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                decision JSONB,
+                plan JSONB,
+                execution_report JSONB,
+                verification_report JSONB,
+                memory_context JSONB,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                state_transitions JSONB NOT NULL DEFAULT '[]',
+                error TEXT,
+                started_at TIMESTAMPTZ NOT NULL,
+                completed_at TIMESTAMPTZ
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_drift_runs_project
+                ON drift_runs(project_id, started_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_drift_runs_run_id
+                ON drift_runs(run_id);
         """
         with self._get_connection() as conn, conn.cursor() as cur:
             cur.execute(create_sql)
@@ -511,6 +534,135 @@ class DriftStore:
                 (project_id, environment, checksum),
             )
             return cur.fetchone() is not None
+
+    # =========================================================================
+    # Drift run persistence
+    # =========================================================================
+
+    def save_drift_run(self, result: DriftRunResult) -> str:
+        """Save or update a drift run result (UPSERT by run_id).
+
+        Returns the row UUID.
+        """
+        row_id = str(uuid4())
+        with self._get_connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                    INSERT INTO drift_runs
+                    (id, run_id, project_id, status, decision, plan,
+                     execution_report, verification_report, memory_context,
+                     retry_count, state_transitions, error, started_at, completed_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (run_id) DO UPDATE SET
+                        status = EXCLUDED.status,
+                        decision = EXCLUDED.decision,
+                        plan = EXCLUDED.plan,
+                        execution_report = EXCLUDED.execution_report,
+                        verification_report = EXCLUDED.verification_report,
+                        memory_context = EXCLUDED.memory_context,
+                        retry_count = EXCLUDED.retry_count,
+                        state_transitions = EXCLUDED.state_transitions,
+                        error = EXCLUDED.error,
+                        completed_at = EXCLUDED.completed_at
+                    """,
+                (
+                    row_id,
+                    result.run_id,
+                    result.project_id,
+                    result.status,
+                    result.decision.model_dump_json() if result.decision else None,
+                    result.plan.model_dump_json() if result.plan else None,
+                    result.execution_report.model_dump_json() if result.execution_report else None,
+                    result.verification_report.model_dump_json()
+                    if result.verification_report
+                    else None,
+                    result.memory_context.model_dump_json() if result.memory_context else None,
+                    result.retry_count,
+                    json.dumps([t.model_dump() for t in result.state_transitions], default=str),
+                    result.error,
+                    result.started_at,
+                    result.completed_at,
+                ),
+            )
+        return row_id
+
+    def get_drift_run(self, run_id: str) -> DriftRunResult | None:
+        """Get a drift run by its run_id."""
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
+            cur.execute(
+                "SELECT * FROM drift_runs WHERE run_id = %s",
+                (run_id,),
+            )
+            row = cur.fetchone()
+
+        if not row:
+            return None
+
+        return self._row_to_drift_run(row)
+
+    def get_drift_runs(self, project_id: str, limit: int = 20) -> list[DriftRunResult]:
+        """Get recent drift runs for a project, newest first."""
+        with (
+            self._get_connection() as conn,
+            conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+        ):
+            cur.execute(
+                """
+                SELECT * FROM drift_runs
+                WHERE project_id = %s
+                ORDER BY started_at DESC
+                LIMIT %s
+                """,
+                (project_id, limit),
+            )
+            rows = cur.fetchall()
+
+        return [self._row_to_drift_run(row) for row in rows]
+
+    @staticmethod
+    def _row_to_drift_run(row: dict) -> DriftRunResult:
+        """Convert a database row to a DriftRunResult."""
+        from schemint.drift.models import (
+            AgentDecision,
+            ExecutionPlan,
+            ExecutionReport,
+            MemoryContext,
+            StateTransition,
+            VerificationReport,
+        )
+
+        def _parse_json(val: str | dict | None) -> dict | None:
+            if val is None:
+                return None
+            if isinstance(val, str):
+                return json.loads(val)
+            return val
+
+        decision_data = _parse_json(row["decision"])
+        plan_data = _parse_json(row["plan"])
+        exec_data = _parse_json(row["execution_report"])
+        verify_data = _parse_json(row["verification_report"])
+        memory_data = _parse_json(row["memory_context"])
+        transitions_data = _parse_json(row["state_transitions"]) or []
+
+        return DriftRunResult(
+            run_id=row["run_id"],
+            project_id=row["project_id"],
+            status=row["status"],
+            decision=AgentDecision(**decision_data) if decision_data else None,
+            plan=ExecutionPlan(**plan_data) if plan_data else None,
+            execution_report=ExecutionReport(**exec_data) if exec_data else None,
+            verification_report=VerificationReport(**verify_data) if verify_data else None,
+            memory_context=MemoryContext(**memory_data) if memory_data else None,
+            retry_count=row["retry_count"],
+            state_transitions=[StateTransition(**t) for t in transitions_data],
+            error=row.get("error"),
+            started_at=row["started_at"],
+            completed_at=row.get("completed_at"),
+        )
 
 
 # Global instance

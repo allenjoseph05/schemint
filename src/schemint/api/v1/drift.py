@@ -12,10 +12,13 @@ from schemint.drift.models import (
     AgentDecision,
     ContextPackage,
     DependencyGraph,
+    DriftRunResult,
     ExecutionPlan,
     ExecutionReport,
+    MemoryContext,
     MigrationGap,
     MigrationRecord,
+    NotificationConfig,
     SchemaDiffResult,
     SchemaSnapshot,
     VerificationReport,
@@ -520,3 +523,141 @@ async def check_migration_applied(
         return {"applied": applied}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Autonomous agent run endpoints
+# =============================================================================
+
+
+class DriftRunRequest(BaseModel):
+    context: ContextPackage
+    notification_config: NotificationConfig | None = None
+
+
+@router.post("/run/{project_id}", response_model=DriftRunResult)
+async def run_drift_pipeline(project_id: str, request: DriftRunRequest) -> DriftRunResult:
+    """Trigger the full autonomous drift pipeline.
+
+    Runs Phases 3-6 in a closed loop: judge → plan → execute → verify.
+    Auto-approves low/medium severity, escalates high/critical.
+    Retries on verification failure (max 2 retries).
+    """
+    from schemint.drift.agent_controller import build_agent_controller
+
+    memory_context = _build_memory_context(project_id)
+
+    controller = build_agent_controller(
+        notification_config=request.notification_config,
+    )
+
+    result = controller.run(
+        context=request.context,
+        project_id=project_id,
+        memory_context=memory_context,
+    )
+
+    # Best-effort memory write-back
+    _write_memory_learnings(project_id, result)
+
+    return result
+
+
+@router.get("/run/{project_id}/{run_id}", response_model=DriftRunResult | None)
+async def get_drift_run(project_id: str, run_id: str) -> DriftRunResult | None:
+    """Retrieve a past drift run by its run_id."""
+    try:
+        from schemint.drift.store import get_drift_store
+
+        store = get_drift_store()
+        result = store.get_drift_run(run_id)
+        if result and result.project_id != project_id:
+            raise HTTPException(status_code=404, detail="Run not found for this project")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/runs/{project_id}", response_model=list[DriftRunResult])
+async def list_drift_runs(project_id: str, limit: int = 20) -> list[DriftRunResult]:
+    """List recent drift runs for a project."""
+    try:
+        from schemint.drift.store import get_drift_store
+
+        store = get_drift_store()
+        return store.get_drift_runs(project_id, limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+def _build_memory_context(project_id: str) -> MemoryContext | None:
+    """Build memory context from DriftStore and MemoryStore for a project.
+
+    Queries table change frequency from DriftStore and accepted findings,
+    business rules, and schema semantics from MemoryStore.
+    Returns None if no stores are available.
+    """
+    table_freq: dict[str, int] = {}
+    accepted_findings: list[str] = []
+    business_rules: list[str] = []
+    schema_semantics: dict[str, str] = {}
+
+    # DriftStore: table change frequency
+    try:
+        from schemint.drift.store import get_drift_store
+
+        store = get_drift_store()
+        history = store.get_change_history(project_id, limit=10)
+        for diff in history:
+            for change in diff.changes:
+                table_freq[change.table] = table_freq.get(change.table, 0) + 1
+    except Exception:
+        pass
+
+    # MemoryStore: accepted findings, business rules, schema semantics
+    try:
+        from schemint.memory.store import get_memory_store
+
+        mem_store = get_memory_store()
+        project = mem_store.get_project_by_external_id(project_id)
+        if project:
+            findings = mem_store.get_accepted_findings(project.id)
+            accepted_findings = [f"{f.finding_type} ({f.scope})" for f in findings]
+
+            rules = mem_store.get_business_rules(project.id)
+            business_rules = [f"{r.rule_type}: {r.rationale}" for r in rules]
+
+            semantics = mem_store.get_schema_semantics(project.id)
+            schema_semantics = {
+                s.element_path: s.description
+                for s in semantics
+                if hasattr(s, "description") and s.description
+            }
+    except Exception:
+        pass
+
+    if not table_freq and not accepted_findings and not business_rules:
+        return None
+
+    return MemoryContext(
+        table_change_frequency=table_freq,
+        accepted_findings=accepted_findings,
+        business_rules=business_rules,
+        schema_semantics=schema_semantics,
+    )
+
+
+def _write_memory_learnings(project_id: str, result: DriftRunResult) -> None:
+    """Write learnings from a completed drift run back to MemoryStore.
+
+    Best-effort — failure never blocks API response.
+    """
+    try:
+        from schemint.drift.memory_writer import DriftMemoryWriter
+
+        writer = DriftMemoryWriter()
+        writer.record_completed_run(result, project_id)
+    except Exception:
+        pass

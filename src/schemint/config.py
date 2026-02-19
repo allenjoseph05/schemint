@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     database_url: str | None = None  # PostgreSQL connection string
     # Example: postgresql://user:password@localhost:5432/schemint
 
+    # Drift agent controller
+    webhook_url: str | None = None  # Webhook URL for drift notifications
+    notification_webhook_headers: str = "{}"  # JSON string of extra headers
+    github_token: str | None = None  # GitHub token for CI adapter
+    github_repo: str | None = None  # GitHub repo (owner/name) for CI adapter
+    drift_auto_approve_severities: str = "low,medium"  # Comma-separated
+    drift_max_retries: int = 2  # Max retry attempts on verification failure
+
     @property
     def is_development(self) -> bool:
         return self.env == "development"
