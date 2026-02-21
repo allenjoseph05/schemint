@@ -99,7 +99,17 @@ class TestApprovalGate:
 
 class TestSequentialExecution:
     def test_all_steps_execute_in_order(self):
-        engine = ExecutionEngine()
+        # Use a mock adapter so this test focuses on ordering, not credentials.
+        class AlwaysSuccessAdapter(ToolAdapter):
+            def supports_action(self, _: str) -> bool:
+                return True
+
+            def execute(self, step: PlanStep) -> ExecutionResult:
+                return ExecutionResult(
+                    step=step.step, action=step.action, status="success", reversible=True
+                )
+
+        engine = ExecutionEngine(adapters=[AlwaysSuccessAdapter()])
         plan = _make_plan(
             steps=[
                 {"step": 1, "action": "notify_table_owner", "target": "users"},
@@ -279,22 +289,40 @@ class TestToolAdapters:
         assert not adapter.supports_action("block_deploy")
 
     def test_notification_service_executes_successfully(self):
+        # No Slack webhook in test env → "skipped" (not a failure).
         adapter = NotificationService()
         step = PlanStep(step=1, action="notify_table_owner", target="users")
         result = adapter.execute(step)
-        assert result.status == "success"
+        assert result.status in ("success", "skipped")
 
-    def test_sql_runner_executes_successfully(self):
-        adapter = SQLRunner()
-        step = PlanStep(step=1, action="add_column_alias", target="users")
+    def test_sql_runner_dry_run_with_valid_notes(self):
+        # dry_run=True so no DB needed; notes supply the required keys.
+        adapter = SQLRunner(dry_run=True)
+        step = PlanStep(
+            step=1,
+            action="add_column_alias",
+            target="users.email_address",
+            notes="new_name=email",
+        )
         result = adapter.execute(step)
         assert result.status == "success"
+        assert result.metadata.get("dry_run") is True
+        assert "CREATE OR REPLACE VIEW" in result.metadata.get("sql", "")
+
+    def test_sql_runner_missing_notes_returns_failed(self):
+        # No notes → cannot build SQL → failed (not a crash).
+        adapter = SQLRunner(dry_run=True)
+        step = PlanStep(step=1, action="add_column_alias", target="users")
+        result = adapter.execute(step)
+        assert result.status == "failed"
+        assert "missing required notes" in result.error_message
 
     def test_ci_runner_executes_successfully(self):
+        # No GitHub token in test env → "skipped" (not a failure).
         adapter = CIPipelineRunner()
         step = PlanStep(step=1, action="block_deploy", target="users", reversible=False)
         result = adapter.execute(step)
-        assert result.status == "success"
+        assert result.status in ("success", "skipped")
 
 
 # ---------------------------------------------------------------------------

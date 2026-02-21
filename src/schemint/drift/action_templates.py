@@ -28,6 +28,7 @@ class ActionTemplate(BaseModel):
     is_notification: bool = False
     reversible: bool = True
     requires_approval: bool = False
+    rollback_action_id: str | None = None  # The inverse action for rollback
 
 
 # =============================================================================
@@ -41,18 +42,21 @@ ACTION_REGISTRY: list[ActionTemplate] = [
         category="backward_compatibility",
         description="Add a column alias or view to preserve old column name",
         reversible=True,
+        rollback_action_id="drop_column_alias",
     ),
     ActionTemplate(
         action_id="add_default_value",
         category="backward_compatibility",
         description="Add a default value to a new NOT NULL column for backward compatibility",
         reversible=True,
+        rollback_action_id="drop_default_value",
     ),
     ActionTemplate(
         action_id="create_migration_view",
         category="backward_compatibility",
         description="Create a migration view that maps old schema to new schema",
         reversible=True,
+        rollback_action_id="drop_migration_view",
     ),
     # --- downstream_updates (structural) ---
     ActionTemplate(
@@ -79,6 +83,7 @@ ACTION_REGISTRY: list[ActionTemplate] = [
         category="monitor_only",
         description="Add monitoring alert for schema drift on this table",
         is_notification=True,
+        rollback_action_id="remove_monitoring_alert",
     ),
     ActionTemplate(
         action_id="log_drift_event",
@@ -94,6 +99,7 @@ ACTION_REGISTRY: list[ActionTemplate] = [
         is_notification=False,
         reversible=False,
         requires_approval=True,
+        rollback_action_id="unblock_deploy",
     ),
     ActionTemplate(
         action_id="require_migration_review",
@@ -121,6 +127,38 @@ ACTION_REGISTRY: list[ActionTemplate] = [
         category="notify_owner",
         description="Create a review ticket for the schema change",
         is_notification=True,
+    ),
+    # --- rollback actions (internal — not AI-selectable) ---
+    ActionTemplate(
+        action_id="drop_column_alias",
+        category="backward_compatibility",
+        description="Drop the compatibility view created by add_column_alias",
+        reversible=True,
+    ),
+    ActionTemplate(
+        action_id="drop_default_value",
+        category="backward_compatibility",
+        description="Remove the default value set by add_default_value",
+        reversible=True,
+    ),
+    ActionTemplate(
+        action_id="drop_migration_view",
+        category="backward_compatibility",
+        description="Drop the migration view created by create_migration_view",
+        reversible=True,
+    ),
+    ActionTemplate(
+        action_id="remove_monitoring_alert",
+        category="monitor_only",
+        description="Remove the monitoring alert created by add_monitoring_alert",
+        is_notification=True,
+        reversible=True,
+    ),
+    ActionTemplate(
+        action_id="unblock_deploy",
+        category="block_deploy",
+        description="Set CI status to success to unblock a previously blocked deployment",
+        reversible=True,
     ),
 ]
 

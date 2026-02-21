@@ -78,7 +78,48 @@ IMPORTANT:
 - Your severity judgment may be OVERRIDDEN upward by deterministic invariants.
 - You may escalate severity above the deterministic floor, never below it.
 - If context quality is insufficient, always recommend human review.
-- If you are unsure, escalate — false negatives are worse than false positives.\
+- If you are unsure, escalate — false negatives are worse than false positives.
+
+## Examples
+
+Example 1 — Safe: column_dropped, no consumers, tiny table
+Context: column_dropped on "audit_log.raw_payload", 0 downstream tables, \
+100 rows, coverage 95%, context_quality=complete
+Correct output:
+{"severity": "low", "confidence_in_decision": 0.9, "requires_human_review": false,
+ "rationale": ["No downstream consumers detected", "Table is small (100 rows)", \
+"Coverage is high so absence of edges is trustworthy"],
+ "recommended_action_categories": ["monitor_only"], "context_quality": "complete"}
+
+Example 2 — Breaking: column type change with active consumers
+Context: column_type_changed (integer→varchar) on "orders.status", \
+5 downstream views, 2 FK constraints, coverage 80%, context_quality=complete
+Correct output:
+{"severity": "high", "confidence_in_decision": 0.85, "requires_human_review": true,
+ "rationale": ["Type change from integer to varchar is a breaking change for typed consumers", \
+"5 downstream views reference this column", "Implicit casts will fail in strict-mode clients"],
+ "recommended_action_categories": ["block_deploy", "notify_owner"], "context_quality": "complete"}
+
+Example 3 — Ambiguous: table_dropped but marked deprecated
+Context: table_dropped on "legacy_sessions", 0 FK references, \
+last_vacuum 6 months ago, coverage 60% (partial), context_quality=partial
+Correct output:
+{"severity": "medium", "confidence_in_decision": 0.65, "requires_human_review": false,
+ "rationale": ["Table appears to be legacy / unused", \
+"Coverage is partial — some consumers may be untracked", \
+"Dropping even unused tables carries medium risk without full lineage"],
+ "recommended_action_categories": ["notify_owner", "monitor_only"], "context_quality": "partial"}
+
+Example 4 — Critical: column_dropped, 50M-row table, 15 consumers, poor coverage
+Context: column_dropped on "users.email", 15 downstream tables, 50M rows, \
+coverage 30%, context_quality=insufficient
+Correct output:
+{"severity": "critical", "confidence_in_decision": 0.5, "requires_human_review": true,
+ "rationale": ["Dropping a column from a 50M-row table with 15 consumers is very high risk", \
+"Coverage is only 30% — many consumers may be untracked", \
+"Insufficient context prevents confident safe assessment"],
+ "recommended_action_categories": ["block_deploy", "notify_owner"], \
+"context_quality": "insufficient"}\
 """
 
 
@@ -129,13 +170,58 @@ class DriftAgent:
         """Deterministic severity floor from impact metrics."""
         return context.impact_metrics.criticality
 
+    # ----- memory section -----
+
+    @staticmethod
+    def _build_memory_section(context: ContextPackage) -> str:
+        """Format memory context into a text section for the Claude prompt.
+
+        Returns empty string if no memory context is available.
+        """
+        mem = context.memory_context
+        if mem is None:
+            return ""
+
+        parts: list[str] = ["\n\nAGENT MEMORY (from previous runs):"]
+
+        if mem.accepted_findings:
+            parts.append("\nPreviously accepted findings (do not re-flag):")
+            for finding in mem.accepted_findings:
+                parts.append(f"  - {finding}")
+
+        if mem.business_rules:
+            parts.append("\nBusiness rules to respect:")
+            for rule in mem.business_rules:
+                parts.append(f"  - {rule}")
+
+        if mem.schema_semantics:
+            parts.append("\nSchema semantics:")
+            for key, value in mem.schema_semantics.items():
+                parts.append(f"  - {key}: {value}")
+
+        if mem.table_change_frequency:
+            parts.append("\nTable change frequency (last 90 days):")
+            for table, count in mem.table_change_frequency.items():
+                parts.append(f"  - {table}: {count} changes")
+
+        return "\n".join(parts) if len(parts) > 1 else ""
+
     # ----- Claude call -----
 
     def _call_claude(self, context: ContextPackage) -> AgentDecision:
         """Call Claude for nuanced severity judgment."""
+        memory_section = self._build_memory_section(context)
         user_message = (
             "Analyze this schema change context and provide your severity judgment.\n\n"
+            "Think step by step before writing your JSON:\n"
+            "1. What type of change is this, and what is its baseline risk level?\n"
+            "2. How many downstream consumers are affected, and how critical are they?\n"
+            "3. Is the dependency coverage sufficient to trust the absence of consumers?\n"
+            "4. Does the context quality allow a confident decision, or are there gaps?\n"
+            "5. Given the above, what is the severity and does it require human review?\n\n"
+            "After your reasoning, output the JSON object.\n\n"
             f"CONTEXT PACKAGE:\n{context.model_dump_json(indent=2)}"
+            f"{memory_section}"
         )
 
         response = self.client.messages.create(
@@ -244,6 +330,20 @@ class DriftAgent:
         if len(categories) > 3:
             categories = _truncate_categories(categories, 3)
 
+        # 11. Confidence re-scoring: count how many invariants changed the decision.
+        #     If Claude was significantly corrected, its stated confidence is too high.
+        corrections = _count_corrections(decision, severity, confidence, requires_human, categories)
+        if corrections >= 3:
+            # Heavily corrected — Claude was significantly wrong; reduce confidence
+            penalty = min(0.3, (corrections - 2) * 0.05)
+            confidence = round(max(0.0, confidence - penalty), 3)
+            logger.debug(
+                "Confidence re-scored: %d invariants fired, penalty=%.2f → confidence=%.3f",
+                corrections,
+                penalty,
+                confidence,
+            )
+
         return AgentDecision(
             severity=severity,  # type: ignore[arg-type]
             confidence_in_decision=confidence,
@@ -278,6 +378,32 @@ def _sev_index(severity: str) -> int:
         return _SEVERITY_ORDER.index(severity)
     except ValueError:
         return 0
+
+
+def _count_corrections(
+    original: AgentDecision,
+    final_severity: str,
+    final_confidence: float,
+    final_human_review: bool,
+    final_categories: list[str],
+) -> int:
+    """Count how many post-AI invariants materially changed Claude's output.
+
+    Each dimension that changed counts as one correction.
+    Used for confidence re-scoring — high correction count → lower confidence.
+    """
+    corrections = 0
+    if original.severity != final_severity:
+        corrections += 1
+    if abs(original.confidence_in_decision - final_confidence) > 0.05:
+        corrections += 1
+    if original.requires_human_review != final_human_review:
+        corrections += 1
+    original_cats = set(original.recommended_action_categories)
+    final_cats = set(final_categories)
+    if original_cats != final_cats:
+        corrections += 1
+    return corrections
 
 
 def _truncate_categories(categories: list[str], max_count: int) -> list[str]:

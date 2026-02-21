@@ -71,9 +71,23 @@ Respond with a JSON object:
 RULES:
 - You may ONLY use action IDs from the allowed templates list.
 - Keep plans concise — typically 2-5 steps.
-- Order steps logically (notifications before structural changes).
+- Order steps logically (notifications first, then structural, then enforcement last).
 - Set reversible=false only for blocking/enforcement actions.
 - Do NOT invent new action IDs.\
+"""
+
+_CRITIQUE_SYSTEM_PROMPT = """\
+You are a PLAN REVIEWER for database schema drift remediation. \
+Review an execution plan for correctness and completeness.
+
+Given the severity decision and the plan, identify any problems. \
+Return a JSON array of problem strings (max 3). Return [] if the plan is correct.
+
+Example of a good response: []
+Example of a problem response: ["block_deploy step is missing for critical severity", \
+"notify_table_owner should come before structural changes"]
+
+Be concise. Only flag real problems, not stylistic preferences.\
 """
 
 
@@ -103,6 +117,8 @@ class PlanningAgent:
 
         self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
         self.model = settings.claude_model
+        self.critique_model = settings.claude_model_simple  # Haiku for critique
+        self.enable_critique = settings.enable_plan_critique
 
     def plan(
         self,
@@ -129,7 +145,15 @@ class PlanningAgent:
             logger.error("PlanningAgent Claude call failed: %s", e)
             return self._fallback_plan(decision, context)
 
-        return self._post_process(steps, decision, context, scoped_templates)
+        execution_plan = self._post_process(steps, decision, context, scoped_templates)
+
+        # Optional plan critique (gated by SCHEMINT_ENABLE_PLAN_CRITIQUE)
+        if self.enable_critique:
+            warnings = self._critique_plan(execution_plan, decision)
+            if warnings:
+                execution_plan = execution_plan.model_copy(update={"warnings": warnings})
+
+        return execution_plan
 
     # ----- short-circuit plan -----
 
@@ -169,11 +193,13 @@ class PlanningAgent:
             for t in scoped_templates
         )
 
+        memory_section = self._build_memory_section(context)
         user_message = (
             "Generate an execution plan for this schema drift.\n\n"
             f"DECISION:\n{decision.model_dump_json(indent=2)}\n\n"
             f"CONTEXT:\n{context.model_dump_json(indent=2)}\n\n"
             f"ALLOWED ACTIONS (use ONLY these action_ids):\n{templates_desc}"
+            f"{memory_section}"
         )
 
         response = self.client.messages.create(
@@ -213,6 +239,42 @@ class PlanningAgent:
         start = text.index("{")
         end = text.rindex("}") + 1
         return json.loads(text[start:end])  # type: ignore[no-any-return]
+
+    # ----- memory section -----
+
+    @staticmethod
+    def _build_memory_section(context: ContextPackage) -> str:
+        """Format memory context into a text section for the Claude prompt.
+
+        Returns empty string if no memory context is available.
+        """
+        mem = context.memory_context
+        if mem is None:
+            return ""
+
+        parts: list[str] = ["\n\nAGENT MEMORY (from previous runs):"]
+
+        if mem.accepted_findings:
+            parts.append("\nPreviously accepted findings (do not re-flag):")
+            for finding in mem.accepted_findings:
+                parts.append(f"  - {finding}")
+
+        if mem.business_rules:
+            parts.append("\nBusiness rules to respect:")
+            for rule in mem.business_rules:
+                parts.append(f"  - {rule}")
+
+        if mem.schema_semantics:
+            parts.append("\nSchema semantics:")
+            for key, value in mem.schema_semantics.items():
+                parts.append(f"  - {key}: {value}")
+
+        if mem.table_change_frequency:
+            parts.append("\nTable change frequency (last 90 days):")
+            for table, count in mem.table_change_frequency.items():
+                parts.append(f"  - {table}: {count} changes")
+
+        return "\n".join(parts) if len(parts) > 1 else ""
 
     # ----- post-processing -----
 
@@ -268,6 +330,47 @@ class PlanningAgent:
             source_severity=decision.severity,
             source_requires_human_review=decision.requires_human_review,
         )
+
+    # ----- plan critique -----
+
+    def _critique_plan(
+        self,
+        plan: ExecutionPlan,
+        decision: AgentDecision,
+    ) -> list[str]:
+        """Run a lightweight Haiku critique pass on the generated plan.
+
+        Returns a list of problem strings (empty list = plan is fine).
+        Failures are silently swallowed — critique is best-effort.
+        """
+        try:
+            user_message = (
+                f"Review this execution plan for severity={decision.severity}:\n\n"
+                f"PLAN:\n{plan.model_dump_json(indent=2)}\n\n"
+                f"DECISION:\n{decision.model_dump_json(indent=2)}\n\n"
+                "Return a JSON array of problems. Return [] if the plan is correct."
+            )
+            response = self.client.messages.create(
+                model=self.critique_model,
+                max_tokens=256,
+                system=_CRITIQUE_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_message}],
+            )
+            text = ""
+            for block in response.content:
+                if block.type == "text":
+                    text += block.text
+            text = text.strip()
+            # Extract JSON array
+            if "[" in text:
+                start = text.index("[")
+                end = text.rindex("]") + 1
+                problems = json.loads(text[start:end])
+                if isinstance(problems, list):
+                    return [str(p) for p in problems[:3]]
+        except Exception as exc:
+            logger.debug("Plan critique failed (non-fatal): %s", exc)
+        return []
 
     # ----- fallback -----
 

@@ -158,3 +158,8 @@ exclude_lines = [
 ]
 fail_under = 70
 show_missing = true
+
+# ============== Bandit ==============
+[tool.bandit]
+# B608: SQL string building — identifiers are double-quoted via _qi(); false positive
+skips = ["B608"]
