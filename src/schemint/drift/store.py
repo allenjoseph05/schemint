@@ -17,6 +17,7 @@ import json
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from typing import Any
 from uuid import uuid4
 
 import psycopg2
@@ -604,26 +605,39 @@ class DriftStore:
         return self._row_to_drift_run(row)
 
     def get_drift_runs(self, project_id: str, limit: int = 20) -> list[DriftRunResult]:
-        """Get recent drift runs for a project, newest first."""
+        """Get recent drift runs for a project, newest first.
+
+        If project_id is empty string, returns runs across all projects (for metrics).
+        """
         with (
             self._get_connection() as conn,
             conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
         ):
-            cur.execute(
-                """
-                SELECT * FROM drift_runs
-                WHERE project_id = %s
-                ORDER BY started_at DESC
-                LIMIT %s
-                """,
-                (project_id, limit),
-            )
+            if project_id:
+                cur.execute(
+                    """
+                    SELECT * FROM drift_runs
+                    WHERE project_id = %s
+                    ORDER BY started_at DESC
+                    LIMIT %s
+                    """,
+                    (project_id, limit),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT * FROM drift_runs
+                    ORDER BY started_at DESC
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
             rows = cur.fetchall()
 
         return [self._row_to_drift_run(row) for row in rows]
 
     @staticmethod
-    def _row_to_drift_run(row: dict) -> DriftRunResult:
+    def _row_to_drift_run(row: dict[str, Any]) -> DriftRunResult:
         """Convert a database row to a DriftRunResult."""
         from schemint.drift.models import (
             AgentDecision,
@@ -634,11 +648,11 @@ class DriftStore:
             VerificationReport,
         )
 
-        def _parse_json(val: str | dict | None) -> dict | None:
+        def _parse_json(val: str | dict[str, Any] | None) -> dict[str, Any] | None:
             if val is None:
                 return None
             if isinstance(val, str):
-                return json.loads(val)
+                return json.loads(val)  # type: ignore[no-any-return]
             return val
 
         decision_data = _parse_json(row["decision"])
@@ -646,7 +660,10 @@ class DriftStore:
         exec_data = _parse_json(row["execution_report"])
         verify_data = _parse_json(row["verification_report"])
         memory_data = _parse_json(row["memory_context"])
-        transitions_data = _parse_json(row["state_transitions"]) or []
+        _raw_transitions = row["state_transitions"]
+        transitions_data: list[Any] = (
+            json.loads(_raw_transitions) if isinstance(_raw_transitions, str) else _raw_transitions
+        ) or []
 
         return DriftRunResult(
             run_id=row["run_id"],

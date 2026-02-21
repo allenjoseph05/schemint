@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from schemint.drift.execution_engine import ToolAdapter
 from schemint.drift.models import ExecutionResult, NotificationConfig, PlanStep
@@ -96,7 +96,7 @@ class WebhookNotificationAdapter(ToolAdapter):
             executed_at=datetime.now(timezone.utc),
         )
 
-    def _post_webhook(self, payload: dict) -> None:
+    def _post_webhook(self, payload: dict[str, Any]) -> None:
         """POST JSON to the configured webhook URL."""
         headers = {"Content-Type": "application/json"}
         headers.update(self.config.webhook_headers)

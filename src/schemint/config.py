@@ -44,12 +44,21 @@ class Settings(BaseSettings):
     # Example: postgresql://user:password@localhost:5432/schemint
 
     # Drift agent controller
-    webhook_url: str | None = None  # Webhook URL for drift notifications
+    webhook_url: str | None = None  # Slack webhook URL for drift notifications
     notification_webhook_headers: str = "{}"  # JSON string of extra headers
     github_token: str | None = None  # GitHub token for CI adapter
     github_repo: str | None = None  # GitHub repo (owner/name) for CI adapter
+    github_commit_sha: str | None = None  # Default commit SHA for CI status checks
+    github_default_reviewer: str | None = None  # GitHub username to request review from
     drift_auto_approve_severities: str = "low,medium"  # Comma-separated
     drift_max_retries: int = 2  # Max retry attempts on verification failure
+
+    # SQL execution (Phase 5 SQLRunner)
+    target_db_url: str | None = None  # Target DB connection for schema remediation SQL
+    sql_dry_run: bool = False  # If True, log SQL but do not execute
+
+    # AI quality (Milestone 5)
+    enable_plan_critique: bool = False  # If True, run a second Haiku call to critique plans
 
     @property
     def is_development(self) -> bool:

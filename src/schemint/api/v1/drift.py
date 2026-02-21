@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -581,15 +583,107 @@ async def get_drift_run(project_id: str, run_id: str) -> DriftRunResult | None:
 
 
 @router.get("/runs/{project_id}", response_model=list[DriftRunResult])
-async def list_drift_runs(project_id: str, limit: int = 20) -> list[DriftRunResult]:
-    """List recent drift runs for a project."""
+async def list_drift_runs(
+    project_id: str, limit: int = 20, offset: int = 0
+) -> list[DriftRunResult]:
+    """List recent drift runs for a project (paginated).
+
+    Use limit + offset for pagination: ?limit=20&offset=20 for page 2.
+    """
     try:
         from schemint.drift.store import get_drift_store
 
         store = get_drift_store()
-        return store.get_drift_runs(project_id, limit)
+        all_runs = store.get_drift_runs(project_id, limit + offset)
+        return all_runs[offset : offset + limit]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Approval endpoints (Milestone 2)
+# =============================================================================
+
+
+class ApprovalRequest(BaseModel):
+    """Request body for /approve and /reject endpoints."""
+
+    approver: str  # GitHub username, email, or Slack user ID
+    reason: str = ""  # Optional note explaining the decision
+
+
+@router.post("/approve/{run_id}", response_model=DriftRunResult)
+async def approve_drift_run(run_id: str, request: ApprovalRequest) -> DriftRunResult:
+    """Approve a drift run that is AWAITING_APPROVAL.
+
+    Resumes execution from the EXECUTING phase with the plan that
+    was generated before the approval gate paused the run.
+    Returns HTTP 404 if the run doesn't exist.
+    Returns HTTP 409 if the run is not in AWAITING_APPROVAL status.
+    """
+    from schemint.drift.agent_controller import build_agent_controller
+
+    try:
+        controller = build_agent_controller()
+        result = controller.resume(
+            run_id=run_id,
+            approved=True,
+            approver=request.approver,
+            reason=request.reason,
+        )
+        _write_memory_learnings(result.project_id, result)
+        return result
+    except ValueError as exc:
+        msg = str(exc)
+        if "not found" in msg:
+            raise HTTPException(status_code=404, detail=msg) from exc
+        raise HTTPException(status_code=409, detail=msg) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/reject/{run_id}", response_model=DriftRunResult)
+async def reject_drift_run(run_id: str, request: ApprovalRequest) -> DriftRunResult:
+    """Reject a drift run that is AWAITING_APPROVAL.
+
+    Terminates the run with status ESCALATED and records the rejector.
+    Returns HTTP 404 if the run doesn't exist.
+    Returns HTTP 409 if the run is not in AWAITING_APPROVAL status.
+    """
+    from schemint.drift.agent_controller import build_agent_controller
+
+    try:
+        controller = build_agent_controller()
+        return controller.resume(
+            run_id=run_id,
+            approved=False,
+            approver=request.approver,
+            reason=request.reason,
+        )
+    except ValueError as exc:
+        msg = str(exc)
+        if "not found" in msg:
+            raise HTTPException(status_code=404, detail=msg) from exc
+        raise HTTPException(status_code=409, detail=msg) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/pending/{project_id}", response_model=list[DriftRunResult])
+async def list_pending_approvals(project_id: str) -> list[DriftRunResult]:
+    """List all drift runs currently awaiting human approval.
+
+    Returns runs with status='awaiting_approval' for the project,
+    ordered by most recent first.
+    """
+    try:
+        from schemint.drift.store import get_drift_store
+
+        store = get_drift_store()
+        all_runs = store.get_drift_runs(project_id, limit=100)
+        return [r for r in all_runs if r.status == "awaiting_approval"]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 def _build_memory_context(project_id: str) -> MemoryContext | None:
@@ -661,3 +755,174 @@ def _write_memory_learnings(project_id: str, result: DriftRunResult) -> None:
         writer.record_completed_run(result, project_id)
     except Exception:
         pass
+
+
+# =============================================================================
+# Observability endpoints (Milestone 6)
+# =============================================================================
+
+
+@router.get("/dashboard/{project_id}")
+async def get_project_dashboard(project_id: str, limit: int = 50) -> dict[str, Any]:
+    """Project-level drift dashboard — run counts, severity breakdown, avg duration.
+
+    Returns aggregate metrics computed from recent drift runs.
+    Returns empty metrics (not 404) when no runs exist yet.
+    """
+    try:
+        from schemint.drift.store import get_drift_store
+
+        store = get_drift_store()
+        runs = store.get_drift_runs(project_id, limit)
+    except Exception:
+        runs = []
+
+    total = len(runs)
+    status_counts: dict[str, int] = {}
+    severity_counts: dict[str, int] = {}
+    total_duration_ms = 0
+    telemetry_count = 0
+
+    for r in runs:
+        status_counts[r.status] = status_counts.get(r.status, 0) + 1
+        if r.decision:
+            sev = r.decision.severity
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+        if r.telemetry:
+            total_duration_ms += r.telemetry.total_duration_ms
+            telemetry_count += 1
+
+    avg_duration_ms = total_duration_ms // telemetry_count if telemetry_count else 0
+
+    return {
+        "project_id": project_id,
+        "total_runs": total,
+        "status_breakdown": status_counts,
+        "severity_breakdown": severity_counts,
+        "avg_duration_ms": avg_duration_ms,
+        "awaiting_approval": status_counts.get("awaiting_approval", 0),
+        "complete": status_counts.get("complete", 0),
+        "escalated": status_counts.get("escalated", 0),
+        "failed": status_counts.get("failed", 0),
+    }
+
+
+@router.get("/metrics")
+async def get_prometheus_metrics() -> dict[str, Any]:
+    """Prometheus-compatible metrics for all drift runs across all projects.
+
+    Returned as a JSON dict (for simplicity). For real Prometheus scraping,
+    use the /metrics/text endpoint which returns text/plain format.
+    """
+    try:
+        from schemint.drift.store import get_drift_store
+
+        store = get_drift_store()
+        # Fetch a broad sample; in production this would use a dedicated aggregation query
+        runs = store.get_drift_runs("", limit=500)  # empty project_id = all projects
+    except Exception:
+        runs = []
+
+    total_runs = len(runs)
+    complete = sum(1 for r in runs if r.status == "complete")
+    escalated = sum(1 for r in runs if r.status == "escalated")
+    failed = sum(1 for r in runs if r.status == "failed")
+    awaiting = sum(1 for r in runs if r.status == "awaiting_approval")
+    critical_runs = sum(
+        1 for r in runs if r.decision and r.decision.severity == "critical"
+    )
+    durations = [r.telemetry.total_duration_ms for r in runs if r.telemetry]
+    avg_ms = sum(durations) // len(durations) if durations else 0
+
+    return {
+        "schemint_drift_runs_total": total_runs,
+        "schemint_drift_runs_complete": complete,
+        "schemint_drift_runs_escalated": escalated,
+        "schemint_drift_runs_failed": failed,
+        "schemint_drift_runs_awaiting_approval": awaiting,
+        "schemint_drift_runs_critical_severity": critical_runs,
+        "schemint_drift_avg_duration_ms": avg_ms,
+    }
+
+
+# =============================================================================
+# CopilotAgent endpoints (Milestone 4)
+# =============================================================================
+
+
+class CopilotAnalyzeRequest(BaseModel):
+    """Request body for the /copilot/analyze endpoint."""
+
+    migration_sql: str
+    context: ContextPackage | None = None
+    generate_alternatives: bool = True
+    generate_rollback: bool = True
+    validate_intent: bool = True
+
+
+class CopilotAnalyzeResponse(BaseModel):
+    """Response from the copilot analyze endpoint."""
+
+    alternatives: list[dict[str, Any]] = []
+    rollback: dict[str, Any] | None = None
+    intent: dict[str, Any] | None = None
+    ai_available: bool = False
+
+
+@router.post("/copilot/analyze", response_model=CopilotAnalyzeResponse)
+async def copilot_analyze(request: CopilotAnalyzeRequest) -> CopilotAnalyzeResponse:
+    """Standalone CopilotAgent analysis — safer alternatives, rollback SQL, intent validation.
+
+    Does NOT run the full drift pipeline. Useful for CI preview and migration review.
+    Returns ai_available=False (not 503) if Claude API key is not configured.
+    """
+    try:
+        from schemint.drift.copilot_agent import get_copilot_agent
+
+        agent = get_copilot_agent()
+        if agent is None:
+            return CopilotAnalyzeResponse(ai_available=False)
+
+        # Extract changes from migration SQL if context not provided
+        changes = []
+        if request.context:
+            changes = [request.context.schema_change]
+        else:
+            pass  # changes stays []; copilot still works with migration_sql hints
+
+        alternatives: list[dict[str, Any]] = []
+        rollback_data: dict[str, Any] | None = None
+        intent_data: dict[str, Any] | None = None
+
+        if request.generate_alternatives and changes:
+            alts = agent.generate_alternatives(
+                risky_changes=changes,
+                context=request.context,
+                migration_sql=request.migration_sql,
+            )
+            alternatives = [a.model_dump() for a in alts]
+
+        if request.generate_rollback and changes:
+            rb = agent.generate_rollback(
+                migration_sql=request.migration_sql,
+                changes=changes,
+            )
+            if rb:
+                rollback_data = rb.model_dump()
+
+        if request.validate_intent and changes:
+            intent = agent.validate_intent(
+                migration_sql=request.migration_sql,
+                detected_changes=changes,
+            )
+            if intent:
+                intent_data = intent.model_dump()
+
+        return CopilotAnalyzeResponse(
+            alternatives=alternatives,
+            rollback=rollback_data,
+            intent=intent_data,
+            ai_available=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

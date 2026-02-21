@@ -217,7 +217,8 @@ class TestApprovalGate:
         result = controller.run(sample_context, project_id="test")
         assert result.status == DriftRunStatus.COMPLETE
 
-    def test_high_severity_escalated(self, sample_context: ContextPackage) -> None:
+    def test_high_severity_pauses_for_approval(self, sample_context: ContextPackage) -> None:
+        """High severity → AWAITING_APPROVAL (not ESCALATED — human must approve/reject)."""
         executor = StubExecutor()
         controller = AgentController(
             judge=StubJudge(severity="high"),
@@ -228,10 +229,11 @@ class TestApprovalGate:
 
         result = controller.run(sample_context, project_id="test")
 
-        assert result.status == DriftRunStatus.ESCALATED
-        assert executor.call_count == 0  # Never reached execution
+        assert result.status == DriftRunStatus.AWAITING_APPROVAL
+        assert executor.call_count == 0  # Never reached execution — waiting for approval
 
-    def test_critical_severity_escalated(self, sample_context: ContextPackage) -> None:
+    def test_critical_severity_pauses_for_approval(self, sample_context: ContextPackage) -> None:
+        """Critical severity → AWAITING_APPROVAL so a human can approve or reject."""
         controller = AgentController(
             judge=StubJudge(severity="critical"),
             planner=StubPlanner(),
@@ -240,7 +242,7 @@ class TestApprovalGate:
         )
 
         result = controller.run(sample_context, project_id="test")
-        assert result.status == DriftRunStatus.ESCALATED
+        assert result.status == DriftRunStatus.AWAITING_APPROVAL
 
     def test_custom_auto_approve_severities(self, sample_context: ContextPackage) -> None:
         controller = AgentController(

@@ -71,9 +71,23 @@ Respond with a JSON object:
 RULES:
 - You may ONLY use action IDs from the allowed templates list.
 - Keep plans concise — typically 2-5 steps.
-- Order steps logically (notifications before structural changes).
+- Order steps logically (notifications first, then structural, then enforcement last).
 - Set reversible=false only for blocking/enforcement actions.
 - Do NOT invent new action IDs.\
+"""
+
+_CRITIQUE_SYSTEM_PROMPT = """\
+You are a PLAN REVIEWER for database schema drift remediation. \
+Review an execution plan for correctness and completeness.
+
+Given the severity decision and the plan, identify any problems. \
+Return a JSON array of problem strings (max 3). Return [] if the plan is correct.
+
+Example of a good response: []
+Example of a problem response: ["block_deploy step is missing for critical severity", \
+"notify_table_owner should come before structural changes"]
+
+Be concise. Only flag real problems, not stylistic preferences.\
 """
 
 
@@ -103,6 +117,8 @@ class PlanningAgent:
 
         self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
         self.model = settings.claude_model
+        self.critique_model = settings.claude_model_simple  # Haiku for critique
+        self.enable_critique = settings.enable_plan_critique
 
     def plan(
         self,
@@ -129,7 +145,15 @@ class PlanningAgent:
             logger.error("PlanningAgent Claude call failed: %s", e)
             return self._fallback_plan(decision, context)
 
-        return self._post_process(steps, decision, context, scoped_templates)
+        execution_plan = self._post_process(steps, decision, context, scoped_templates)
+
+        # Optional plan critique (gated by SCHEMINT_ENABLE_PLAN_CRITIQUE)
+        if self.enable_critique:
+            warnings = self._critique_plan(execution_plan, decision)
+            if warnings:
+                execution_plan = execution_plan.model_copy(update={"warnings": warnings})
+
+        return execution_plan
 
     # ----- short-circuit plan -----
 
@@ -306,6 +330,47 @@ class PlanningAgent:
             source_severity=decision.severity,
             source_requires_human_review=decision.requires_human_review,
         )
+
+    # ----- plan critique -----
+
+    def _critique_plan(
+        self,
+        plan: ExecutionPlan,
+        decision: AgentDecision,
+    ) -> list[str]:
+        """Run a lightweight Haiku critique pass on the generated plan.
+
+        Returns a list of problem strings (empty list = plan is fine).
+        Failures are silently swallowed — critique is best-effort.
+        """
+        try:
+            user_message = (
+                f"Review this execution plan for severity={decision.severity}:\n\n"
+                f"PLAN:\n{plan.model_dump_json(indent=2)}\n\n"
+                f"DECISION:\n{decision.model_dump_json(indent=2)}\n\n"
+                "Return a JSON array of problems. Return [] if the plan is correct."
+            )
+            response = self.client.messages.create(
+                model=self.critique_model,
+                max_tokens=256,
+                system=_CRITIQUE_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_message}],
+            )
+            text = ""
+            for block in response.content:
+                if block.type == "text":
+                    text += block.text
+            text = text.strip()
+            # Extract JSON array
+            if "[" in text:
+                start = text.index("[")
+                end = text.rindex("]") + 1
+                problems = json.loads(text[start:end])
+                if isinstance(problems, list):
+                    return [str(p) for p in problems[:3]]
+        except Exception as exc:
+            logger.debug("Plan critique failed (non-fatal): %s", exc)
+        return []
 
     # ----- fallback -----
 

@@ -14,7 +14,10 @@
       "Bash(__NEW_LINE_047502a687d0e46d__ echo \"\")",
       "Bash(__NEW_LINE_ad67b571483720ea__ echo \"\")",
       "Bash(ls:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(findstr:*)",
+      "Bash(echo:*)",
+      "Bash(cmd /c \"cd /d \"\"C:\\\\Users\\\\Allen Joseph\\\\Desktop\\\\schemint\"\" && python -m pytest tests/unit/test_execution_engine.py -v 2>&1 | head -40\")"
     ]
   }
 }

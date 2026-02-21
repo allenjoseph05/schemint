@@ -1,4 +1,4 @@
-# Stage 1: Build
+# Stage 1: Build all wheels including AI extras
 FROM python:3.12-slim AS builder
 
 WORKDIR /build
@@ -10,8 +10,8 @@ RUN apt-get update && \
 COPY pyproject.toml README.md ./
 COPY src/ src/
 
-RUN pip wheel . --no-deps --wheel-dir /wheels && \
-    pip wheel psycopg2-binary --wheel-dir /wheels
+# Build wheels for schemint + ALL dependencies (including anthropic via [ai] extra)
+RUN pip wheel ".[ai]" --wheel-dir /wheels
 
 # Stage 2: Runtime
 FROM python:3.12-slim
@@ -26,7 +26,8 @@ RUN groupadd --system schemint && \
 WORKDIR /app
 
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
+# Install from local wheels only — no internet required at runtime build
+RUN pip install --no-cache-dir --no-index --find-links /wheels "schemint[ai]" && rm -rf /wheels
 
 COPY alembic.ini ./
 COPY alembic/ alembic/

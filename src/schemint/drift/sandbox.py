@@ -342,7 +342,7 @@ class MigrationSandbox:
         # Generate alternatives
         try:
             if risky_changes:
-                result.alternatives = copilot.generate_alternatives(  # type: ignore[union-attr]
+                result.alternatives = copilot.generate_alternatives(  # type: ignore[attr-defined]
                     risky_changes, context, result.migration_sql
                 )
         except Exception as e:
@@ -350,7 +350,7 @@ class MigrationSandbox:
 
         # Generate rollback
         try:
-            result.rollback = copilot.generate_rollback(  # type: ignore[union-attr]
+            result.rollback = copilot.generate_rollback(  # type: ignore[attr-defined]
                 result.migration_sql, changes
             )
         except Exception as e:
@@ -358,7 +358,7 @@ class MigrationSandbox:
 
         # Validate intent
         try:
-            result.intent_analysis = copilot.validate_intent(  # type: ignore[union-attr]
+            result.intent_analysis = copilot.validate_intent(  # type: ignore[attr-defined]
                 result.migration_sql, changes
             )
         except Exception as e:
