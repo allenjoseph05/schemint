@@ -66,7 +66,7 @@ packages = ["src/schemint"]
 [tool.ruff]
 target-version = "py310"
 line-length = 100
-src = ["src", "tests"]
+src = ["src", "tests", "."]
 
 [tool.ruff.lint]
 select = [
@@ -99,7 +99,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["schemint"]
+known-first-party = ["schemint", "evals"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -124,6 +124,13 @@ warn_required_dynamic_aliases = false
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+# Eval harness: typed, but it drives the docker CLI and psycopg2 through
+# dynamically-imported modules, so strict Any-checking adds noise not safety.
+[[tool.mypy.overrides]]
+module = "evals.*"
+disallow_any_explicit = false
+warn_return_any = false
 
 # ============== Pytest ==============
 [tool.pytest.ini_options]
