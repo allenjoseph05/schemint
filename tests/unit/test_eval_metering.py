@@ -164,9 +164,11 @@ class TestUsageTotals:
 @pytest.mark.unit
 class TestMeterPatching:
     def _messages_cls(self):
-        from anthropic.resources.messages import Messages
-
-        return Messages
+        messages_module = pytest.importorskip(
+            "anthropic.resources.messages",
+            reason="Anthropic SDK is an optional dependency",
+        )
+        return messages_module.Messages
 
     def test_patches_and_restores_create(self):
         messages = self._messages_cls()
