@@ -63,19 +63,19 @@ test-cov:
 
 # Code Quality
 lint:
-	ruff check src/ tests/
+	ruff check src/ tests/ evals/
 
 lint-fix:
-	ruff check src/ tests/ --fix
+	ruff check src/ tests/ evals/ --fix
 
 format:
-	ruff format src/ tests/
+	ruff format src/ tests/ evals/
 
 format-check:
-	ruff format src/ tests/ --check
+	ruff format src/ tests/ evals/ --check
 
 typecheck:
-	mypy src/schemint
+	mypy src/schemint evals
 
 # Run all checks
 check: lint format-check typecheck test
