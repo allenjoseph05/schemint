@@ -1,0 +1,6 @@
+{
+  "id": "cascade_drop_view",
+  "category": "breaking",
+  "notes": "CASCADE permits the migration but removes the dependent view and column data.",
+  "shared_schema": "_shared/core.sql"
+}

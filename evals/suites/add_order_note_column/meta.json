@@ -1,0 +1,6 @@
+{
+  "id": "add_order_note_column",
+  "category": "safe",
+  "notes": "Adding a nullable text column to orders is additive.",
+  "shared_schema": "_shared/core.sql"
+}

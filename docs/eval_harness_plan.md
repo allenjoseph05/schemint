@@ -1,6 +1,6 @@
 # Schemint Eval Harness — Implementation Plan
 
-Status: in progress — Phase 1 implemented
+Status: in progress — Phases 1–2 implemented
 Target branch: `feat/eval-harness` (off `feat/sandbox-ai`)
 Author: planning pass, 2026-08-02
 

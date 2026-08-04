@@ -1,0 +1,6 @@
+{
+  "id": "drop_index",
+  "category": "breaking",
+  "notes": "Removing an explicitly tracked index is an object regression.",
+  "shared_schema": "_shared/core.sql"
+}

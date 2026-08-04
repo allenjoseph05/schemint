@@ -1,0 +1,6 @@
+{
+  "id": "rls_policy_filters_rows",
+  "category": "breaking",
+  "notes": "A policy change silently hides rows from the application role.",
+  "shared_schema": "_shared/rls.sql"
+}

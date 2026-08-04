@@ -1,0 +1,6 @@
+{
+  "id": "create_active_users_view",
+  "category": "safe",
+  "notes": "Adding a valid view does not alter existing objects.",
+  "shared_schema": "_shared/core.sql"
+}

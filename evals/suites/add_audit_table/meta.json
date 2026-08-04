@@ -1,0 +1,6 @@
+{
+  "id": "add_audit_table",
+  "category": "safe",
+  "notes": "Adding an independent table preserves all existing objects.",
+  "shared_schema": "_shared/core.sql"
+}

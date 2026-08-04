@@ -1,0 +1,6 @@
+{
+  "id": "drop_populated_table",
+  "category": "breaking",
+  "notes": "Dropping a populated table loses its rows.",
+  "shared_schema": "_shared/core.sql"
+}

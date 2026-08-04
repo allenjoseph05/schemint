@@ -1,0 +1,6 @@
+{
+  "id": "add_enum_value",
+  "category": "safe",
+  "notes": "Adding an enum value preserves all existing values and ordering.",
+  "shared_schema": "_shared/core.sql"
+}

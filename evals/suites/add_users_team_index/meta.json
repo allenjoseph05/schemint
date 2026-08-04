@@ -1,0 +1,6 @@
+{
+  "id": "add_users_team_index",
+  "category": "safe",
+  "notes": "Adding a valid index is additive.",
+  "shared_schema": "_shared/core.sql"
+}

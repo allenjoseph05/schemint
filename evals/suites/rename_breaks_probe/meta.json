@@ -1,0 +1,6 @@
+{
+  "id": "rename_breaks_probe",
+  "category": "breaking",
+  "notes": "A successful rename breaks an application query using the old column.",
+  "shared_schema": "_shared/core.sql"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "create_invoice_sequence",
+  "category": "safe",
+  "notes": "Adding an unused sequence preserves existing sequence state.",
+  "shared_schema": "_shared/core.sql"
+}

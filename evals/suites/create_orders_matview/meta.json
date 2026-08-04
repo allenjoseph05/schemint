@@ -1,0 +1,6 @@
+{
+  "id": "create_orders_matview",
+  "category": "safe",
+  "notes": "Adding a refreshable materialized view is additive.",
+  "shared_schema": "_shared/core.sql"
+}

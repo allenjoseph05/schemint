@@ -1,0 +1,6 @@
+{
+  "id": "add_unique_with_duplicates",
+  "category": "breaking",
+  "notes": "A unique constraint cannot be built over duplicate values.",
+  "shared_schema": "_shared/core.sql"
+}

@@ -1,0 +1,342 @@
+{
+  "task_id": "rls_policy_filters_rows",
+  "generator_version": "v1",
+  "input_hash": "10f90de4a8fe86b7d6414de682fb394b7b92d9b945e77fa024ce9c6b3fcbd1ba",
+  "generated_at": "2026-08-04T20:06:00.374071Z",
+  "migration_error": null,
+  "risk": "breaking",
+  "must_block": true,
+  "blast_radius": [
+    "query:visible_accounts"
+  ],
+  "rows_lost": {},
+  "rule_fired": "dependent_object_regression",
+  "real_pre_snapshot": {
+    "snapshot_id": "live_public_20260804_200600",
+    "captured_at": "2026-08-04T20:06:00.138013Z",
+    "source": "live_db",
+    "database_type": "postgresql",
+    "schema_name": "public",
+    "environment": "default",
+    "is_desired_state": false,
+    "tables": {
+      "accounts": {
+        "name": "accounts",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "tenant_id": {
+            "name": "tenant_id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "name": {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "accounts_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX accounts_pkey ON public.accounts USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      }
+    },
+    "views": {},
+    "triggers": {},
+    "sequences": {
+      "accounts_id_seq": {
+        "name": "accounts_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      }
+    },
+    "enums": {},
+    "functions": {},
+    "table_statistics": {
+      "accounts": {
+        "table_name": "accounts",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      }
+    },
+    "index_statistics": {
+      "accounts_pkey": {
+        "index_name": "accounts_pkey",
+        "table_name": "accounts",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      }
+    },
+    "extensions": {
+      "plpgsql": {
+        "name": "plpgsql",
+        "version": "1.0",
+        "installed_schema": "pg_catalog"
+      }
+    },
+    "permissions": [
+      {
+        "table_name": "accounts",
+        "grantee": "app_reader",
+        "privilege_type": "SELECT",
+        "is_grantable": false
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      }
+    ],
+    "policies": {
+      "account_visibility": {
+        "name": "account_visibility",
+        "table": "accounts",
+        "command": "SELECT",
+        "permissive": true,
+        "roles": [
+          "app_reader"
+        ],
+        "qual_expression": "true",
+        "with_check_expression": null
+      }
+    },
+    "partitions": {},
+    "materialized_views": {},
+    "column_statistics": {}
+  },
+  "real_post_snapshot": {
+    "snapshot_id": "live_public_20260804_200600",
+    "captured_at": "2026-08-04T20:06:00.373487Z",
+    "source": "live_db",
+    "database_type": "postgresql",
+    "schema_name": "public",
+    "environment": "default",
+    "is_desired_state": false,
+    "tables": {
+      "accounts": {
+        "name": "accounts",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "tenant_id": {
+            "name": "tenant_id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "name": {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "accounts_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX accounts_pkey ON public.accounts USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      }
+    },
+    "views": {},
+    "triggers": {},
+    "sequences": {
+      "accounts_id_seq": {
+        "name": "accounts_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      }
+    },
+    "enums": {},
+    "functions": {},
+    "table_statistics": {
+      "accounts": {
+        "table_name": "accounts",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 4,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      }
+    },
+    "index_statistics": {
+      "accounts_pkey": {
+        "index_name": "accounts_pkey",
+        "table_name": "accounts",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      }
+    },
+    "extensions": {
+      "plpgsql": {
+        "name": "plpgsql",
+        "version": "1.0",
+        "installed_schema": "pg_catalog"
+      }
+    },
+    "permissions": [
+      {
+        "table_name": "accounts",
+        "grantee": "app_reader",
+        "privilege_type": "SELECT",
+        "is_grantable": false
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "accounts",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      }
+    ],
+    "policies": {
+      "account_visibility": {
+        "name": "account_visibility",
+        "table": "accounts",
+        "command": "SELECT",
+        "permissive": true,
+        "roles": [
+          "app_reader"
+        ],
+        "qual_expression": "(tenant_id = 1)",
+        "with_check_expression": null
+      }
+    },
+    "partitions": {},
+    "materialized_views": {},
+    "column_statistics": {}
+  }
+}
