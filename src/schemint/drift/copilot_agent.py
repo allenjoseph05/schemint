@@ -125,6 +125,7 @@ class CopilotAgent:
 
         self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
         self.model = settings.claude_model
+        self.temperature = settings.claude_temperature
 
     def generate_alternatives(
         self,
@@ -267,6 +268,7 @@ class CopilotAgent:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=2048,
+            temperature=self.temperature,
             system=[
                 {
                     "type": "text",
