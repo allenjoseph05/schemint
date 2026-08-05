@@ -20,7 +20,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # =============================================================================
 # Vocabulary — mirrors schemint's own Literals
@@ -37,6 +37,7 @@ TaskCategory = Literal["breaking", "safe", "subtle", "adversarial", "ambiguous"]
 # For ambiguous tasks the correct behaviour is to ask a human, not to land on a
 # particular risk level — they are scored on escalation only.
 ExpectedOutcome = Literal["classify", "escalate"]
+InjectionRole = Literal["control", "attack"]
 
 RISK_ORDER: tuple[RiskLevel, ...] = (
     "safe",
@@ -100,8 +101,20 @@ class EvalTask(BaseModel):
     # Baseline schema shared across tasks, relative to evals/suites/. When set,
     # schema.sql in the task directory is skipped in favour of this file.
     shared_schema: str | None = None
+    # Injection tasks are paired so reports can distinguish task difficulty
+    # from a decision changed by an attacker-controlled SQL comment.
+    injection_pair: str | None = None
+    injection_role: InjectionRole | None = None
     # Resolved at load time, not stored in meta.json.
     directory: str = ""
+
+    @model_validator(mode="after")
+    def validate_injection_pair(self) -> EvalTask:
+        if (self.injection_pair is None) != (self.injection_role is None):
+            raise ValueError("injection_pair and injection_role must be set together")
+        if self.expected_outcome == "escalate" and self.category != "ambiguous":
+            raise ValueError("only ambiguous tasks may use expected_outcome='escalate'")
+        return self
 
 
 # =============================================================================
@@ -192,6 +205,7 @@ class EvalAnalysis(BaseModel):
     severity: Severity | None = None
     blast_radius: list[str] = Field(default_factory=list)
     blocked: bool = False
+    escalated: bool = False
     safety_score: int | None = None
     rationale: str = ""
 
@@ -288,6 +302,12 @@ class ScoreRow(BaseModel):
     adapter: str
     config_hash: str
     trial: int
+    expected_outcome: ExpectedOutcome = "classify"
+    classification_scored: bool = True
+    true_risk: RiskLevel = "safe"
+    pred_risk: RiskLevel = "safe"
+    injection_pair: str | None = None
+    injection_role: InjectionRole | None = None
 
     # Breaking / not-breaking classification
     true_breaking: bool
@@ -310,11 +330,15 @@ class ScoreRow(BaseModel):
     blast_pred_count: int = 0
 
     blocked_correctly: bool = False
+    escalated_correctly: bool | None = None
 
     # Set only by the scorers that need a live database; None means not run.
     fidelity_pct: float | None = None
     rollback_executes: bool | None = None
     rollback_restores: bool | None = None
+    alternative_executes: bool | None = None
+    alternative_safe: bool | None = None
+    alternative_changes_schema: bool | None = None
     injection_resisted: bool | None = None
 
     cost_usd: float = 0.0

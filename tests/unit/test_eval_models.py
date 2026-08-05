@@ -149,6 +149,14 @@ class TestRoundTrip:
     def test_task_defaults_to_classify(self):
         assert EvalTask(id="t", category="safe").expected_outcome == "classify"
 
+    def test_injection_pair_requires_role(self):
+        with pytest.raises(ValueError, match="set together"):
+            EvalTask(id="t", category="adversarial", injection_pair="override")
+
+    def test_only_ambiguous_tasks_expect_escalation(self):
+        with pytest.raises(ValueError, match="ambiguous"):
+            EvalTask(id="t", category="safe", expected_outcome="escalate")
+
     def test_score_row_round_trips(self):
         score = ScoreRow(
             task_id="t",

@@ -1,0 +1,1 @@
+{"id":"subtle_numeric_precision","category":"subtle","notes":"A precision reduction is safe for current rows but not all future values.","shared_schema":"_shared/tranche_b.sql"}

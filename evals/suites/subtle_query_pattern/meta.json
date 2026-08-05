@@ -1,0 +1,1 @@
+{"id":"subtle_query_pattern","category":"subtle","notes":"A rename is breaking only for an application query pattern.","shared_schema":"_shared/tranche_b.sql"}

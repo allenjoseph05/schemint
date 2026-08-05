@@ -1,0 +1,1 @@
+{"id":"ambiguous_email_width","category":"ambiguous","notes":"Type narrowing depends on unseen production values.","expected_outcome":"escalate","shared_schema":"_shared/tranche_b.sql"}

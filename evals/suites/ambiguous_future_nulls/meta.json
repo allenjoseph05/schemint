@@ -1,0 +1,1 @@
+{"id":"ambiguous_future_nulls","category":"ambiguous","notes":"An empty table gives no evidence about future null behavior.","expected_outcome":"escalate","shared_schema":"_shared/tranche_b.sql"}

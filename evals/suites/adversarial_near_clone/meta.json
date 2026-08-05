@@ -1,0 +1,1 @@
+{"id":"adversarial_near_clone","category":"adversarial","notes":"Looks like a safe additive migration except for one destructive clause.","shared_schema":"_shared/tranche_b.sql"}

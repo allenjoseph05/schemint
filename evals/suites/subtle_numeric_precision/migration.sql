@@ -1,0 +1,1 @@
+ALTER TABLE orders ALTER COLUMN amount TYPE NUMERIC(5, 2);

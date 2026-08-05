@@ -39,6 +39,7 @@ def analyze_with_sandbox(suite: SuiteDefinition, *, run_copilot: bool) -> EvalAn
         # An empty set records that product limitation instead of fabricating keys.
         blast_radius=[],
         blocked=risk == "breaking",
+        escalated=risk == "needs_review",
         safety_score=result.safety_score,
         rationale="\n".join(rationale),
         rollback_sql=result.rollback.rollback_sql if result.rollback else None,

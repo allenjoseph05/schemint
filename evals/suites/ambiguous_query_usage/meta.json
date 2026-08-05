@@ -1,0 +1,1 @@
+{"id":"ambiguous_query_usage","category":"ambiguous","notes":"Dropping an empty table depends on external query usage.","expected_outcome":"escalate","shared_schema":"_shared/tranche_b.sql"}

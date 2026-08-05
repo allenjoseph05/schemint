@@ -1,0 +1,1 @@
+{"id":"subtle_default_semantics","category":"subtle","notes":"A default changes future behavior while current rows remain valid.","shared_schema":"_shared/tranche_b.sql"}

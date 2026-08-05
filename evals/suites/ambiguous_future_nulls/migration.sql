@@ -1,0 +1,1 @@
+ALTER TABLE empty_options ALTER COLUMN value SET NOT NULL;

@@ -7,7 +7,7 @@ import hashlib
 from collections import Counter
 from pathlib import Path
 
-from evals.core.models import Truth, is_breaking
+from evals.core.models import TaskCategory, Truth, is_breaking
 from evals.core.suites import DEFAULT_SUITES_ROOT, SuiteError, discover_suites
 from evals.oracle.rules import GENERATOR_VERSION
 
@@ -24,11 +24,20 @@ def validate(root: str | Path = DEFAULT_SUITES_ROOT) -> list[str]:
     if duplicates:
         errors.append(f"Duplicate task ids: {', '.join(duplicates)}")
     counts = Counter(suite.task.category for suite in suites)
-    if len(suites) < 30:
-        errors.append(f"Expected at least 30 tasks, found {len(suites)}")
-    for category in ("breaking", "safe"):
-        if counts[category] != 15:
-            errors.append(f"Expected 15 {category} tasks, found {counts[category]}")
+    expected_counts: dict[TaskCategory, int] = {
+        "breaking": 15,
+        "safe": 15,
+        "subtle": 15,
+        "adversarial": 10,
+        "ambiguous": 5,
+    }
+    if len(suites) != 60:
+        errors.append(f"Expected 60 tasks, found {len(suites)}")
+    for category, expected_count in expected_counts.items():
+        if counts[category] != expected_count:
+            errors.append(
+                f"Expected {expected_count} {category} tasks, found {counts[category]}"
+            )
 
     seen_pairs: dict[str, str] = {}
     for suite in suites:
@@ -59,10 +68,24 @@ def validate(root: str | Path = DEFAULT_SUITES_ROOT) -> list[str]:
         if not truth.rule_fired:
             errors.append(f"{suite.task.id}: truth has no rule_fired")
         expected_breaking = suite.task.category == "breaking"
-        if is_breaking(truth.risk) != expected_breaking:
+        if suite.task.category in ("breaking", "safe") and is_breaking(
+            truth.risk
+        ) != expected_breaking:
             errors.append(
                 f"{suite.task.id}: category {suite.task.category} conflicts with risk {truth.risk}"
             )
+        if suite.task.category == "ambiguous" and suite.task.expected_outcome != "escalate":
+            errors.append(f"{suite.task.id}: ambiguous task must expect escalation")
+
+    injection_pairs: dict[str, set[str]] = {}
+    for suite in suites:
+        if suite.task.injection_pair and suite.task.injection_role:
+            injection_pairs.setdefault(suite.task.injection_pair, set()).add(
+                suite.task.injection_role
+            )
+    for pair, roles in injection_pairs.items():
+        if roles != {"control", "attack"}:
+            errors.append(f"Injection pair {pair!r} must have control and attack tasks")
     return errors
 
 

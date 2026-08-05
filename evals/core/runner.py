@@ -13,6 +13,7 @@ from evals.core.models import EvalAnalysis, Truth
 from evals.core.store import EvalStore
 from evals.core.suites import SuiteDefinition
 from evals.scorers.classification import score_analysis
+from evals.scorers.live import LiveArtifactScorer
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ def run_evaluations(
     *,
     trials: int = 1,
     force: bool = False,
+    score_artifacts: bool = False,
     store: EvalStore | None = None,
 ) -> RunSummary:
     """Run and score each task, preserving errors as visible result rows."""
@@ -38,48 +40,53 @@ def run_evaluations(
     result_store = store or EvalStore()
     completed = skipped = errors = 0
     total_cost = 0.0
+    artifact_scorer = LiveArtifactScorer() if score_artifacts else None
 
-    for suite in suites:
-        truth = load_truth(suite)
-        for trial in range(trials):
-            config = adapter.config(truth, trial)
-            if not force and result_store.has_run(
-                suite.task.id, config.config_hash(), config.trial
-            ):
-                skipped += 1
-                continue
+    try:
+        for suite in suites:
+            truth = load_truth(suite)
+            for trial in range(trials):
+                config = adapter.config(truth, trial)
+                if not force and result_store.has_run(
+                    suite.task.id, config.config_hash(), config.trial
+                ):
+                    skipped += 1
+                    continue
 
-            started = time.perf_counter()
-            with meter() as usage:
-                try:
-                    analysis = adapter.analyze(suite)
-                except Exception as exc:
-                    analysis = EvalAnalysis(error=f"{type(exc).__name__}: {exc}")
-            elapsed_ms = round((time.perf_counter() - started) * 1000)
-            analysis = analysis.model_copy(
-                update={
-                    "tokens_in": usage.input_tokens,
-                    "tokens_out": usage.output_tokens,
-                    "cache_read_tokens": usage.cache_read_tokens,
-                    "cache_write_tokens": usage.cache_write_tokens,
-                    "llm_calls": usage.calls,
-                    "cost_usd": usage.cost_usd,
-                    "latency_ms": elapsed_ms,
-                }
-            )
-            run_id = result_store.record_run(
-                suite.task.id,
-                suite.task.category,
-                config,
-                analysis,
-            )
-            result_store.record_score(
-                score_analysis(suite.task, truth, analysis, config),
-                run_id=run_id,
-            )
-            completed += 1
-            total_cost += analysis.cost_usd
-            errors += analysis.error is not None
+                started = time.perf_counter()
+                with meter() as usage:
+                    try:
+                        analysis = adapter.analyze(suite)
+                    except Exception as exc:
+                        analysis = EvalAnalysis(error=f"{type(exc).__name__}: {exc}")
+                elapsed_ms = round((time.perf_counter() - started) * 1000)
+                analysis = analysis.model_copy(
+                    update={
+                        "tokens_in": usage.input_tokens,
+                        "tokens_out": usage.output_tokens,
+                        "cache_read_tokens": usage.cache_read_tokens,
+                        "cache_write_tokens": usage.cache_write_tokens,
+                        "llm_calls": usage.calls,
+                        "cost_usd": usage.cost_usd,
+                        "latency_ms": elapsed_ms,
+                    }
+                )
+                score = score_analysis(suite.task, truth, analysis, config)
+                if artifact_scorer is not None:
+                    score = artifact_scorer.score(suite, analysis, score)
+                run_id = result_store.record_run(
+                    suite.task.id,
+                    suite.task.category,
+                    config,
+                    analysis,
+                )
+                result_store.record_score(score, run_id=run_id)
+                completed += 1
+                total_cost += analysis.cost_usd
+                errors += analysis.error is not None
+    finally:
+        if artifact_scorer is not None:
+            artifact_scorer.close()
 
     return RunSummary(
         attempted=len(suites) * trials,

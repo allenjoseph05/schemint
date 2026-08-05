@@ -22,6 +22,11 @@ def main() -> int:
     )
     parser.add_argument("--trials", type=int, default=1)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument(
+        "--score-artifacts",
+        action="store_true",
+        help="execute generated rollback and alternative SQL in throwaway Postgres databases",
+    )
     parser.add_argument("--compare", action="store_true")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH)
     args = parser.parse_args()
@@ -37,6 +42,7 @@ def main() -> int:
             suites,
             trials=args.trials,
             force=args.force,
+            score_artifacts=args.score_artifacts,
             store=store,
         )
         print(
