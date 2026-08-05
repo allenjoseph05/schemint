@@ -1,0 +1,1 @@
+{"id":"ambiguous_rewrite_lock","category":"ambiguous","notes":"Lock and rewrite impact depends on production volume and version.","expected_outcome":"escalate","shared_schema":"_shared/tranche_b.sql"}

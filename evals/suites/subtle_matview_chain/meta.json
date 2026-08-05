@@ -1,0 +1,1 @@
+{"id":"subtle_matview_chain","category":"subtle","notes":"A source-column drop removes a matview and its downstream view.","shared_schema":"_shared/tranche_b.sql"}

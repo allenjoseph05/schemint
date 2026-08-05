@@ -12,10 +12,16 @@ from evals.validate_suites import validate
 pytestmark = pytest.mark.unit
 
 
-def test_tranche_a_has_exact_category_balance() -> None:
+def test_all_tranches_have_exact_category_balance() -> None:
     suites = discover_suites()
-    assert len(suites) == 30
-    assert Counter(suite.task.category for suite in suites) == {"breaking": 15, "safe": 15}
+    assert len(suites) == 60
+    assert Counter(suite.task.category for suite in suites) == {
+        "breaking": 15,
+        "safe": 15,
+        "subtle": 15,
+        "adversarial": 10,
+        "ambiguous": 5,
+    }
 
 
 def test_every_suite_resolves_existing_inputs_and_truth() -> None:
@@ -31,5 +37,5 @@ def test_unknown_task_selection_fails_loudly() -> None:
         select_suites(["does_not_exist"])
 
 
-def test_committed_tranche_a_passes_validation() -> None:
+def test_committed_suites_pass_validation() -> None:
     assert validate() == []

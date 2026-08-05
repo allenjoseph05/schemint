@@ -1,0 +1,1 @@
+{"id":"subtle_enum_ordering","category":"subtle","notes":"Adding an enum value changes ordering semantics observed by a query.","shared_schema":"_shared/tranche_b.sql"}

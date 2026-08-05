@@ -11,15 +11,16 @@ def snapshot_fidelity(
     """Return Jaccard similarity over stable structural schema facts, as a percentage."""
     if real is None or predicted is None:
         return None
-    real_facts = _schema_facts(real)
-    predicted_facts = _schema_facts(predicted)
+    real_facts = schema_facts(real)
+    predicted_facts = schema_facts(predicted)
     union = real_facts | predicted_facts
     if not union:
         return 100.0
     return round(100.0 * len(real_facts & predicted_facts) / len(union), 3)
 
 
-def _schema_facts(snapshot: dict[str, Any]) -> set[tuple[str, ...]]:
+def schema_facts(snapshot: dict[str, Any]) -> set[tuple[str, ...]]:
+    """Extract stable schema facts, excluding timestamps and runtime statistics."""
     facts: set[tuple[str, ...]] = set()
     tables = snapshot.get("tables") or {}
     for table_name, table in tables.items():
@@ -57,6 +58,17 @@ def _schema_facts(snapshot: dict[str, Any]) -> set[tuple[str, ...]]:
                     str(bool(index.get("is_primary"))),
                 )
             )
+    for field in (
+        "views",
+        "triggers",
+        "sequences",
+        "enums",
+        "functions",
+        "policies",
+        "materialized_views",
+    ):
+        for name, value in (snapshot.get(field) or {}).items():
+            facts.add((field, _norm(name), _stable_value(value)))
     return facts
 
 
@@ -72,3 +84,16 @@ def _default(value: Any) -> str:
 
 def _action(value: Any) -> str:
     return _norm(value or "no action").replace("_", " ")
+
+
+def _stable_value(value: Any) -> str:
+    if isinstance(value, dict):
+        items = [
+            f"{key}={_stable_value(item)}"
+            for key, item in sorted(value.items())
+            if key not in {"last_value", "is_populated"}
+        ]
+        return "{" + ",".join(items) + "}"
+    if isinstance(value, list):
+        return "[" + ",".join(_stable_value(item) for item in value) + "]"
+    return _norm(value)

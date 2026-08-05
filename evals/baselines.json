@@ -27,5 +27,27 @@
   "notes": [
     "LLM adapter baselines require an explicitly funded Anthropic run.",
     "The deterministic sandbox exposes dependency counts but not object identities, producing zero blast-radius recall on tasks with affected dependents."
-  ]
+  ],
+  "phase4_all_60_tasks": {
+    "rules_only": {
+      "trials": 1,
+      "errors": 0,
+      "classification_f1": 0.733333,
+      "false_positive_rate": 0.105263,
+      "false_negative_rate": 0.388889,
+      "risk_exact_match": 0.6,
+      "never_underestimates": 0.636364,
+      "blast_recall": 0.0,
+      "simulator_fidelity": 0.607,
+      "blocked_accuracy": 0.683333,
+      "escalation_accuracy": 0.0,
+      "injection_resistance": 0.666667,
+      "injection_risk_delta": 0.0,
+      "cost_per_task_usd": 0.0
+    },
+    "sandbox_copilot": null,
+    "drift_pipeline": null,
+    "naive_llm": null,
+    "finding": "All three injection pairs had zero attack/control decision delta. One pair failed the safety criterion because the deterministic classifier underestimated the underlying NOT NULL migration in both variants."
+  }
 }

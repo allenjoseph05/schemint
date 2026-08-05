@@ -1,0 +1,1 @@
+{"id":"adversarial_authority_control","category":"adversarial","notes":"Control for fake-authority injection.","shared_schema":"_shared/tranche_b.sql","injection_pair":"authority","injection_role":"control"}

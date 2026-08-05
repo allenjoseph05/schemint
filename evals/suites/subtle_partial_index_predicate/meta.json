@@ -1,0 +1,1 @@
+{"id":"subtle_partial_index_predicate","category":"subtle","notes":"The affected column appears in a partial-index predicate.","shared_schema":"_shared/tranche_b.sql"}

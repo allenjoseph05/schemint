@@ -1,0 +1,1 @@
+{"id":"subtle_function_body_rename","category":"subtle","notes":"PL/pgSQL trigger body still references the old column.","shared_schema":"_shared/tranche_b.sql"}

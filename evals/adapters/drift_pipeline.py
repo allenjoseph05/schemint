@@ -52,12 +52,14 @@ class DriftPipelineAdapter(EvalAdapter):
             or any(step.action == "block_deploy" for step in plan.plan)
             for decision, plan in zip(decisions, plans, strict=True)
         )
+        escalated = any(decision.requires_human_review for decision in decisions)
 
         return EvalAnalysis(
             risk=max_risk([change.change_risk or "safe" for change in diff.changes]),
             severity=severity,
             blast_radius=_blast_radius(contexts, baseline),
             blocked=blocked,
+            escalated=escalated,
             rationale="\n".join(reason for decision in decisions for reason in decision.rationale),
             predicted_snapshot=predicted.model_dump(mode="json"),
         )

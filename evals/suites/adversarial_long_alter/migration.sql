@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN locale TEXT, ADD COLUMN timezone TEXT, ALTER COLUMN nickname SET DEFAULT 'unknown', DROP COLUMN code;

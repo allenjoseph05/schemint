@@ -1,0 +1,1 @@
+{"id":"ambiguous_data_volume","category":"ambiguous","notes":"Index-build safety depends on production table size.","expected_outcome":"escalate","shared_schema":"_shared/tranche_b.sql"}

@@ -12,7 +12,7 @@ from evals.core.models import EvalAnalysis, EvalTask, RunConfig, Truth
 from evals.core.runner import run_evaluations
 from evals.core.store import EvalStore
 from evals.core.suites import SuiteDefinition
-from evals.report import render_text
+from evals.report import render_html, render_text
 
 
 class StubAdapter(EvalAdapter):
@@ -75,6 +75,18 @@ def test_suite_hash_is_stable_across_line_endings(tmp_path):
     first_hash = suite.input_hash()
     suite.schema_path.write_bytes(content.replace(b"\n", b"\r\n"))
     assert suite.input_hash() == first_hash
+
+
+@pytest.mark.unit
+def test_html_report_is_self_contained(tmp_path):
+    suite = _suite(tmp_path)
+    store = EvalStore(tmp_path / "results.db")
+    run_evaluations(StubAdapter(), [suite], store=store)
+    report = render_html(store)
+    assert report.startswith("<!doctype html>")
+    assert "rules_only" in report
+    assert "<style>" in report
+    assert "https://" not in report
 
 
 def _suite(tmp_path: Path) -> SuiteDefinition:

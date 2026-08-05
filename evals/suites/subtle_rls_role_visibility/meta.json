@@ -1,0 +1,1 @@
+{"id":"subtle_rls_role_visibility","category":"subtle","notes":"Policy behavior changes rows visible to an application role.","shared_schema":"_shared/rls.sql"}
