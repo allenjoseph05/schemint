@@ -1,0 +1,150 @@
+name: Evaluation Gate
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  eval-deterministic:
+    name: Deterministic Evaluation
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate evaluation corpus
+        run: python -m evals.validate_suites
+
+      - name: Verify deterministic severity floor
+        run: >-
+          python -m pytest -q
+          tests/unit/test_drift_agent_brain.py::TestInvariantEnforcement::test_severity_floor_cannot_be_undercut
+
+      - name: Run deterministic evaluation
+        run: >-
+          python -m evals.run
+          --adapter rules_only
+          --suite all
+          --force
+          --db artifacts/results.db
+
+      - name: Enforce PR baseline
+        run: |
+          python -m evals.gate --profile pr --db artifacts/results.db | tee artifacts/gate.txt
+          cat artifacts/gate.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Render evaluation report
+        if: always()
+        run: |
+          python -m evals.report --db artifacts/results.db --html artifacts/report.html
+          python -m evals.report --db artifacts/results.db --text >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload deterministic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-deterministic-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
+  eval-llm:
+    name: Nightly LLM Evaluation
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CLAUDE_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[all]"
+
+      - name: Require funded API key
+        run: test -n "$CLAUDE_API_KEY"
+
+      - name: Validate evaluation corpus
+        run: python -m evals.validate_suites
+
+      - name: Run sandbox copilot
+        run: >-
+          python -m evals.run
+          --adapter sandbox_copilot
+          --suite all
+          --trials 3
+          --force
+          --score-artifacts
+          --budget-usd 20
+          --db artifacts/results.db
+
+      - name: Run drift pipeline
+        run: >-
+          python -m evals.run
+          --adapter drift_pipeline
+          --suite all
+          --trials 3
+          --force
+          --budget-usd 20
+          --db artifacts/results.db
+
+      - name: Run naive LLM baseline
+        run: >-
+          python -m evals.run
+          --adapter naive_llm
+          --suite all
+          --trials 3
+          --force
+          --budget-usd 20
+          --db artifacts/results.db
+
+      - name: Enforce nightly baseline
+        run: |
+          python -m evals.gate --profile nightly --db artifacts/results.db | tee artifacts/gate.txt
+          cat artifacts/gate.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Render evaluation report
+        if: always()
+        run: |
+          python -m evals.report --db artifacts/results.db --html artifacts/report.html
+          python -m evals.report --db artifacts/results.db --text >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload nightly evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-nightly-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30

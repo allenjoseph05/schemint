@@ -23,6 +23,7 @@ class RunSummary:
     skipped: int
     errors: int
     cost_usd: float
+    budget_exhausted: bool = False
 
 
 def run_evaluations(
@@ -32,14 +33,18 @@ def run_evaluations(
     trials: int = 1,
     force: bool = False,
     score_artifacts: bool = False,
+    budget_usd: float | None = None,
     store: EvalStore | None = None,
 ) -> RunSummary:
     """Run and score each task, preserving errors as visible result rows."""
     if trials < 1:
         raise ValueError("trials must be at least 1")
+    if budget_usd is not None and budget_usd <= 0:
+        raise ValueError("budget_usd must be greater than zero")
     result_store = store or EvalStore()
     completed = skipped = errors = 0
     total_cost = 0.0
+    budget_exhausted = False
     artifact_scorer = LiveArtifactScorer() if score_artifacts else None
 
     try:
@@ -84,6 +89,11 @@ def run_evaluations(
                 completed += 1
                 total_cost += analysis.cost_usd
                 errors += analysis.error is not None
+                if budget_usd is not None and total_cost > budget_usd:
+                    budget_exhausted = True
+                    break
+            if budget_exhausted:
+                break
     finally:
         if artifact_scorer is not None:
             artifact_scorer.close()
@@ -94,6 +104,7 @@ def run_evaluations(
         skipped=skipped,
         errors=errors,
         cost_usd=total_cost,
+        budget_exhausted=budget_exhausted,
     )
 
 

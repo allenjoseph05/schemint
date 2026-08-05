@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
 from evals.adapters.base import EvalAdapter
+from evals.core.metering import UsageTotals
 from evals.core.models import EvalAnalysis, EvalTask, RunConfig, Truth
 from evals.core.runner import run_evaluations
 from evals.core.store import EvalStore
@@ -87,6 +90,27 @@ def test_html_report_is_self_contained(tmp_path):
     assert "rules_only" in report
     assert "<style>" in report
     assert "https://" not in report
+
+
+@pytest.mark.unit
+def test_runner_aborts_after_metered_budget_is_exceeded(tmp_path, monkeypatch):
+    @contextmanager
+    def costly_meter() -> Iterator[UsageTotals]:
+        yield UsageTotals(cost_usd=0.6)
+
+    monkeypatch.setattr("evals.core.runner.meter", costly_meter)
+    suite = _suite(tmp_path)
+    summary = run_evaluations(
+        StubAdapter(),
+        [suite],
+        trials=2,
+        budget_usd=0.5,
+        store=EvalStore(tmp_path / "results.db"),
+    )
+
+    assert summary.completed == 1
+    assert summary.cost_usd == pytest.approx(0.6)
+    assert summary.budget_exhausted is True
 
 
 def _suite(tmp_path: Path) -> SuiteDefinition:

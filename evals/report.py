@@ -17,6 +17,11 @@ _METRICS = (
     ("false_negative_rate", "False-negative rate", "percent"),
     ("risk_exact_match", "Risk exact match", "percent"),
     ("never_underestimates", "Never underestimates", "percent"),
+    (
+        "breaking_never_underestimates",
+        "Never underestimates breaking tasks",
+        "percent",
+    ),
     ("blast_recall", "Blast recall", "percent"),
     ("blast_precision", "Blast precision", "percent"),
     ("simulator_fidelity", "Simulator fidelity", "percent"),
@@ -137,8 +142,8 @@ tbody tr:last-child th,tbody tr:last-child td {{ border-bottom:0; }}
 <body>
 <header><h1>Schemint evaluation report</h1><p>Generated from the latest append-only result for each adapter configuration.</p></header>
 <main>
-<section><h2>Adapter comparison</h2><div class="table-wrap"><table><thead><tr><th>Metric</th>{headers}</tr></thead><tbody>{''.join(metric_rows)}</tbody></table></div><p class="note">Values include bootstrap 95% confidence intervals where trials are available.</p></section>
-<section><h2>Accuracy by category</h2><div class="table-wrap"><table><thead><tr><th>Category</th>{headers}</tr></thead><tbody>{''.join(category_rows)}</tbody></table></div></section>
+<section><h2>Adapter comparison</h2><div class="table-wrap"><table><thead><tr><th>Metric</th>{headers}</tr></thead><tbody>{"".join(metric_rows)}</tbody></table></div><p class="note">Values include bootstrap 95% confidence intervals where trials are available.</p></section>
+<section><h2>Accuracy by category</h2><div class="table-wrap"><table><thead><tr><th>Category</th>{headers}</tr></thead><tbody>{"".join(category_rows)}</tbody></table></div></section>
 </main>
 </body>
 </html>"""
