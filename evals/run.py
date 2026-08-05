@@ -21,6 +21,11 @@ def main() -> int:
         help="all, fast, a category, or a comma-separated list of task ids",
     )
     parser.add_argument("--trials", type=int, default=1)
+    parser.add_argument(
+        "--budget-usd",
+        type=float,
+        help="abort before the next task once metered adapter cost exceeds this cap",
+    )
     parser.add_argument("--force", action="store_true")
     parser.add_argument(
         "--score-artifacts",
@@ -43,12 +48,16 @@ def main() -> int:
             trials=args.trials,
             force=args.force,
             score_artifacts=args.score_artifacts,
+            budget_usd=args.budget_usd,
             store=store,
         )
         print(
             f"{args.adapter}: {summary.completed} rows, {summary.errors} errors, "
             f"{summary.skipped} skipped, ${summary.cost_usd:.4f}"
         )
+        if summary.budget_exhausted:
+            print(f"Budget exhausted: ${summary.cost_usd:.4f} > ${args.budget_usd:.4f}")
+            return 2
     if args.compare:
         print(render_text(store))
     return 0
