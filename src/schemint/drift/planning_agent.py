@@ -119,6 +119,7 @@ class PlanningAgent:
         self.model = settings.claude_model
         self.critique_model = settings.claude_model_simple  # Haiku for critique
         self.enable_critique = settings.enable_plan_critique
+        self.temperature = settings.claude_temperature
 
     def plan(
         self,
@@ -205,6 +206,7 @@ class PlanningAgent:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=1024,
+            temperature=self.temperature,
             system=[
                 {
                     "type": "text",
@@ -353,6 +355,7 @@ class PlanningAgent:
             response = self.client.messages.create(
                 model=self.critique_model,
                 max_tokens=256,
+                temperature=self.temperature,
                 system=_CRITIQUE_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_message}],
             )

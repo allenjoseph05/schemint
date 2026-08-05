@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     claude_model_simple: str = "claude-haiku-4-5-20251001"  # 1-3 tables
     claude_model_complex: str = "claude-sonnet-4-5-20250929"  # 16+ tables
     claude_max_agent_turns: int = 10  # Max tool-use round trips for agent
+    claude_temperature: float = 0.0
 
     # Analysis
     max_sql_length: int = 100000  # 100KB

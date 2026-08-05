@@ -184,6 +184,7 @@ class AgentAnalyzer:
 
         self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
         self.max_turns = settings.claude_max_agent_turns
+        self.temperature = settings.claude_temperature
 
     def analyze(
         self,
@@ -231,6 +232,7 @@ class AgentAnalyzer:
                 response = self.client.messages.create(
                     model=model,
                     max_tokens=4096,
+                    temperature=self.temperature,
                     system=[
                         {
                             "type": "text",

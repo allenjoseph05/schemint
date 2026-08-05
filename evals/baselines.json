@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "suite": "tranche_a",
+  "tasks": 30,
+  "command": "python -m evals.run --adapter rules_only --suite all --force --compare",
+  "generator_version": "v1",
+  "adapters": {
+    "rules_only": {
+      "trials": 1,
+      "errors": 0,
+      "classification_f1": 0.72,
+      "false_positive_rate": 0.066667,
+      "false_negative_rate": 0.4,
+      "risk_exact_match": 0.7,
+      "never_underestimates": 0.733333,
+      "blast_recall": 0.0,
+      "blast_precision": 0.0,
+      "blast_f1": 0.0,
+      "simulator_fidelity": 0.66,
+      "blocked_accuracy": 0.733333,
+      "cost_per_task_usd": 0.0
+    },
+    "sandbox_copilot": null,
+    "drift_pipeline": null,
+    "naive_llm": null
+  },
+  "notes": [
+    "LLM adapter baselines require an explicitly funded Anthropic run.",
+    "The deterministic sandbox exposes dependency counts but not object identities, producing zero blast-radius recall on tasks with affected dependents."
+  ]
+}

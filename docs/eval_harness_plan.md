@@ -1,8 +1,23 @@
 # Schemint Eval Harness — Implementation Plan
 
-Status: in progress — Phases 1–2 implemented
-Target branch: `feat/eval-harness` (off `feat/sandbox-ai`)
+Status: in progress — Phases 1–3 implemented
+Branch strategy: one reviewed `feat/eval-harness-phase-N` branch per phase
 Author: planning pass, 2026-08-02
+
+### Implementation status (2026-08-05)
+
+| Phase | Status | Acceptance evidence |
+|---|---|---|
+| 1 — foundations | complete | Model/store/metering round trips and Postgres lifecycle tests pass |
+| 2 — oracle + tranche A | complete | 30 generated truth artifacts; suite validation and oracle tests pass |
+| 3 — adapters + first numbers | complete | `rules_only` produced 30 rows with 0 errors; four-column text comparison report renders |
+| 4–6 | pending | Continue on separate phase branches after manual merge |
+
+First deterministic baseline (`evals/baselines.json`, one trial, 30 tasks): F1 72.0%,
+false-positive rate 6.7%, false-negative rate 40.0%, exact risk match 70.0%,
+never-underestimates 73.3%, blast-radius recall 0.0%, and simulator fidelity 66.0%.
+The zero blast-radius recall confirms the known sandbox context defect in §1. Paid
+adapter baselines remain `null` until an explicitly funded Anthropic run is configured.
 
 ---
 
@@ -48,7 +63,8 @@ Checked during planning, all green:
   runs end to end and returns risk levels, warnings, a safety score, and recommendations.
 - `LiveDBSnapshotCapture().capture(url)` against a container returns tables, views and
   foreign keys.
-- `CLAUDE_API_KEY` is present in `.env`.
+- Anthropic SDK support is installed. `CLAUDE_API_KEY` is intentionally required only
+  for explicitly funded AI adapter runs and was not configured for the first baseline.
 
 **Two real defects surfaced by the 20-minute prototype.** They are not blockers —
 they are the harness's first job:
@@ -89,7 +105,7 @@ vocabulary so every number maps back to a line of code:
 
 ```python
 class EvalAnalysis(BaseModel):
-    overall_risk: Literal["safe","needs_review","potentially_breaking","breaking"]
+    risk: Literal["safe","needs_review","potentially_breaking","breaking"]
     severity: Literal["low","medium","high","critical"] | None = None  # drift_pipeline only
     blast_radius: list[str] = []      # "view:user_summary", "foreign_key:orders_user_id_fkey", ...
     blocked: bool = False

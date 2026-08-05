@@ -55,7 +55,9 @@ class SuiteDefinition:
         for path in sorted(self.truth_inputs(), key=lambda item: item.as_posix()):
             digest.update(path.name.encode())
             digest.update(b"\0")
-            digest.update(path.read_bytes())
+            # Git may materialize text files as CRLF on Windows. Truth hashes
+            # must identify content, not a checkout's line-ending policy.
+            digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
             digest.update(b"\0")
         return digest.hexdigest()
 

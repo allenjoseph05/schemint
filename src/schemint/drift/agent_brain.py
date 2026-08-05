@@ -148,6 +148,7 @@ class DriftAgent:
 
         self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
         self.model = settings.claude_model
+        self.temperature = settings.claude_temperature
 
     def judge(self, context: ContextPackage) -> AgentDecision:
         """Judge a schema change and return a safety decision.
@@ -227,6 +228,7 @@ class DriftAgent:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=1024,
+            temperature=self.temperature,
             system=[
                 {
                     "type": "text",
