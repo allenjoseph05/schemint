@@ -110,7 +110,9 @@ class SQLFileDetector:
             self.patterns.extend(additional_patterns)
 
         # Pre-build pathspec matchers for each pattern
-        self._matchers: list[tuple[SQLFilePattern, pathspec.PathSpec]] = []
+        self._matchers: list[
+            tuple[SQLFilePattern, pathspec.PathSpec]  # type: ignore[type-arg]
+        ] = []
         for pat in self.patterns:
             spec = pathspec.PathSpec.from_lines("gitignore", [pat.pattern])
             self._matchers.append((pat, spec))

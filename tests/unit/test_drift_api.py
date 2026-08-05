@@ -4,30 +4,26 @@ Uses FastAPI TestClient with mocked external dependencies (store, AI agents).
 All I/O is mocked — no real DB or Claude API calls.
 """
 
+# Some mocks must be configured before the nested TestClient context is entered.
+# Keep that setup order explicit throughout this legacy endpoint test module.
+# ruff: noqa: SIM117
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from schemint.drift.models import (
     AgentDecision,
     ContextPackage,
-    DependencyGraph,
     DriftRunResult,
-    DriftRunStatus,
-    ExecutionPlan,
     ExecutionReport,
-    MigrationGap,
-    MigrationRecord,
     RunTelemetry,
     SchemaChangeEvent,
     SchemaDiffResult,
     SchemaSnapshot,
-    VerificationReport,
 )
 from schemint.main import create_app
 
@@ -140,9 +136,8 @@ class TestSnapshotEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db down")
-        ):
-            with TestClient(app) as client:
-                resp = client.get("/api/v1/drift/snapshot/proj-1/latest")
+        ), TestClient(app) as client:
+            resp = client.get("/api/v1/drift/snapshot/proj-1/latest")
         assert resp.status_code == 500
 
     def test_get_latest_snapshot_none(self) -> None:
@@ -208,9 +203,8 @@ class TestGraphEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("fail")
-        ):
-            with TestClient(app) as client:
-                resp = client.get("/api/v1/drift/graph/proj-1")
+        ), TestClient(app) as client:
+            resp = client.get("/api/v1/drift/graph/proj-1")
         assert resp.status_code == 500
 
 
@@ -320,14 +314,13 @@ class TestRunEndpoints:
         with patch(
             "schemint.drift.agent_controller.build_agent_controller",
             return_value=mock_ctrl,
-        ):
-            with patch("schemint.api.v1.drift._build_memory_context", return_value=None):
-                with patch("schemint.api.v1.drift._write_memory_learnings"):
-                    with TestClient(app) as client:
-                        resp = client.post(
-                            "/api/v1/drift/run/proj-1",
-                            json={"context": ctx.model_dump(mode="json")},
-                        )
+        ), patch("schemint.api.v1.drift._build_memory_context", return_value=None):
+            with patch("schemint.api.v1.drift._write_memory_learnings"):
+                with TestClient(app) as client:
+                    resp = client.post(
+                        "/api/v1/drift/run/proj-1",
+                        json={"context": ctx.model_dump(mode="json")},
+                    )
         assert resp.status_code == 200
         data = resp.json()
         assert data["run_id"] == "run-123"
@@ -366,9 +359,8 @@ class TestRunEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ):
-            with TestClient(app) as client:
-                resp = client.get("/api/v1/drift/run/proj-1/run-123")
+        ), TestClient(app) as client:
+            resp = client.get("/api/v1/drift/run/proj-1/run-123")
         assert resp.status_code == 500
 
     def test_list_drift_runs_success(self) -> None:
@@ -398,9 +390,8 @@ class TestRunEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("fail")
-        ):
-            with TestClient(app) as client:
-                resp = client.get("/api/v1/drift/runs/proj-1")
+        ), TestClient(app) as client:
+            resp = client.get("/api/v1/drift/runs/proj-1")
         assert resp.status_code == 500
 
 
@@ -417,13 +408,11 @@ class TestApprovalEndpoints:
         with patch(
             "schemint.drift.agent_controller.build_agent_controller",
             return_value=mock_ctrl,
-        ):
-            with patch("schemint.api.v1.drift._write_memory_learnings"):
-                with TestClient(app) as client:
-                    resp = client.post(
-                        "/api/v1/drift/approve/run-123",
-                        json={"approver": "alice", "reason": "LGTM"},
-                    )
+        ), patch("schemint.api.v1.drift._write_memory_learnings"), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/approve/run-123",
+                json={"approver": "alice", "reason": "LGTM"},
+            )
         assert resp.status_code == 200
 
     def test_approve_run_not_found(self) -> None:
@@ -433,12 +422,11 @@ class TestApprovalEndpoints:
         with patch(
             "schemint.drift.agent_controller.build_agent_controller",
             return_value=mock_ctrl,
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/approve/missing-run",
-                    json={"approver": "alice"},
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/approve/missing-run",
+                json={"approver": "alice"},
+            )
         assert resp.status_code == 404
 
     def test_approve_run_wrong_status(self) -> None:
@@ -448,12 +436,11 @@ class TestApprovalEndpoints:
         with patch(
             "schemint.drift.agent_controller.build_agent_controller",
             return_value=mock_ctrl,
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/approve/run-123",
-                    json={"approver": "alice"},
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/approve/run-123",
+                json={"approver": "alice"},
+            )
         assert resp.status_code == 409
 
     def test_reject_run_success(self) -> None:
@@ -463,12 +450,11 @@ class TestApprovalEndpoints:
         with patch(
             "schemint.drift.agent_controller.build_agent_controller",
             return_value=mock_ctrl,
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/reject/run-123",
-                    json={"approver": "bob", "reason": "too risky"},
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/reject/run-123",
+                json={"approver": "bob", "reason": "too risky"},
+            )
         assert resp.status_code == 200
 
     def test_reject_run_not_found(self) -> None:
@@ -478,12 +464,11 @@ class TestApprovalEndpoints:
         with patch(
             "schemint.drift.agent_controller.build_agent_controller",
             return_value=mock_ctrl,
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/reject/missing",
-                    json={"approver": "bob"},
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/reject/missing",
+                json={"approver": "bob"},
+            )
         assert resp.status_code == 404
 
     def test_approve_run_server_error(self) -> None:
@@ -493,12 +478,11 @@ class TestApprovalEndpoints:
         with patch(
             "schemint.drift.agent_controller.build_agent_controller",
             return_value=mock_ctrl,
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/approve/run-123",
-                    json={"approver": "alice"},
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/approve/run-123",
+                json={"approver": "alice"},
+            )
         assert resp.status_code == 500
 
 
@@ -544,9 +528,8 @@ class TestObservabilityEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ):
-            with TestClient(app) as client:
-                resp = client.get("/api/v1/drift/dashboard/proj-1")
+        ), TestClient(app) as client:
+            resp = client.get("/api/v1/drift/dashboard/proj-1")
         assert resp.status_code == 200
         data = resp.json()
         assert data["total_runs"] == 0
@@ -591,9 +574,8 @@ class TestObservabilityEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ):
-            with TestClient(app) as client:
-                resp = client.get("/api/v1/drift/metrics")
+        ), TestClient(app) as client:
+            resp = client.get("/api/v1/drift/metrics")
         assert resp.status_code == 200
         data = resp.json()
         assert data["schemint_drift_runs_total"] == 0
@@ -609,12 +591,11 @@ class TestCopilotAnalyzeEndpoint:
         app = _make_app()
         with patch(
             "schemint.drift.copilot_agent.get_copilot_agent", return_value=None
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/copilot/analyze",
-                    json={"migration_sql": "ALTER TABLE t ADD COLUMN x INT;"},
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/copilot/analyze",
+                json={"migration_sql": "ALTER TABLE t ADD COLUMN x INT;"},
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["ai_available"] is False
@@ -628,18 +609,17 @@ class TestCopilotAnalyzeEndpoint:
         mock_agent.validate_intent.return_value = None
         with patch(
             "schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/copilot/analyze",
-                    json={
-                        "migration_sql": "ALTER TABLE users ADD COLUMN email TEXT;",
-                        "context": ctx.model_dump(mode="json"),
-                        "generate_alternatives": True,
-                        "generate_rollback": True,
-                        "validate_intent": True,
-                    },
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/copilot/analyze",
+                json={
+                    "migration_sql": "ALTER TABLE users ADD COLUMN email TEXT;",
+                    "context": ctx.model_dump(mode="json"),
+                    "generate_alternatives": True,
+                    "generate_rollback": True,
+                    "validate_intent": True,
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["ai_available"] is True
@@ -652,17 +632,16 @@ class TestCopilotAnalyzeEndpoint:
         mock_agent.validate_intent.return_value = None
         with patch(
             "schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/copilot/analyze",
-                    json={
-                        "migration_sql": "ALTER TABLE t DROP COLUMN x;",
-                        "generate_alternatives": False,
-                        "generate_rollback": False,
-                        "validate_intent": False,
-                    },
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/copilot/analyze",
+                json={
+                    "migration_sql": "ALTER TABLE t DROP COLUMN x;",
+                    "generate_alternatives": False,
+                    "generate_rollback": False,
+                    "validate_intent": False,
+                },
+            )
         assert resp.status_code == 200
 
     def test_copilot_analyze_with_alternatives(self) -> None:
@@ -686,18 +665,17 @@ class TestCopilotAnalyzeEndpoint:
 
         with patch(
             "schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent
-        ):
-            with TestClient(app) as client:
-                resp = client.post(
-                    "/api/v1/drift/copilot/analyze",
-                    json={
-                        "migration_sql": "ALTER TABLE users ADD COLUMN x INT;",
-                        "context": ctx.model_dump(mode="json"),
-                        "generate_alternatives": True,
-                        "generate_rollback": True,
-                        "validate_intent": True,
-                    },
-                )
+        ), TestClient(app) as client:
+            resp = client.post(
+                "/api/v1/drift/copilot/analyze",
+                json={
+                    "migration_sql": "ALTER TABLE users ADD COLUMN x INT;",
+                    "context": ctx.model_dump(mode="json"),
+                    "generate_alternatives": True,
+                    "generate_rollback": True,
+                    "validate_intent": True,
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["alternatives"]) == 1
@@ -749,9 +727,8 @@ class TestDesiredStateEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ):
-            with TestClient(app) as client:
-                resp = client.get("/api/v1/drift/desired-state/proj-1/production")
+        ), TestClient(app) as client:
+            resp = client.get("/api/v1/drift/desired-state/proj-1/production")
         assert resp.status_code == 500
 
 
@@ -774,9 +751,8 @@ class TestMigrationHistoryEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ):
-            with TestClient(app) as client:
-                resp = client.get("/api/v1/drift/migrations/proj-1/default")
+        ), TestClient(app) as client:
+            resp = client.get("/api/v1/drift/migrations/proj-1/default")
         assert resp.status_code == 500
 
     def test_check_migration_applied(self) -> None:
@@ -795,9 +771,8 @@ class TestMigrationHistoryEndpoints:
         app = _make_app()
         with patch(
             "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ):
-            with TestClient(app) as client:
-                resp = client.get(
-                    "/api/v1/drift/migrations/proj-1/default/check/abc123"
-                )
+        ), TestClient(app) as client:
+            resp = client.get(
+                "/api/v1/drift/migrations/proj-1/default/check/abc123"
+            )
         assert resp.status_code == 500

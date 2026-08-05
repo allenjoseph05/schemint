@@ -391,7 +391,7 @@ class SQLRunner(ToolAdapter):
         view_name = f"{table}_compat"
         q = self._qi
         return (
-            f"CREATE OR REPLACE VIEW {q(view_name)} AS "
+            f"CREATE OR REPLACE VIEW {q(view_name)} AS "  # nosec B608
             f"SELECT *, {q(new_col)} AS {q(old_col)} FROM {q(table)};"
         )
 
@@ -415,7 +415,7 @@ class SQLRunner(ToolAdapter):
             return None
         q = self._qi
         return (
-            f"CREATE OR REPLACE VIEW {q(old_table)} AS "
+            f"CREATE OR REPLACE VIEW {q(old_table)} AS "  # nosec B608
             f"SELECT * FROM {q(new_table)};"
         )
 

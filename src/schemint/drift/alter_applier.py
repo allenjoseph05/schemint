@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import cast
 
 import sqlglot
 from sqlglot import exp as sqlglot_exp
@@ -54,7 +55,11 @@ class AlterApplier:
         for stmt in statements:
             if stmt is None:
                 continue
-            self._apply_statement(stmt, result, migration_sql)
+            self._apply_statement(
+                cast(sqlglot_exp.Expression, stmt),  # type: ignore[redundant-cast]
+                result,
+                migration_sql,
+            )
 
         return result
 
