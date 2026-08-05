@@ -1,0 +1,6 @@
+{
+  "id": "cascade_drop_matview",
+  "category": "breaking",
+  "notes": "Dropping a source column with CASCADE removes its materialized view.",
+  "shared_schema": "_shared/core.sql"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "add_defaulted_flag",
+  "category": "safe",
+  "notes": "A new NOT NULL column with a constant default is additive on supported Postgres.",
+  "shared_schema": "_shared/core.sql"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "create_sessions_trigger",
+  "category": "safe",
+  "notes": "Adding a valid update trigger preserves existing behavior until invoked.",
+  "shared_schema": "_shared/core.sql"
+}

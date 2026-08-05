@@ -1,0 +1,6 @@
+{
+  "id": "add_not_null_with_nulls",
+  "category": "breaking",
+  "notes": "The existing NULL nickname makes SET NOT NULL fail.",
+  "shared_schema": "_shared/core.sql"
+}

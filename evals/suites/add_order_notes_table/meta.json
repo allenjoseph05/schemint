@@ -1,0 +1,6 @@
+{
+  "id": "add_order_notes_table",
+  "category": "safe",
+  "notes": "A new child table and valid foreign key are additive.",
+  "shared_schema": "_shared/core.sql"
+}

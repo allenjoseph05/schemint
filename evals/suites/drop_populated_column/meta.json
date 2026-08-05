@@ -1,0 +1,6 @@
+{
+  "id": "drop_populated_column",
+  "category": "breaking",
+  "notes": "Dropping a populated column destroys stored values.",
+  "shared_schema": "_shared/core.sql"
+}

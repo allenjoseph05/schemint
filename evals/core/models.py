@@ -145,6 +145,9 @@ class Truth(BaseModel):
 
     task_id: str
     generator_version: str
+    # Hash of meta/schema/seed/migration/probe inputs. This is a portable
+    # freshness check; filesystem mtimes are not preserved by Git checkouts.
+    input_hash: str = ""
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Did the migration statement itself fail?

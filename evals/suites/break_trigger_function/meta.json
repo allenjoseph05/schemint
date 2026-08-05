@@ -1,0 +1,6 @@
+{
+  "id": "break_trigger_function",
+  "category": "breaking",
+  "notes": "PL/pgSQL resolves NEW fields at execution, so the broken trigger appears on probe update.",
+  "shared_schema": "_shared/core.sql"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "remove_enum_value",
+  "category": "breaking",
+  "notes": "Rebuilding an enum without a value fails while rows still use that value.",
+  "shared_schema": "_shared/core.sql"
+}

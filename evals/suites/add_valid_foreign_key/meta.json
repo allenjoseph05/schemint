@@ -1,0 +1,6 @@
+{
+  "id": "add_valid_foreign_key",
+  "category": "safe",
+  "notes": "Existing team references are valid, so the new foreign key is additive.",
+  "shared_schema": "_shared/core.sql"
+}

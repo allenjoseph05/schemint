@@ -1,0 +1,2265 @@
+{
+  "task_id": "add_order_notes_table",
+  "generator_version": "v1",
+  "input_hash": "f05508b8fe7c85f79870995ac4bd60702acef7e7349c30192590eb505ca656ed",
+  "generated_at": "2026-08-04T20:05:35.493361Z",
+  "migration_error": null,
+  "risk": "safe",
+  "must_block": false,
+  "blast_radius": [],
+  "rows_lost": {},
+  "rule_fired": "additive_change",
+  "real_pre_snapshot": {
+    "snapshot_id": "live_public_20260804_200534",
+    "captured_at": "2026-08-04T20:05:34.984187Z",
+    "source": "live_db",
+    "database_type": "postgresql",
+    "schema_name": "public",
+    "environment": "default",
+    "is_desired_state": false,
+    "tables": {
+      "duplicate_values": {
+        "name": "duplicate_values",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "value": {
+            "name": "value",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "duplicate_values_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX duplicate_values_pkey ON public.duplicate_values USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "items": {
+        "name": "items",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "name": {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "quantity": {
+            "name": "quantity",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "items_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX items_pkey ON public.items USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "orders": {
+        "name": "orders",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "user_id": {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "amount": {
+            "name": "amount",
+            "type": "numeric(10,2)",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "reference": {
+            "name": "reference",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "idx_orders_reference",
+            "columns": [],
+            "is_unique": false,
+            "is_primary": false,
+            "definition": "CREATE INDEX idx_orders_reference ON public.orders USING btree (reference)"
+          },
+          {
+            "name": "orders_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+          }
+        ],
+        "foreign_keys": [
+          {
+            "name": "orders_user_id_fkey",
+            "column": "user_id",
+            "references_table": "users",
+            "references_column": "id",
+            "on_delete": "NO ACTION",
+            "on_update": "NO ACTION"
+          }
+        ]
+      },
+      "products": {
+        "name": "products",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "name": {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "price": {
+            "name": "price",
+            "type": "numeric(10,2)",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "products_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX products_pkey ON public.products USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "sessions": {
+        "name": "sessions",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "user_id": {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "token": {
+            "name": "token",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "sessions_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "teams": {
+        "name": "teams",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "name": {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "teams_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX teams_pkey ON public.teams USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "tickets": {
+        "name": "tickets",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": "nextval('ticket_id_seq'::regclass)",
+            "constraints": []
+          },
+          "title": {
+            "name": "title",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "tickets_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX tickets_pkey ON public.tickets USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "users": {
+        "name": "users",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "email": {
+            "name": "email",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "nickname": {
+            "name": "nickname",
+            "type": "text",
+            "nullable": true,
+            "default": null,
+            "constraints": []
+          },
+          "status": {
+            "name": "status",
+            "type": "user-defined",
+            "nullable": false,
+            "default": "'active'::user_status",
+            "constraints": []
+          },
+          "code": {
+            "name": "code",
+            "type": "charvarying(20)",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "legacy": {
+            "name": "legacy",
+            "type": "text",
+            "nullable": true,
+            "default": null,
+            "constraints": []
+          },
+          "team_id": {
+            "name": "team_id",
+            "type": "integer",
+            "nullable": true,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "users_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      }
+    },
+    "views": {
+      "user_directory": {
+        "name": "user_directory",
+        "definition": "SELECT id,\n    email,\n    status\n   FROM users;",
+        "source_tables": [
+          "users"
+        ]
+      }
+    },
+    "triggers": {
+      "items_quantity_check": {
+        "name": "items_quantity_check",
+        "table": "items",
+        "event": "UPDATE",
+        "timing": "BEFORE",
+        "function_name": "validate_item_quantity",
+        "definition": "EXECUTE FUNCTION validate_item_quantity()"
+      }
+    },
+    "sequences": {
+      "duplicate_values_id_seq": {
+        "name": "duplicate_values_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "items_id_seq": {
+        "name": "items_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "orders_id_seq": {
+        "name": "orders_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "products_id_seq": {
+        "name": "products_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "sessions_id_seq": {
+        "name": "sessions_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "teams_id_seq": {
+        "name": "teams_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "ticket_id_seq": {
+        "name": "ticket_id_seq",
+        "data_type": "bigint",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 9223372036854775807,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "users_id_seq": {
+        "name": "users_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      }
+    },
+    "enums": {
+      "user_status": {
+        "name": "user_status",
+        "values": [
+          "active",
+          "inactive"
+        ]
+      }
+    },
+    "functions": {
+      "validate_item_quantity": {
+        "name": "validate_item_quantity",
+        "argument_types": "",
+        "return_type": "trigger",
+        "language": "plpgsql",
+        "volatility": "volatile",
+        "definition": "CREATE OR REPLACE FUNCTION public.validate_item_quantity()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    IF NEW.quantity < 0 THEN\n        RAISE EXCEPTION 'quantity must be non-negative';\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n"
+      }
+    },
+    "table_statistics": {
+      "duplicate_values": {
+        "table_name": "duplicate_values",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 1,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "items": {
+        "table_name": "items",
+        "row_count": 0,
+        "dead_tuples": 1,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 3,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "orders": {
+        "table_name": "orders",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 49152,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 32768,
+        "seq_scan_count": 1,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "product_summary": {
+        "table_name": "product_summary",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 24576,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 0,
+        "seq_scan_count": 0,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "products": {
+        "table_name": "products",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "sessions": {
+        "table_name": "sessions",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 1,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "teams": {
+        "table_name": "teams",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 1,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "tickets": {
+        "table_name": "tickets",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 1,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "users": {
+        "table_name": "users",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 1,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      }
+    },
+    "index_statistics": {
+      "duplicate_values_pkey": {
+        "index_name": "duplicate_values_pkey",
+        "table_name": "duplicate_values",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "idx_orders_reference": {
+        "index_name": "idx_orders_reference",
+        "table_name": "orders",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "items_pkey": {
+        "index_name": "items_pkey",
+        "table_name": "items",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "orders_pkey": {
+        "index_name": "orders_pkey",
+        "table_name": "orders",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "products_pkey": {
+        "index_name": "products_pkey",
+        "table_name": "products",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "sessions_pkey": {
+        "index_name": "sessions_pkey",
+        "table_name": "sessions",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "teams_pkey": {
+        "index_name": "teams_pkey",
+        "table_name": "teams",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "tickets_pkey": {
+        "index_name": "tickets_pkey",
+        "table_name": "tickets",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "users_pkey": {
+        "index_name": "users_pkey",
+        "table_name": "users",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      }
+    },
+    "extensions": {
+      "plpgsql": {
+        "name": "plpgsql",
+        "version": "1.0",
+        "installed_schema": "pg_catalog"
+      }
+    },
+    "permissions": [
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      }
+    ],
+    "policies": {},
+    "partitions": {},
+    "materialized_views": {
+      "product_summary": {
+        "name": "product_summary",
+        "definition": "SELECT id,\n    name,\n    price\n   FROM products;",
+        "is_populated": true,
+        "tablespace": null,
+        "source_tables": [
+          "products"
+        ]
+      }
+    },
+    "column_statistics": {}
+  },
+  "real_post_snapshot": {
+    "snapshot_id": "live_public_20260804_200535",
+    "captured_at": "2026-08-04T20:05:35.491405Z",
+    "source": "live_db",
+    "database_type": "postgresql",
+    "schema_name": "public",
+    "environment": "default",
+    "is_desired_state": false,
+    "tables": {
+      "duplicate_values": {
+        "name": "duplicate_values",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "value": {
+            "name": "value",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "duplicate_values_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX duplicate_values_pkey ON public.duplicate_values USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "items": {
+        "name": "items",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "name": {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "quantity": {
+            "name": "quantity",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "items_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX items_pkey ON public.items USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "order_notes": {
+        "name": "order_notes",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "order_id": {
+            "name": "order_id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "note": {
+            "name": "note",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "order_notes_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX order_notes_pkey ON public.order_notes USING btree (id)"
+          }
+        ],
+        "foreign_keys": [
+          {
+            "name": "order_notes_order_id_fkey",
+            "column": "order_id",
+            "references_table": "orders",
+            "references_column": "id",
+            "on_delete": "NO ACTION",
+            "on_update": "NO ACTION"
+          }
+        ]
+      },
+      "orders": {
+        "name": "orders",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "user_id": {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "amount": {
+            "name": "amount",
+            "type": "numeric(10,2)",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "reference": {
+            "name": "reference",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "idx_orders_reference",
+            "columns": [],
+            "is_unique": false,
+            "is_primary": false,
+            "definition": "CREATE INDEX idx_orders_reference ON public.orders USING btree (reference)"
+          },
+          {
+            "name": "orders_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+          }
+        ],
+        "foreign_keys": [
+          {
+            "name": "orders_user_id_fkey",
+            "column": "user_id",
+            "references_table": "users",
+            "references_column": "id",
+            "on_delete": "NO ACTION",
+            "on_update": "NO ACTION"
+          }
+        ]
+      },
+      "products": {
+        "name": "products",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "name": {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "price": {
+            "name": "price",
+            "type": "numeric(10,2)",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "products_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX products_pkey ON public.products USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "sessions": {
+        "name": "sessions",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "user_id": {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "token": {
+            "name": "token",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "sessions_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "teams": {
+        "name": "teams",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "name": {
+            "name": "name",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "teams_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX teams_pkey ON public.teams USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "tickets": {
+        "name": "tickets",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": "nextval('ticket_id_seq'::regclass)",
+            "constraints": []
+          },
+          "title": {
+            "name": "title",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "tickets_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX tickets_pkey ON public.tickets USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      },
+      "users": {
+        "name": "users",
+        "columns": {
+          "id": {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "email": {
+            "name": "email",
+            "type": "text",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "nickname": {
+            "name": "nickname",
+            "type": "text",
+            "nullable": true,
+            "default": null,
+            "constraints": []
+          },
+          "status": {
+            "name": "status",
+            "type": "user-defined",
+            "nullable": false,
+            "default": "'active'::user_status",
+            "constraints": []
+          },
+          "code": {
+            "name": "code",
+            "type": "charvarying(20)",
+            "nullable": false,
+            "default": null,
+            "constraints": []
+          },
+          "legacy": {
+            "name": "legacy",
+            "type": "text",
+            "nullable": true,
+            "default": null,
+            "constraints": []
+          },
+          "team_id": {
+            "name": "team_id",
+            "type": "integer",
+            "nullable": true,
+            "default": null,
+            "constraints": []
+          }
+        },
+        "primary_key": [
+          "id"
+        ],
+        "indexes": [
+          {
+            "name": "users_pkey",
+            "columns": [],
+            "is_unique": true,
+            "is_primary": true,
+            "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+          }
+        ],
+        "foreign_keys": []
+      }
+    },
+    "views": {
+      "user_directory": {
+        "name": "user_directory",
+        "definition": "SELECT id,\n    email,\n    status\n   FROM users;",
+        "source_tables": [
+          "users"
+        ]
+      }
+    },
+    "triggers": {
+      "items_quantity_check": {
+        "name": "items_quantity_check",
+        "table": "items",
+        "event": "UPDATE",
+        "timing": "BEFORE",
+        "function_name": "validate_item_quantity",
+        "definition": "EXECUTE FUNCTION validate_item_quantity()"
+      }
+    },
+    "sequences": {
+      "duplicate_values_id_seq": {
+        "name": "duplicate_values_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "items_id_seq": {
+        "name": "items_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "order_notes_id_seq": {
+        "name": "order_notes_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "orders_id_seq": {
+        "name": "orders_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "products_id_seq": {
+        "name": "products_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "sessions_id_seq": {
+        "name": "sessions_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "teams_id_seq": {
+        "name": "teams_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "ticket_id_seq": {
+        "name": "ticket_id_seq",
+        "data_type": "bigint",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 9223372036854775807,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      },
+      "users_id_seq": {
+        "name": "users_id_seq",
+        "data_type": "integer",
+        "start_value": 1,
+        "increment_by": 1,
+        "min_value": 1,
+        "max_value": 2147483647,
+        "cache_size": 1,
+        "cycle": false,
+        "last_value": null
+      }
+    },
+    "enums": {
+      "user_status": {
+        "name": "user_status",
+        "values": [
+          "active",
+          "inactive"
+        ]
+      }
+    },
+    "functions": {
+      "validate_item_quantity": {
+        "name": "validate_item_quantity",
+        "argument_types": "",
+        "return_type": "trigger",
+        "language": "plpgsql",
+        "volatility": "volatile",
+        "definition": "CREATE OR REPLACE FUNCTION public.validate_item_quantity()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    IF NEW.quantity < 0 THEN\n        RAISE EXCEPTION 'quantity must be non-negative';\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n"
+      }
+    },
+    "table_statistics": {
+      "duplicate_values": {
+        "table_name": "duplicate_values",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "items": {
+        "table_name": "items",
+        "row_count": 0,
+        "dead_tuples": 2,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 6,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "order_notes": {
+        "table_name": "order_notes",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 16384,
+        "table_size_bytes": 0,
+        "index_size_bytes": 8192,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "orders": {
+        "table_name": "orders",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 49152,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 32768,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "product_summary": {
+        "table_name": "product_summary",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 24576,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 0,
+        "seq_scan_count": 0,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "products": {
+        "table_name": "products",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 4,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "sessions": {
+        "table_name": "sessions",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "teams": {
+        "table_name": "teams",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "tickets": {
+        "table_name": "tickets",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      },
+      "users": {
+        "table_name": "users",
+        "row_count": 0,
+        "dead_tuples": 0,
+        "total_size_bytes": 32768,
+        "table_size_bytes": 8192,
+        "index_size_bytes": 16384,
+        "seq_scan_count": 2,
+        "idx_scan_count": 0,
+        "last_vacuum": null,
+        "last_analyze": null
+      }
+    },
+    "index_statistics": {
+      "duplicate_values_pkey": {
+        "index_name": "duplicate_values_pkey",
+        "table_name": "duplicate_values",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "idx_orders_reference": {
+        "index_name": "idx_orders_reference",
+        "table_name": "orders",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "items_pkey": {
+        "index_name": "items_pkey",
+        "table_name": "items",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "order_notes_pkey": {
+        "index_name": "order_notes_pkey",
+        "table_name": "order_notes",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 8192
+      },
+      "orders_pkey": {
+        "index_name": "orders_pkey",
+        "table_name": "orders",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "products_pkey": {
+        "index_name": "products_pkey",
+        "table_name": "products",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "sessions_pkey": {
+        "index_name": "sessions_pkey",
+        "table_name": "sessions",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "teams_pkey": {
+        "index_name": "teams_pkey",
+        "table_name": "teams",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "tickets_pkey": {
+        "index_name": "tickets_pkey",
+        "table_name": "tickets",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      },
+      "users_pkey": {
+        "index_name": "users_pkey",
+        "table_name": "users",
+        "idx_scan": 0,
+        "idx_tup_read": 0,
+        "idx_tup_fetch": 0,
+        "size_bytes": 16384
+      }
+    },
+    "extensions": {
+      "plpgsql": {
+        "name": "plpgsql",
+        "version": "1.0",
+        "installed_schema": "pg_catalog"
+      }
+    },
+    "permissions": [
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "duplicate_values",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "items",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "order_notes",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "order_notes",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "order_notes",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "order_notes",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "order_notes",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "order_notes",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "order_notes",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "orders",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "products",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "sessions",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "teams",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "tickets",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "user_directory",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": true
+      },
+      {
+        "table_name": "users",
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": true
+      }
+    ],
+    "policies": {},
+    "partitions": {},
+    "materialized_views": {
+      "product_summary": {
+        "name": "product_summary",
+        "definition": "SELECT id,\n    name,\n    price\n   FROM products;",
+        "is_populated": true,
+        "tablespace": null,
+        "source_tables": [
+          "products"
+        ]
+      }
+    },
+    "column_statistics": {}
+  }
+}

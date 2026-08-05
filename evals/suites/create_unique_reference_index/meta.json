@@ -1,0 +1,6 @@
+{
+  "id": "create_unique_reference_index",
+  "category": "safe",
+  "notes": "Existing order references are unique, so a unique index builds cleanly.",
+  "shared_schema": "_shared/core.sql"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "narrow_varchar_with_data",
+  "category": "breaking",
+  "notes": "Existing values do not fit in the narrowed varchar width.",
+  "shared_schema": "_shared/core.sql"
+}

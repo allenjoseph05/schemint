@@ -1,0 +1,6 @@
+{
+  "id": "create_dormant_policy",
+  "category": "safe",
+  "notes": "Adding a policy while RLS remains disabled does not change access.",
+  "shared_schema": "_shared/core.sql"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "add_nullable_column",
+  "category": "safe",
+  "notes": "Adding a nullable column preserves existing rows and dependents.",
+  "shared_schema": "_shared/core.sql"
+}

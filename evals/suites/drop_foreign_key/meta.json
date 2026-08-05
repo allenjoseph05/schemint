@@ -1,0 +1,6 @@
+{
+  "id": "drop_foreign_key",
+  "category": "breaking",
+  "notes": "Removing an existing referential-integrity guard is a dependent-object loss.",
+  "shared_schema": "_shared/core.sql"
+}

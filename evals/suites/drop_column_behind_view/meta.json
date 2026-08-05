@@ -1,0 +1,6 @@
+{
+  "id": "drop_column_behind_view",
+  "category": "breaking",
+  "notes": "Postgres rejects a column drop while a view depends on it.",
+  "shared_schema": "_shared/core.sql"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "create_lookup_function",
+  "category": "safe",
+  "notes": "Adding a read-only function is additive.",
+  "shared_schema": "_shared/core.sql"
+}

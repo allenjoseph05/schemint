@@ -1,0 +1,6 @@
+{
+  "id": "reset_sequence",
+  "category": "breaking",
+  "notes": "Resetting an in-use sequence can generate duplicate primary keys.",
+  "shared_schema": "_shared/core.sql"
+}
