@@ -828,9 +828,7 @@ async def get_prometheus_metrics() -> dict[str, Any]:
     escalated = sum(1 for r in runs if r.status == "escalated")
     failed = sum(1 for r in runs if r.status == "failed")
     awaiting = sum(1 for r in runs if r.status == "awaiting_approval")
-    critical_runs = sum(
-        1 for r in runs if r.decision and r.decision.severity == "critical"
-    )
+    critical_runs = sum(1 for r in runs if r.decision and r.decision.severity == "critical")
     durations = [r.telemetry.total_duration_ms for r in runs if r.telemetry]
     avg_ms = sum(durations) // len(durations) if durations else 0
 

@@ -104,9 +104,7 @@ class AlterApplier:
             index_name = getattr(index_expr, "name", "").lower()
             for table in result.tables.values():
                 table.indexes = [
-                    index
-                    for index in table.indexes
-                    if self._field(index, "name") != index_name
+                    index for index in table.indexes if self._field(index, "name") != index_name
                 ]
             return
         if not kind or str(kind).upper() != "TABLE":
@@ -124,8 +122,10 @@ class AlterApplier:
         table = result.tables.get(table_name)
         actions = stmt.args.get("actions") or []
 
-        if table is not None and len(actions) == 1 and isinstance(
-            actions[0], sqlglot_exp.RenameColumn
+        if (
+            table is not None
+            and len(actions) == 1
+            and isinstance(actions[0], sqlglot_exp.RenameColumn)
         ):
             self._apply_rename_column(actions[0], table_name, result)
             return
@@ -176,9 +176,7 @@ class AlterApplier:
 
             self._apply_event(event, table)
 
-    def _apply_create_index(
-        self, stmt: sqlglot_exp.Create, result: SchemaSnapshot
-    ) -> None:
+    def _apply_create_index(self, stmt: sqlglot_exp.Create, result: SchemaSnapshot) -> None:
         index_expr = stmt.args.get("this")
         table_expr = index_expr.args.get("table") if index_expr is not None else None
         table_name = getattr(table_expr, "name", "").lower()
@@ -245,9 +243,7 @@ class AlterApplier:
 
     def _apply_alter_sql(self, sql: str, result: SchemaSnapshot) -> None:
         """Apply FK mutations from ALTER forms sqlglot represents as Command."""
-        table_match = re.search(
-            r"ALTER\s+TABLE\s+(?:\"?\w+\"?\.)?\"?(\w+)\"?", sql, re.IGNORECASE
-        )
+        table_match = re.search(r"ALTER\s+TABLE\s+(?:\"?\w+\"?\.)?\"?(\w+)\"?", sql, re.IGNORECASE)
         if not table_match:
             return
         table = result.tables.get(table_match.group(1).lower())

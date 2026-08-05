@@ -134,9 +134,10 @@ class TestSnapshotEndpoints:
 
     def test_get_latest_snapshot_store_error(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db down")
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("db down")),
+            TestClient(app) as client,
+        ):
             resp = client.get("/api/v1/drift/snapshot/proj-1/latest")
         assert resp.status_code == 500
 
@@ -201,9 +202,10 @@ class TestGraphEndpoints:
 
     def test_get_dependency_graph_store_error(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("fail")
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("fail")),
+            TestClient(app) as client,
+        ):
             resp = client.get("/api/v1/drift/graph/proj-1")
         assert resp.status_code == 500
 
@@ -311,10 +313,13 @@ class TestRunEndpoints:
         ctx = _make_context()
         mock_ctrl = MagicMock()
         mock_ctrl.run.return_value = _make_run_result()
-        with patch(
-            "schemint.drift.agent_controller.build_agent_controller",
-            return_value=mock_ctrl,
-        ), patch("schemint.api.v1.drift._build_memory_context", return_value=None):
+        with (
+            patch(
+                "schemint.drift.agent_controller.build_agent_controller",
+                return_value=mock_ctrl,
+            ),
+            patch("schemint.api.v1.drift._build_memory_context", return_value=None),
+        ):
             with patch("schemint.api.v1.drift._write_memory_learnings"):
                 with TestClient(app) as client:
                     resp = client.post(
@@ -357,9 +362,10 @@ class TestRunEndpoints:
 
     def test_get_drift_run_store_error(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")),
+            TestClient(app) as client,
+        ):
             resp = client.get("/api/v1/drift/run/proj-1/run-123")
         assert resp.status_code == 500
 
@@ -388,9 +394,10 @@ class TestRunEndpoints:
 
     def test_list_drift_runs_store_error(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("fail")
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("fail")),
+            TestClient(app) as client,
+        ):
             resp = client.get("/api/v1/drift/runs/proj-1")
         assert resp.status_code == 500
 
@@ -405,10 +412,14 @@ class TestApprovalEndpoints:
         app = _make_app()
         mock_ctrl = MagicMock()
         mock_ctrl.resume.return_value = _make_run_result()
-        with patch(
-            "schemint.drift.agent_controller.build_agent_controller",
-            return_value=mock_ctrl,
-        ), patch("schemint.api.v1.drift._write_memory_learnings"), TestClient(app) as client:
+        with (
+            patch(
+                "schemint.drift.agent_controller.build_agent_controller",
+                return_value=mock_ctrl,
+            ),
+            patch("schemint.api.v1.drift._write_memory_learnings"),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/approve/run-123",
                 json={"approver": "alice", "reason": "LGTM"},
@@ -419,10 +430,13 @@ class TestApprovalEndpoints:
         app = _make_app()
         mock_ctrl = MagicMock()
         mock_ctrl.resume.side_effect = ValueError("run not found")
-        with patch(
-            "schemint.drift.agent_controller.build_agent_controller",
-            return_value=mock_ctrl,
-        ), TestClient(app) as client:
+        with (
+            patch(
+                "schemint.drift.agent_controller.build_agent_controller",
+                return_value=mock_ctrl,
+            ),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/approve/missing-run",
                 json={"approver": "alice"},
@@ -433,10 +447,13 @@ class TestApprovalEndpoints:
         app = _make_app()
         mock_ctrl = MagicMock()
         mock_ctrl.resume.side_effect = ValueError("Run is not AWAITING_APPROVAL")
-        with patch(
-            "schemint.drift.agent_controller.build_agent_controller",
-            return_value=mock_ctrl,
-        ), TestClient(app) as client:
+        with (
+            patch(
+                "schemint.drift.agent_controller.build_agent_controller",
+                return_value=mock_ctrl,
+            ),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/approve/run-123",
                 json={"approver": "alice"},
@@ -447,10 +464,13 @@ class TestApprovalEndpoints:
         app = _make_app()
         mock_ctrl = MagicMock()
         mock_ctrl.resume.return_value = _make_run_result(status="escalated")
-        with patch(
-            "schemint.drift.agent_controller.build_agent_controller",
-            return_value=mock_ctrl,
-        ), TestClient(app) as client:
+        with (
+            patch(
+                "schemint.drift.agent_controller.build_agent_controller",
+                return_value=mock_ctrl,
+            ),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/reject/run-123",
                 json={"approver": "bob", "reason": "too risky"},
@@ -461,10 +481,13 @@ class TestApprovalEndpoints:
         app = _make_app()
         mock_ctrl = MagicMock()
         mock_ctrl.resume.side_effect = ValueError("run not found")
-        with patch(
-            "schemint.drift.agent_controller.build_agent_controller",
-            return_value=mock_ctrl,
-        ), TestClient(app) as client:
+        with (
+            patch(
+                "schemint.drift.agent_controller.build_agent_controller",
+                return_value=mock_ctrl,
+            ),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/reject/missing",
                 json={"approver": "bob"},
@@ -475,10 +498,13 @@ class TestApprovalEndpoints:
         app = _make_app()
         mock_ctrl = MagicMock()
         mock_ctrl.resume.side_effect = RuntimeError("unexpected")
-        with patch(
-            "schemint.drift.agent_controller.build_agent_controller",
-            return_value=mock_ctrl,
-        ), TestClient(app) as client:
+        with (
+            patch(
+                "schemint.drift.agent_controller.build_agent_controller",
+                return_value=mock_ctrl,
+            ),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/approve/run-123",
                 json={"approver": "alice"},
@@ -526,9 +552,10 @@ class TestObservabilityEndpoints:
 
     def test_dashboard_store_error_returns_empty(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")),
+            TestClient(app) as client,
+        ):
             resp = client.get("/api/v1/drift/dashboard/proj-1")
         assert resp.status_code == 200
         data = resp.json()
@@ -572,9 +599,10 @@ class TestObservabilityEndpoints:
 
     def test_metrics_store_error_returns_zeros(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")),
+            TestClient(app) as client,
+        ):
             resp = client.get("/api/v1/drift/metrics")
         assert resp.status_code == 200
         data = resp.json()
@@ -589,9 +617,10 @@ class TestObservabilityEndpoints:
 class TestCopilotAnalyzeEndpoint:
     def test_copilot_analyze_no_ai(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.copilot_agent.get_copilot_agent", return_value=None
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.copilot_agent.get_copilot_agent", return_value=None),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/copilot/analyze",
                 json={"migration_sql": "ALTER TABLE t ADD COLUMN x INT;"},
@@ -607,9 +636,10 @@ class TestCopilotAnalyzeEndpoint:
         mock_agent.generate_alternatives.return_value = []
         mock_agent.generate_rollback.return_value = None
         mock_agent.validate_intent.return_value = None
-        with patch(
-            "schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/copilot/analyze",
                 json={
@@ -630,9 +660,10 @@ class TestCopilotAnalyzeEndpoint:
         mock_agent.generate_alternatives.return_value = []
         mock_agent.generate_rollback.return_value = None
         mock_agent.validate_intent.return_value = None
-        with patch(
-            "schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/copilot/analyze",
                 json={
@@ -663,9 +694,10 @@ class TestCopilotAnalyzeEndpoint:
         mock_agent.generate_rollback.return_value = rollback
         mock_agent.validate_intent.return_value = intent
 
-        with patch(
-            "schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.copilot_agent.get_copilot_agent", return_value=mock_agent),
+            TestClient(app) as client,
+        ):
             resp = client.post(
                 "/api/v1/drift/copilot/analyze",
                 json={
@@ -725,9 +757,10 @@ class TestDesiredStateEndpoints:
 
     def test_get_desired_state_error(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")),
+            TestClient(app) as client,
+        ):
             resp = client.get("/api/v1/drift/desired-state/proj-1/production")
         assert resp.status_code == 500
 
@@ -749,9 +782,10 @@ class TestMigrationHistoryEndpoints:
 
     def test_get_migration_history_error(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ), TestClient(app) as client:
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")),
+            TestClient(app) as client,
+        ):
             resp = client.get("/api/v1/drift/migrations/proj-1/default")
         assert resp.status_code == 500
 
@@ -761,18 +795,15 @@ class TestMigrationHistoryEndpoints:
         mock_store.has_migration_been_applied.return_value = True
         with patch("schemint.drift.store.get_drift_store", return_value=mock_store):
             with TestClient(app) as client:
-                resp = client.get(
-                    "/api/v1/drift/migrations/proj-1/default/check/abc123"
-                )
+                resp = client.get("/api/v1/drift/migrations/proj-1/default/check/abc123")
         assert resp.status_code == 200
         assert resp.json()["applied"] is True
 
     def test_check_migration_applied_error(self) -> None:
         app = _make_app()
-        with patch(
-            "schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")
-        ), TestClient(app) as client:
-            resp = client.get(
-                "/api/v1/drift/migrations/proj-1/default/check/abc123"
-            )
+        with (
+            patch("schemint.drift.store.get_drift_store", side_effect=RuntimeError("db")),
+            TestClient(app) as client,
+        ):
+            resp = client.get("/api/v1/drift/migrations/proj-1/default/check/abc123")
         assert resp.status_code == 500

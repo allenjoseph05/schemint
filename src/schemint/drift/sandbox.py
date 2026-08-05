@@ -198,11 +198,7 @@ class MigrationSandbox:
             edges.extend(builder.from_schema_views(schema))
             edges.extend(builder.from_trigger_definitions(schema))
             for view_name, view in schema.views.items():
-                edges.extend(
-                    builder.from_sql_ast(
-                        f"CREATE VIEW {view_name} AS {view.definition}"
-                    )
-                )
+                edges.extend(builder.from_sql_ast(f"CREATE VIEW {view_name} AS {view.definition}"))
             for view_name, materialized_view in schema.materialized_views.items():
                 edges.extend(
                     builder.from_sql_ast(

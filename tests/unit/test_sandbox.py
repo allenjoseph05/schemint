@@ -763,7 +763,6 @@ class TestOverallRisk:
         assert MigrationSandbox._compute_overall_risk(changes) == "safe"
 
 
-
 # =============================================================================
 # Memory Writer Tests
 # =============================================================================

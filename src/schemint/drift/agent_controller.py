@@ -252,9 +252,7 @@ class AgentController:
             raise ValueError(f"Run '{run_id}' not found")
 
         if result.status != DriftRunStatus.AWAITING_APPROVAL:
-            raise ValueError(
-                f"Run '{run_id}' is not awaiting approval (status='{result.status}')"
-            )
+            raise ValueError(f"Run '{run_id}' is not awaiting approval (status='{result.status}')")
 
         if not approved:
             self._transition(
@@ -268,7 +266,9 @@ class AgentController:
 
         # Approved — resume from EXECUTING
         if result.plan is None or result.decision is None:
-            self._transition(result, DriftRunStatus.FAILED, reason="Plan or decision missing from stored run")
+            self._transition(
+                result, DriftRunStatus.FAILED, reason="Plan or decision missing from stored run"
+            )
             result.error = "Plan or decision missing — cannot resume"
             result.completed_at = datetime.now(timezone.utc)
             self._persist(result)
@@ -320,6 +320,7 @@ class AgentController:
         # Phase 4.5 (optional): CopilotService enrichment — best-effort
         try:
             from schemint.drift.copilot_service import get_copilot_service
+
             copilot = get_copilot_service()
             if copilot is not None:
                 t0 = time.monotonic()
@@ -481,9 +482,7 @@ class AgentController:
             decision = result.decision
             severity = decision.severity if decision else "unknown"
             change_target = (
-                result.plan.plan[0].target
-                if result.plan and result.plan.plan
-                else "unknown"
+                result.plan.plan[0].target if result.plan and result.plan.plan else "unknown"
             )
 
             message = (
@@ -532,7 +531,8 @@ class AgentController:
 
 
 def build_agent_controller(
-    notification_config: NotificationConfig | None = None,  # kept for API compat; adapters read from settings
+    notification_config: NotificationConfig
+    | None = None,  # kept for API compat; adapters read from settings
     persistence: PersistenceProtocol | None = None,
     auto_approve_severities: set[str] | None = None,
     max_retries: int | None = None,
@@ -579,12 +579,14 @@ def build_agent_controller(
         SQLRunner,
     )
 
-    executor = ExecutionEngine(adapters=[
-        NotificationService(),
-        SQLRunner(),
-        CIPipelineRunner(),
-        DBTRunner(),
-    ])
+    executor = ExecutionEngine(
+        adapters=[
+            NotificationService(),
+            SQLRunner(),
+            CIPipelineRunner(),
+            DBTRunner(),
+        ]
+    )
 
     # Phase 6: Verifier
     from schemint.drift.verification import VerificationEngine
