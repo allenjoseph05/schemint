@@ -195,6 +195,20 @@ class MigrationSandbox:
         try:
             builder = DependencyGraphBuilder()
             edges = builder.from_fk_constraints(schema)
+            edges.extend(builder.from_schema_views(schema))
+            edges.extend(builder.from_trigger_definitions(schema))
+            for view_name, view in schema.views.items():
+                edges.extend(
+                    builder.from_sql_ast(
+                        f"CREATE VIEW {view_name} AS {view.definition}"
+                    )
+                )
+            for view_name, materialized_view in schema.materialized_views.items():
+                edges.extend(
+                    builder.from_sql_ast(
+                        f"CREATE VIEW {view_name} AS {materialized_view.definition}"
+                    )
+                )
             graph = builder.build(edges)
 
             assembler = ContextAssembler()
@@ -209,11 +223,15 @@ class MigrationSandbox:
         """Convert diff result changes into PredictedChange models."""
         # Build a map of table -> downstream impact count from context
         downstream_map: dict[str, int] = {}
+        downstream_objects: dict[str, set[str]] = {}
         for ctx in context_packages:
             table = ctx.schema_change.table
             downstream_map[table] = max(
                 downstream_map.get(table, 0),
                 ctx.impact_metrics.downstream_tables,
+            )
+            downstream_objects.setdefault(table, set()).update(
+                impact.table for impact in ctx.impacted_dependencies
             )
 
         changes = []
@@ -227,6 +245,7 @@ class MigrationSandbox:
                     new_value=event.new_value,
                     risk_level=event.change_risk or classify_change(event),
                     downstream_impact=downstream_map.get(event.table, 0),
+                    downstream_objects=sorted(downstream_objects.get(event.table, set())),
                 )
             )
         return changes

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "snapshots": {
     "phase3_tranche_a": {
       "tasks": 30,
@@ -44,11 +44,36 @@
         "drift_pipeline": null,
         "naive_llm": null
       }
+    },
+    "phase6_all_60_tasks": {
+      "tasks": 60,
+      "adapters": {
+        "rules_only": {
+          "classification_f1": 0.733333,
+          "false_positive_rate": 0.105263,
+          "false_negative_rate": 0.388889,
+          "risk_exact_match": 0.618182,
+          "never_underestimates": 0.654545,
+          "breaking_never_underestimates": 0.5,
+          "blast_recall": 0.217391,
+          "blast_precision": 0.47619,
+          "blast_f1": 0.298507,
+          "simulator_fidelity": 0.538528,
+          "blocked_accuracy": 0.683333,
+          "escalation_accuracy": 0.0,
+          "injection_resistance": 0.666667,
+          "injection_decision_delta": 0.0,
+          "cost_per_task_usd": 0.0
+        },
+        "sandbox_copilot": null,
+        "drift_pipeline": null,
+        "naive_llm": null
+      }
     }
   },
   "profiles": {
     "pr": {
-      "baseline": "phase4_all_60_tasks",
+      "baseline": "phase6_all_60_tasks",
       "adapters": [
         "rules_only"
       ],
@@ -130,8 +155,8 @@
     }
   },
   "notes": [
-    "Relative thresholds use the committed 60-task Phase 4 snapshot.",
-    "The PR safety floor is pinned to the measured deterministic baseline until Phase 6 closes the known underestimation defects.",
+    "The PR profile uses the measured deterministic Phase 6 snapshot over all 60 tasks.",
+    "The breaking-task safety floor remains pinned to the measured 0.50 result; unresolved underestimation is documented in the eval guide and remains visible rather than being described as solved.",
     "Paid adapter baselines remain null until an explicitly funded Anthropic run is reviewed and committed.",
     "Nightly relative checks are skipped with warnings while paid baselines are null; absolute safety, completeness, error, and cost checks still apply."
   ]

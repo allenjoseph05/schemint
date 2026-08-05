@@ -108,7 +108,12 @@ class DDLSnapshotCapture:
 
             foreign_keys = [
                 {
-                    "name": fk.name,
+                    "name": fk.name
+                    or (
+                        f"{table.name}_{fk.column}_fkey"
+                        if schema.database_type == "postgresql"
+                        else ""
+                    ),
                     "column": fk.column,
                     "references_table": fk.references_table,
                     "references_column": fk.references_column,

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schemint evaluation report</title>
+<style>
+:root { color-scheme: light; --ink:#17202a; --muted:#5d6772; --line:#d7dce1; --panel:#f7f8fa; --accent:#006d5b; }
+* { box-sizing:border-box; }
+body { margin:0; color:var(--ink); background:#fff; font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+header { padding:28px 32px 20px; border-bottom:3px solid var(--accent); }
+h1 { margin:0; font-size:28px; letter-spacing:0; }
+header p { margin:6px 0 0; color:var(--muted); }
+main { padding:24px 32px 40px; max-width:1500px; margin:0 auto; }
+section { margin:0 0 28px; }
+h2 { margin:0 0 10px; font-size:17px; letter-spacing:0; }
+.table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:6px; }
+table { width:100%; border-collapse:collapse; min-width:920px; }
+th,td { padding:9px 12px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
+thead th { background:var(--panel); font-weight:650; }
+tbody th { font-weight:600; }
+tbody tr:last-child th,tbody tr:last-child td { border-bottom:0; }
+.note { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<header><h1>Schemint evaluation report</h1><p>Generated from the latest append-only result for each adapter configuration.</p></header>
+<main>
+<section><h2>Adapter comparison</h2><div class="table-wrap"><table><thead><tr><th>Metric</th><th>rules_only</th><th>sandbox_copilot</th><th>drift_pipeline</th><th>naive_llm</th></tr></thead><tbody><tr><th>Breaking F1</th><td>73.3% [73.3, 73.3]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>False-positive rate</th><td>10.5% [10.5, 10.5]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>False-negative rate</th><td>38.9% [38.9, 38.9]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Risk exact match</th><td>61.8% [61.8, 61.8]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Never underestimates</th><td>65.5% [65.5, 65.5]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Never underestimates breaking tasks</th><td>50.0% [50.0, 50.0]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Blast recall</th><td>21.7% [21.7, 21.7]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Blast precision</th><td>47.6% [47.6, 47.6]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Simulator fidelity</th><td>53.9% [53.9, 53.9]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Block accuracy</th><td>68.3% [68.3, 68.3]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Escalation accuracy</th><td>0.0% [0.0, 0.0]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Injection resistance</th><td>66.7% [66.7, 66.7]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Injection risk delta</th><td>0.00 [0.00, 0.00]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Rollback executes</th><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Rollback restores</th><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Alternative executes</th><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Alternative safe</th><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Alternative changes schema</th><td>n/a</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Error rate</th><td>0.0% [0.0, 0.0]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Cost/task</th><td>$0.0000 [$0.0000, $0.0000]</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>Latency p95</th><td>217 [217, 217] ms</td><td>n/a</td><td>n/a</td><td>n/a</td></tr></tbody></table></div><p class="note">Values include bootstrap 95% confidence intervals where trials are available.</p></section>
+<section><h2>Accuracy by category</h2><div class="table-wrap"><table><thead><tr><th>Category</th><th>rules_only</th><th>sandbox_copilot</th><th>drift_pipeline</th><th>naive_llm</th></tr></thead><tbody><tr><th>adversarial</th><td>80.0%</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>ambiguous</th><td>0.0%</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>breaking</th><td>60.0%</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>safe</th><td>93.3%</td><td>n/a</td><td>n/a</td><td>n/a</td></tr><tr><th>subtle</th><td>53.3%</td><td>n/a</td><td>n/a</td><td>n/a</td></tr></tbody></table></div></section>
+</main>
+</body>
+</html>

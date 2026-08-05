@@ -5,6 +5,10 @@ Parses CREATE VIEW statements from DDL using sqlglot.
 
 from __future__ import annotations
 
+import re
+
+import sqlparse
+
 from schemint.drift.models import ViewSnapshot
 
 
@@ -14,10 +18,20 @@ def extract_views_from_ddl(sql: str) -> dict[str, ViewSnapshot]:
         import sqlglot
         from sqlglot import exp as sqlglot_exp
 
-        statements = sqlglot.parse(sql)
         views: dict[str, ViewSnapshot] = {}
 
-        for statement in statements:
+        # Parse candidate statements independently.  A later unsupported
+        # PostgreSQL statement (for example REFRESH MATERIALIZED VIEW) must
+        # not erase valid views captured earlier in the same DDL document.
+        candidates = []
+        for raw_statement in sqlparse.split(sql):
+            cleaned = sqlparse.format(raw_statement, strip_comments=True).strip()
+            if re.match(r"CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\b", cleaned, re.IGNORECASE):
+                candidates.append(cleaned)
+
+        for raw_statement in candidates:
+            parsed = sqlglot.parse(raw_statement)
+            statement = parsed[0] if parsed else None
             if statement is None:
                 continue
             if not isinstance(statement, sqlglot_exp.Create):

@@ -145,6 +145,10 @@ class ColumnLineageExtractor:
 
             for col in columns:
                 ref, resolved = resolve_column_ref(col, aliases)
+                source_tables = set(aliases.values()) - {target_name}
+                if "." not in ref and len(source_tables) == 1:
+                    ref = f"{next(iter(source_tables))}.{ref}"
+                    resolved = True
                 if "." not in ref:
                     continue
 
@@ -200,6 +204,10 @@ class ColumnLineageExtractor:
             columns = list(expr.find_all(sqlglot_exp.Column))
             for col in columns:
                 ref, resolved = resolve_column_ref(col, aliases)
+                source_tables = set(aliases.values()) - {target_table}
+                if "." not in ref and len(source_tables) == 1:
+                    ref = f"{next(iter(source_tables))}.{ref}"
+                    resolved = True
                 if "." not in ref:
                     continue
 

@@ -819,6 +819,7 @@ class PredictedChange(BaseModel):
     new_value: str | None = None
     risk_level: str | None = None  # safe/needs_review/potentially_breaking/breaking
     downstream_impact: int = 0  # number of affected downstream tables
+    downstream_objects: list[str] = Field(default_factory=list)
 
 
 class MigrationAlternative(BaseModel):

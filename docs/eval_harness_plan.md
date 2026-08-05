@@ -1,6 +1,6 @@
 # Schemint Eval Harness — Implementation Plan
 
-Status: in progress — Phases 1–5 implemented; paid AI acceptance remains pending
+Status: implemented — Phases 1–6 complete; paid AI acceptance remains pending
 Branch strategy: one reviewed `feat/eval-harness-phase-N` branch per phase
 Author: planning pass, 2026-08-02
 
@@ -13,13 +13,19 @@ Author: planning pass, 2026-08-02
 | 3 — adapters + first numbers | complete | `rules_only` produced 30 rows with 0 errors; four-column text comparison report renders |
 | 4 — tranche B + artifact scorers | implemented; AI acceptance pending | 60 validated tasks; rollback/alternative live tests and self-contained HTML report pass; three paid adapter columns remain `n/a` |
 | 5 — CI gate | implemented; CI acceptance pending | PR and nightly profiles validate completeness, errors, metric deltas, absolute safety, and cost caps; deliberate red/green regression is unit tested |
-| 6 — close loop + publish | pending | Continue on a separate phase branch after manual merge |
+| 6 — close loop + publish | complete | Four measured changelog entries, guide, HTML report/screenshot, and updated deterministic gate baseline |
 
 First deterministic baseline (`evals/baselines.json`, one trial, 30 tasks): F1 72.0%,
 false-positive rate 6.7%, false-negative rate 40.0%, exact risk match 70.0%,
 never-underestimates 73.3%, blast-radius recall 0.0%, and simulator fidelity 66.0%.
 The zero blast-radius recall confirms the known sandbox context defect in §1. Paid
 adapter baselines remain `null` until an explicitly funded Anthropic run is configured.
+
+Phase 6 deterministic result over all 60 tasks: blast-radius recall 21.7%, simulator
+fidelity 53.9% under the field-level scorer, exact risk match 61.8%, and zero adapter
+errors at zero API cost. Breaking-task non-underestimation remains 50.0%; this is an
+explicit published limitation and the next safety-floor ratchet target, not a closed
+defect. See `evals/CHANGELOG.md` for reproducible before/after checkpoints.
 
 Phase 4 deterministic result over all 60 tasks: F1 73.3%, false-negative rate
 38.9%, escalation accuracy 0.0%, injection safety pass 66.7%, and injection

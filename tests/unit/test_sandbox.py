@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
 
 from schemint.drift.alter_applier import AlterApplier
 from schemint.drift.copilot_agent import CopilotAgent
@@ -101,7 +100,17 @@ class TestAlterApplier:
         result = applier.apply(baseline, "ALTER TABLE users ADD COLUMN age INTEGER;")
 
         assert "age" in result.tables["users"].columns
-        assert result.tables["users"].columns["age"].type == "int"
+        assert result.tables["users"].columns["age"].type == "integer"
+
+    def test_add_column_preserves_nullability_and_default(self):
+        result = AlterApplier().apply(
+            _make_users_snapshot(),
+            "ALTER TABLE users ADD COLUMN active BOOLEAN NOT NULL DEFAULT false;",
+        )
+
+        column = result.tables["users"].columns["active"]
+        assert column.nullable is False
+        assert column.default == "FALSE"
 
     def test_drop_column(self):
         """ALTER TABLE DROP COLUMN should remove the column."""
@@ -151,6 +160,20 @@ class TestAlterApplier:
         assert "orders" not in result.tables
         assert "users" in result.tables  # other tables preserved
 
+    def test_create_and_drop_index(self):
+        baseline = _make_users_snapshot()
+        created = AlterApplier().apply(
+            baseline, "CREATE UNIQUE INDEX users_email_key ON users(email);"
+        )
+
+        index = created.tables["users"].indexes[0]
+        assert index.name == "users_email_key"
+        assert index.columns == ["email"]
+        assert index.is_unique is True
+
+        dropped = AlterApplier().apply(created, "DROP INDEX users_email_key;")
+        assert dropped.tables["users"].indexes == []
+
     def test_rename_table(self):
         """ALTER TABLE RENAME should change the table name in the snapshot."""
         baseline = _make_users_snapshot()
@@ -160,6 +183,34 @@ class TestAlterApplier:
 
         assert "accounts" in result.tables
         assert "users" not in result.tables
+
+    def test_rename_column_preserves_metadata(self):
+        result = AlterApplier().apply(
+            _make_users_snapshot(),
+            "ALTER TABLE users RENAME COLUMN email TO contact_email;",
+        )
+
+        column = result.tables["users"].columns["contact_email"]
+        assert column.type == "varchar(255)"
+        assert column.nullable is False
+        assert "email" not in result.tables["users"].columns
+
+    def test_multi_action_foreign_key_replacement(self):
+        result = AlterApplier().apply(
+            _make_orders_snapshot(),
+            """ALTER TABLE orders
+            DROP CONSTRAINT fk_orders_user,
+            ADD CONSTRAINT fk_orders_user FOREIGN KEY (user_id)
+            REFERENCES users(id) ON DELETE CASCADE;""",
+        )
+
+        assert len(result.tables["orders"].foreign_keys) == 1
+        fk = result.tables["orders"].foreign_keys[0]
+        assert fk.name == "fk_orders_user"
+        assert fk.column == "user_id"
+        assert fk.references_table == "users"
+        assert fk.references_column == "id"
+        assert fk.on_delete == "CASCADE"
 
     def test_baseline_not_mutated(self):
         """Original baseline should never be mutated by apply()."""
@@ -411,6 +462,23 @@ class TestMigrationSandbox:
         assert result.status == "ok"
         assert result.safety_score >= 90
         assert any(c.change_type == "table_added" for c in result.predicted_changes)
+
+    def test_column_change_reports_downstream_view(self):
+        sandbox = MigrationSandbox()
+        ddl = """
+        CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT);
+        CREATE VIEW user_emails AS SELECT email FROM users;
+        """
+
+        result = sandbox.analyze(
+            migration_sql="ALTER TABLE users DROP COLUMN email;",
+            current_ddl=ddl,
+            run_copilot=False,
+        )
+
+        change = next(c for c in result.predicted_changes if c.change_type == "column_dropped")
+        assert change.downstream_impact == 1
+        assert change.downstream_objects == ["user_emails"]
 
 
 # =============================================================================

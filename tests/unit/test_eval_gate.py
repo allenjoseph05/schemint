@@ -8,7 +8,7 @@ from evals.gate import BaselineConfig, evaluate_gate, load_baselines
 
 def test_committed_baseline_configuration_is_valid():
     config = load_baselines()
-    assert config.version == 2
+    assert config.version == 3
     assert config.profiles["pr"].required_tasks == 60
     assert config.profiles["nightly"].required_trials == 3
 

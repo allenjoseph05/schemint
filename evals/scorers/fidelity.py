@@ -68,7 +68,28 @@ def schema_facts(snapshot: dict[str, Any]) -> set[tuple[str, ...]]:
         "materialized_views",
     ):
         for name, value in (snapshot.get(field) or {}).items():
-            facts.add((field, _norm(name), _stable_value(value)))
+            facts.update(_object_facts(field, name, value))
+    return facts
+
+
+def _object_facts(field: str, name: Any, value: Any) -> set[tuple[str, ...]]:
+    """Flatten a schema object into independently comparable field facts."""
+    prefix = (field, _norm(name))
+    facts: set[tuple[str, ...]] = {prefix}
+
+    def visit(path: tuple[str, ...], item: Any) -> None:
+        if isinstance(item, dict):
+            for key, child in sorted(item.items()):
+                if key in {"last_value", "is_populated"}:
+                    continue
+                visit((*path, _norm(key)), child)
+        elif isinstance(item, list):
+            for position, child in enumerate(item):
+                visit((*path, str(position)), child)
+        else:
+            facts.add((*prefix, *path, _norm(item)))
+
+    visit((), value)
     return facts
 
 
@@ -84,16 +105,3 @@ def _default(value: Any) -> str:
 
 def _action(value: Any) -> str:
     return _norm(value or "no action").replace("_", " ")
-
-
-def _stable_value(value: Any) -> str:
-    if isinstance(value, dict):
-        items = [
-            f"{key}={_stable_value(item)}"
-            for key, item in sorted(value.items())
-            if key not in {"last_value", "is_populated"}
-        ]
-        return "{" + ",".join(items) + "}"
-    if isinstance(value, list):
-        return "[" + ",".join(_stable_value(item) for item in value) + "]"
-    return _norm(value)
