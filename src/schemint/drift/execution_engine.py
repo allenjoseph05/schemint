@@ -127,32 +127,21 @@ class NotificationService(ToolAdapter):
             "_Schemint drift agent — action required._"
         ),
         "notify_downstream_teams": (
-            ":bell: *Downstream impact* — `{target}` has changed.\n"
-            "{notes}"
+            ":bell: *Downstream impact* — `{target}` has changed.\n{notes}"
         ),
         "update_downstream_query": (
-            ":pencil: *Query update needed* — downstream query references `{target}`.\n"
-            "{notes}"
+            ":pencil: *Query update needed* — downstream query references `{target}`.\n{notes}"
         ),
         "update_downstream_model": (
-            ":pencil: *Model update needed* — ORM/dbt model references `{target}`.\n"
-            "{notes}"
+            ":pencil: *Model update needed* — ORM/dbt model references `{target}`.\n{notes}"
         ),
         "regenerate_api_contract": (
-            ":gear: *API contract refresh needed* — schema change on `{target}`.\n"
-            "{notes}"
+            ":gear: *API contract refresh needed* — schema change on `{target}`.\n{notes}"
         ),
-        "add_monitoring_alert": (
-            ":eyes: *Monitoring alert added* for `{target}`.\n"
-            "{notes}"
-        ),
-        "log_drift_event": (
-            ":memo: *Drift event logged* — `{target}`.\n"
-            "{notes}"
-        ),
+        "add_monitoring_alert": (":eyes: *Monitoring alert added* for `{target}`.\n{notes}"),
+        "log_drift_event": (":memo: *Drift event logged* — `{target}`.\n{notes}"),
         "remove_monitoring_alert": (
-            ":white_check_mark: *Monitoring alert removed* for `{target}` (rollback).\n"
-            "{notes}"
+            ":white_check_mark: *Monitoring alert removed* for `{target}` (rollback).\n{notes}"
         ),
     }
 
@@ -187,7 +176,9 @@ class NotificationService(ToolAdapter):
             )
 
     def _send_slack(self, step: PlanStep) -> ExecutionResult:
-        template = self._SLACK_TEMPLATES.get(step.action, ":information_source: `{action}` on `{target}`. {notes}")
+        template = self._SLACK_TEMPLATES.get(
+            step.action, ":information_source: `{action}` on `{target}`. {notes}"
+        )
         message = template.format(
             target=step.target,
             notes=step.notes,
@@ -391,7 +382,7 @@ class SQLRunner(ToolAdapter):
         view_name = f"{table}_compat"
         q = self._qi
         return (
-            f"CREATE OR REPLACE VIEW {q(view_name)} AS "
+            f"CREATE OR REPLACE VIEW {q(view_name)} AS "  # nosec B608
             f"SELECT *, {q(new_col)} AS {q(old_col)} FROM {q(table)};"
         )
 
@@ -402,20 +393,15 @@ class SQLRunner(ToolAdapter):
         if not column or not default_expr:
             return None
         q = self._qi
-        return (
-            f"ALTER TABLE {q(table)} "
-            f"ALTER COLUMN {q(column)} SET DEFAULT {default_expr};"
-        )
+        return f"ALTER TABLE {q(table)} ALTER COLUMN {q(column)} SET DEFAULT {default_expr};"
 
-    def _sql_create_migration_view(
-        self, old_table: str, notes: dict[str, str]
-    ) -> str | None:
+    def _sql_create_migration_view(self, old_table: str, notes: dict[str, str]) -> str | None:
         new_table = notes.get("new_table")
         if not new_table:
             return None
         q = self._qi
         return (
-            f"CREATE OR REPLACE VIEW {q(old_table)} AS "
+            f"CREATE OR REPLACE VIEW {q(old_table)} AS "  # nosec B608
             f"SELECT * FROM {q(new_table)};"
         )
 
@@ -516,9 +502,7 @@ class CIPipelineRunner(ToolAdapter):
 
     def execute(self, step: PlanStep) -> ExecutionResult:
         if not step.reversible:
-            logger.warning(
-                "IRREVERSIBLE CI_ACTION [%s]: target=%s", step.action, step.target
-            )
+            logger.warning("IRREVERSIBLE CI_ACTION [%s]: target=%s", step.action, step.target)
         try:
             notes = _parse_notes(step.notes)
             sha = notes.get("sha") or self._default_sha or ""
@@ -548,7 +532,9 @@ class CIPipelineRunner(ToolAdapter):
             )
 
     def _block_deploy(self, step: PlanStep, sha: str) -> ExecutionResult:
-        logger.info("CI_ACTION [block_deploy]: target=%s sha=%s", step.target, sha[:8] if sha else "n/a")
+        logger.info(
+            "CI_ACTION [block_deploy]: target=%s sha=%s", step.target, sha[:8] if sha else "n/a"
+        )
         result = self._setter.set_status(
             sha=sha,
             state="pending",
@@ -568,7 +554,9 @@ class CIPipelineRunner(ToolAdapter):
         )
 
     def _unblock_deploy(self, step: PlanStep, sha: str) -> ExecutionResult:
-        logger.info("CI_ACTION [unblock_deploy]: target=%s sha=%s", step.target, sha[:8] if sha else "n/a")
+        logger.info(
+            "CI_ACTION [unblock_deploy]: target=%s sha=%s", step.target, sha[:8] if sha else "n/a"
+        )
         result = self._setter.set_status(
             sha=sha,
             state="success",
@@ -587,9 +575,7 @@ class CIPipelineRunner(ToolAdapter):
             metadata=result.metadata,
         )
 
-    def _require_review(
-        self, step: PlanStep, sha: str, notes: dict[str, str]
-    ) -> ExecutionResult:
+    def _require_review(self, step: PlanStep, sha: str, notes: dict[str, str]) -> ExecutionResult:
         logger.info("CI_ACTION [require_migration_review]: target=%s", step.target)
         status_result = self._setter.set_status(
             sha=sha,
@@ -615,14 +601,17 @@ class CIPipelineRunner(ToolAdapter):
                     )
 
         status: Literal["success", "failed", "skipped"] = (
-            "skipped" if status_result.skipped
+            "skipped"
+            if status_result.skipped
             else ("success" if status_result.success else "failed")
         )
         return ExecutionResult(
             step=step.step,
             action=step.action,
             status=status,
-            error_message=None if status_result.success or status_result.skipped else status_result.detail,
+            error_message=None
+            if status_result.success or status_result.skipped
+            else status_result.detail,
             reversible=False,
             metadata=combined_meta,
         )
@@ -858,8 +847,7 @@ class RollbackEngine:
         """
         # Collect steps eligible for rollback, in reverse execution order
         reversible_successes = [
-            r for r in execution_report.step_results
-            if r.status == "success" and r.reversible
+            r for r in execution_report.step_results if r.status == "success" and r.reversible
         ]
         reversible_successes.reverse()
 
@@ -894,8 +882,9 @@ class RollbackEngine:
             )
             # Copy metadata from original so adapters can reuse target/SHA/etc.
             if original_result.metadata:
-                notes_extra = ",".join(f"{k}={v}" for k, v in original_result.metadata.items()
-                                       if isinstance(v, str))
+                notes_extra = ",".join(
+                    f"{k}={v}" for k, v in original_result.metadata.items() if isinstance(v, str)
+                )
                 if notes_extra:
                     rollback_step = rollback_step.model_copy(
                         update={"notes": rollback_step.notes + "," + notes_extra}

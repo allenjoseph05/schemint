@@ -295,6 +295,23 @@ ruff check .
 mypy src/
 ```
 
+### Migration evaluation harness
+
+The repository includes a 60-task PostgreSQL migration-safety harness with a
+zero-cost deterministic PR gate, optional AI comparisons, append-only SQLite
+results, and self-contained text/HTML reports.
+
+```bash
+python -m evals.run --adapter rules_only --suite all --trials 1 --force
+python -m evals.report --text
+python -m evals.gate --profile pr
+```
+
+See the [evaluation harness guide](docs/eval_harness_guide.md), the measured
+[evaluation changelog](evals/CHANGELOG.md), and the latest report screenshot:
+
+![Schemint deterministic evaluation report](docs/assets/eval_harness_report.png)
+
 ---
 
 ## License

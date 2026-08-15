@@ -47,6 +47,17 @@ def test_snapshot_fidelity_penalizes_structural_difference():
 
 
 @pytest.mark.unit
+def test_snapshot_fidelity_scores_object_fields_independently():
+    real = {"views": {"v": {"name": "v", "definition": "SELECT id FROM users"}}}
+    predicted = {"views": {"v": {"name": "v", "definition": "SELECT users.id FROM users"}}}
+
+    fidelity = snapshot_fidelity(real, predicted)
+
+    assert fidelity is not None
+    assert 0.0 < fidelity < 100.0
+
+
+@pytest.mark.unit
 def test_classification_marks_safety_underestimate():
     task = EvalTask(id="drop_email", category="breaking")
     truth = Truth(

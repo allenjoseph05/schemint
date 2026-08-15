@@ -8,8 +8,6 @@ from __future__ import annotations
 import urllib.error
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from schemint.drift.execution_engine import (
     CIPipelineRunner,
     NotificationService,
@@ -17,12 +15,9 @@ from schemint.drift.execution_engine import (
 )
 from schemint.drift.models import PlanStep
 from schemint.drift.notification_backends import (
-    BackendResult,
-    GitHubIssueNotifier,
     GitHubStatusSetter,
     SlackNotifier,
 )
-
 
 # ---------------------------------------------------------------------------
 # SQLRunner SQL builder methods

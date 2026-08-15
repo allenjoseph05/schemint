@@ -139,6 +139,34 @@ class TestCaptureFromDDL:
         assert fk.references_table == "users"
         assert fk.references_column == "id"
 
+    def test_inline_foreign_key_captured_with_postgres_default_name(self, service):
+        sql = """
+        CREATE TABLE users (id INT PRIMARY KEY);
+        CREATE TABLE orders (
+            id INT PRIMARY KEY,
+            user_id INT REFERENCES users(id)
+        );
+        """
+
+        snapshot = service.capture_from_ddl(sql, database_type="postgresql")
+
+        fk = snapshot.tables["orders"].foreign_keys[0]
+        assert fk.name == "orders_user_id_fkey"
+        assert fk.column == "user_id"
+        assert fk.references_table == "users"
+        assert fk.references_column == "id"
+
+    def test_view_survives_later_unsupported_statement(self, service):
+        sql = """
+        CREATE TABLE users (id INT PRIMARY KEY, email TEXT);
+        CREATE VIEW user_emails AS SELECT email FROM users;
+        REFRESH MATERIALIZED VIEW cached_users;
+        """
+
+        snapshot = service.capture_from_ddl(sql, database_type="postgresql")
+
+        assert snapshot.views["user_emails"].source_tables == ["users"]
+
     def test_indexes_captured(self, service):
         sql = """
         CREATE TABLE users (

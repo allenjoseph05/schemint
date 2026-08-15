@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BackendResult:
     success: bool
-    skipped: bool = False          # True when credentials are absent
-    detail: str = ""               # Human-readable outcome / error
+    skipped: bool = False  # True when credentials are absent
+    detail: str = ""  # Human-readable outcome / error
     metadata: dict[str, Any] = field(default_factory=dict)  # Extra structured output
 
 
@@ -179,8 +179,8 @@ class GitHubStatusSetter:
     def set_status(
         self,
         sha: str,
-        state: str,                        # "pending" | "success" | "failure" | "error"
-        context: str,                      # e.g. "schemint/drift-block"
+        state: str,  # "pending" | "success" | "failure" | "error"
+        context: str,  # e.g. "schemint/drift-block"
         description: str = "",
         target_url: str | None = None,
     ) -> BackendResult:
@@ -224,13 +224,16 @@ class GitHubStatusSetter:
                 return BackendResult(
                     success=True,
                     detail=f"Commit status set to '{state}'",
-                    metadata={"status_url": status_url, "sha": sha, "state": state, "context": context},
+                    metadata={
+                        "status_url": status_url,
+                        "sha": sha,
+                        "state": state,
+                        "context": context,
+                    },
                 )
         except urllib.error.HTTPError as exc:
             body_text = exc.read().decode() if exc.fp else ""
-            logger.error(
-                "GitHub status set failed %s: %s (sha=%s)", exc.code, body_text, sha[:8]
-            )
+            logger.error("GitHub status set failed %s: %s (sha=%s)", exc.code, body_text, sha[:8])
             return BackendResult(success=False, detail=f"HTTP {exc.code}: {body_text}")
         except urllib.error.URLError as exc:
             logger.error("GitHub status network error: %s", exc)

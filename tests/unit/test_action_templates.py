@@ -80,7 +80,8 @@ class TestActionRegistry:
     def test_enforcement_actions_require_approval(self):
         """Only the blocking enforcement actions require approval (not rollback actions)."""
         enforcement = [
-            t for t in get_actions_for_category("block_deploy")
+            t
+            for t in get_actions_for_category("block_deploy")
             if t.action_id in {"block_deploy", "require_migration_review"}
         ]
         assert len(enforcement) == 2
@@ -90,7 +91,8 @@ class TestActionRegistry:
     def test_enforcement_actions_not_reversible(self):
         """Only the blocking enforcement actions are irreversible."""
         enforcement = [
-            t for t in get_actions_for_category("block_deploy")
+            t
+            for t in get_actions_for_category("block_deploy")
             if t.action_id in {"block_deploy", "require_migration_review"}
         ]
         assert len(enforcement) == 2
@@ -105,11 +107,32 @@ class TestActionRegistry:
 
     def test_rollback_action_ids_populated(self):
         """Forward actions with rollback inverses should have rollback_action_id set."""
-        assert next(t for t in ACTION_REGISTRY if t.action_id == "add_column_alias").rollback_action_id == "drop_column_alias"
-        assert next(t for t in ACTION_REGISTRY if t.action_id == "add_default_value").rollback_action_id == "drop_default_value"
-        assert next(t for t in ACTION_REGISTRY if t.action_id == "create_migration_view").rollback_action_id == "drop_migration_view"
-        assert next(t for t in ACTION_REGISTRY if t.action_id == "add_monitoring_alert").rollback_action_id == "remove_monitoring_alert"
-        assert next(t for t in ACTION_REGISTRY if t.action_id == "block_deploy").rollback_action_id == "unblock_deploy"
+        assert (
+            next(t for t in ACTION_REGISTRY if t.action_id == "add_column_alias").rollback_action_id
+            == "drop_column_alias"
+        )
+        assert (
+            next(
+                t for t in ACTION_REGISTRY if t.action_id == "add_default_value"
+            ).rollback_action_id
+            == "drop_default_value"
+        )
+        assert (
+            next(
+                t for t in ACTION_REGISTRY if t.action_id == "create_migration_view"
+            ).rollback_action_id
+            == "drop_migration_view"
+        )
+        assert (
+            next(
+                t for t in ACTION_REGISTRY if t.action_id == "add_monitoring_alert"
+            ).rollback_action_id
+            == "remove_monitoring_alert"
+        )
+        assert (
+            next(t for t in ACTION_REGISTRY if t.action_id == "block_deploy").rollback_action_id
+            == "unblock_deploy"
+        )
 
 
 # ---------------------------------------------------------------------------

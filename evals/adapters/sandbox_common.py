@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
+from evals.core.keys import make_key, normalize_name
 from evals.core.models import EvalAnalysis, RiskLevel
 from evals.core.suites import SuiteDefinition
 from schemint.drift.alter_applier import AlterApplier
@@ -33,11 +34,40 @@ def analyze_with_sandbox(suite: SuiteDefinition, *, run_copilot: bool) -> EvalAn
     if result.intent_analysis and result.intent_analysis.suggestion:
         rationale.append(result.intent_analysis.suggestion)
 
+    blast_radius: set[str] = set()
+    for change in result.predicted_changes:
+        for downstream_name in change.downstream_objects:
+            name = normalize_name(downstream_name)
+            if name in baseline.views:
+                blast_radius.add(make_key("view", name))
+            elif name in baseline.materialized_views:
+                blast_radius.add(make_key("matview", name))
+            elif name in baseline.triggers:
+                blast_radius.add(make_key("trigger", name))
+            elif name in baseline.functions:
+                blast_radius.add(make_key("function", name))
+            elif name in baseline.tables:
+                matching_fks = [
+                    fk
+                    for fk in baseline.tables[name].foreign_keys
+                    if _fk_field(fk, "references_table") == change.table
+                    and (
+                        change.column is None
+                        or _fk_field(fk, "references_column") == change.column
+                    )
+                ]
+                if matching_fks:
+                    blast_radius.update(
+                        make_key("foreign_key", fk_name)
+                        for fk in matching_fks
+                        if (fk_name := _fk_field(fk, "name"))
+                    )
+                else:
+                    blast_radius.add(make_key("table", name))
+
     return EvalAnalysis(
         risk=risk,
-        # CopilotResult exposes only downstream counts, not dependency identities.
-        # An empty set records that product limitation instead of fabricating keys.
-        blast_radius=[],
+        blast_radius=sorted(blast_radius),
         blocked=risk == "breaking",
         escalated=risk == "needs_review",
         safety_score=result.safety_score,
@@ -46,3 +76,9 @@ def analyze_with_sandbox(suite: SuiteDefinition, *, run_copilot: bool) -> EvalAn
         alternative_sqls=[alternative.safe_sql for alternative in result.alternatives],
         predicted_snapshot=predicted.model_dump(mode="json"),
     )
+
+
+def _fk_field(foreign_key: object, name: str) -> str:
+    if isinstance(foreign_key, dict):
+        return str(foreign_key.get(name, ""))
+    return str(getattr(foreign_key, name, ""))

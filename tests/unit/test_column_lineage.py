@@ -18,6 +18,14 @@ class TestColumnLineageBasic:
         from_elements = {e.from_element for e in col_edges}
         assert any("users.name" in f for f in from_elements)
 
+    def test_unqualified_column_resolves_with_one_source_table(self):
+        edges = self.builder.from_sql_ast("CREATE VIEW user_emails AS SELECT email FROM users")
+
+        col_edges = [e for e in edges if e.lineage_type == "column"]
+        assert [(e.from_element, e.to_element) for e in col_edges] == [
+            ("users.email", "user_emails.email")
+        ]
+
     def test_aliased_output(self):
         sql = "SELECT u.name AS user_name FROM users u"
         edges = self.builder.from_sql_ast(sql)

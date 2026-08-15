@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from schemint.drift.copilot_service import CopilotService, _describe_step, _step_to_change_event
 from schemint.drift.models import (
     ContextPackage,

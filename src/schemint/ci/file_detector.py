@@ -5,10 +5,17 @@ Detects SQL-related files in a diff for analysis.
 """
 
 from dataclasses import dataclass, field
+from typing import Protocol
 
 import pathspec
 
 from schemint.ci.providers.base import DiffFile
+
+
+class _PathMatcher(Protocol):
+    """Structural type shared by old and new pathspec releases."""
+
+    def match_file(self, file: str) -> bool: ...
 
 
 @dataclass
@@ -110,7 +117,7 @@ class SQLFileDetector:
             self.patterns.extend(additional_patterns)
 
         # Pre-build pathspec matchers for each pattern
-        self._matchers: list[tuple[SQLFilePattern, pathspec.PathSpec]] = []
+        self._matchers: list[tuple[SQLFilePattern, _PathMatcher]] = []
         for pat in self.patterns:
             spec = pathspec.PathSpec.from_lines("gitignore", [pat.pattern])
             self._matchers.append((pat, spec))
