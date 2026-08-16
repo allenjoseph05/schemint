@@ -1,0 +1,88 @@
+name: Agent Trajectory Evaluation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "evals/agentic/**"
+      - "evals/agent_suites/**"
+      - "src/schemint/services/agent.py"
+      - "tests/unit/test_agent_eval_*.py"
+      - ".github/workflows/agent-eval.yml"
+  workflow_dispatch:
+    inputs:
+      paid_confirmation:
+        description: "Type RUN_PAID_AGENT_EVAL to authorize Anthropic spend"
+        required: true
+        type: string
+      budget_usd:
+        description: "Hard per-run budget cap in USD"
+        required: true
+        default: "75"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-agent-corpus:
+    name: Validate agent corpus without API calls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: python -m evals.agentic.validate
+      - name: Run offline agent-eval contract tests
+        run: >-
+          python -m pytest -q
+          tests/unit/test_agent_eval_models.py
+          tests/unit/test_agent_eval_scorer.py
+          tests/unit/test_agent_eval_trace.py
+
+  paid-agent-eval:
+    name: Explicitly authorized paid 60 x 3 sweep
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.paid_confirmation == 'RUN_PAID_AGENT_EVAL'
+    needs: validate-agent-corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment: agent-eval-paid
+    env:
+      CLAUDE_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[all]"
+      - name: Require API key
+        run: test -n "$CLAUDE_API_KEY"
+      - name: Run complete agent sweep
+        run: >-
+          python -m evals.agentic.run
+          --suite all
+          --trials 3
+          --budget-usd "${{ inputs.budget_usd }}"
+          --confirm-paid RUN_PAID_AGENT_EVAL
+          --db artifacts/agent-results.db
+      - name: Render evidence
+        if: always()
+        run: >-
+          python -m evals.agentic.report
+          --db artifacts/agent-results.db
+          --html artifacts/agent-report.html
+      - name: Apply proposed acceptance gate
+        run: python -m evals.agentic.gate --db artifacts/agent-results.db
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-eval-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 30
+
