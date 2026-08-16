@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from schemint.config import get_settings
@@ -33,6 +34,8 @@ except ImportError:
     anthropic = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
+
+AgentTraceObserver = Callable[[dict[str, Any]], None]
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +174,7 @@ SUBMIT_ANALYSIS_TOOL = ANALYSIS_TOOL
 class AgentAnalyzer:
     """Multi-turn agentic schema analyzer using Anthropic tool-use loop."""
 
-    def __init__(self) -> None:
+    def __init__(self, trace_observer: AgentTraceObserver | None = None) -> None:
         settings = get_settings()
 
         if not CLAUDE_AVAILABLE:
@@ -185,6 +188,10 @@ class AgentAnalyzer:
         self.client = anthropic.Anthropic(api_key=settings.claude_api_key)
         self.max_turns = settings.claude_max_agent_turns
         self.temperature = settings.claude_temperature
+        # Evaluation and telemetry can observe trajectories without changing
+        # the public analysis result. Observer failures are deliberately
+        # isolated so instrumentation can never break a production analysis.
+        self.trace_observer = trace_observer
 
     def analyze(
         self,
@@ -226,9 +233,18 @@ class AgentAnalyzer:
             {"role": "user", "content": initial_message},
         ]
         tools = [GET_SCHEMA_OVERVIEW_TOOL, INSPECT_TABLE_TOOL, SUBMIT_ANALYSIS_TOOL]
+        self._emit_trace(
+            "run_started",
+            model=model,
+            max_turns=self.max_turns,
+            table_names=[table.name for table in schema.tables],
+            initial_message=initial_message,
+        )
 
         try:
             for _turn in range(self.max_turns):
+                turn = _turn + 1
+                self._emit_trace("model_turn_started", turn=turn, message_count=len(messages))
                 response = self.client.messages.create(
                     model=model,
                     max_tokens=4096,
@@ -243,16 +259,50 @@ class AgentAnalyzer:
                     messages=messages,  # type: ignore[arg-type]
                     tools=tools,  # type: ignore[arg-type]
                 )
+                usage = getattr(response, "usage", None)
+                self._emit_trace(
+                    "model_response",
+                    turn=turn,
+                    stop_reason=getattr(response, "stop_reason", None),
+                    content_types=[getattr(block, "type", "unknown") for block in response.content],
+                    input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+                    output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+                    cache_read_tokens=int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+                    cache_write_tokens=int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
+                )
 
                 # Check for terminal tool (submit_analysis)
                 for block in response.content:
                     if block.type == "tool_use" and block.name == "submit_analysis":
-                        return self._normalize_result(block.input)
+                        self._emit_trace(
+                            "tool_call",
+                            turn=turn,
+                            tool_use_id=block.id,
+                            tool_name=block.name,
+                            tool_input=block.input,
+                            terminal=True,
+                        )
+                        normalized = self._normalize_result(block.input)
+                        self._emit_trace(
+                            "run_completed",
+                            turn=turn,
+                            terminal_tool=block.name,
+                            result=normalized,
+                        )
+                        return normalized
 
                 # Process non-terminal tool calls
                 tool_results = []
                 for block in response.content:
                     if block.type == "tool_use":
+                        self._emit_trace(
+                            "tool_call",
+                            turn=turn,
+                            tool_use_id=block.id,
+                            tool_name=block.name,
+                            tool_input=block.input,
+                            terminal=False,
+                        )
                         result = self._execute_tool(
                             block,
                             schema,
@@ -265,10 +315,20 @@ class AgentAnalyzer:
                                 "content": result,
                             }
                         )
+                        self._emit_trace(
+                            "tool_result",
+                            turn=turn,
+                            tool_use_id=block.id,
+                            tool_name=block.name,
+                            content=result,
+                            is_error=result.startswith(("Unknown tool:", "EVALUATION_TOOL_ERROR:"))
+                            or "not found in schema" in result,
+                        )
 
                 if not tool_results:
                     # No tool calls — shouldn't happen, but break to avoid
                     # infinite loop
+                    self._emit_trace("run_stopped_without_tool", turn=turn)
                     break
 
                 messages.append(
@@ -281,6 +341,7 @@ class AgentAnalyzer:
 
         except Exception as e:
             logger.error("Agent analysis failed: %s", e)
+            self._emit_trace("run_failed", error_type=type(e).__name__, error=str(e))
             return {
                 "summary": f"AI agent analysis failed: {e}",
                 "findings": [],
@@ -292,6 +353,7 @@ class AgentAnalyzer:
             }
 
         # Max turns reached
+        self._emit_trace("run_exhausted", max_turns=self.max_turns)
         return {
             "summary": "Agent reached max turns without submitting analysis",
             "findings": [],
@@ -301,6 +363,15 @@ class AgentAnalyzer:
             "score": None,
             "error": "max_turns_reached",
         }
+
+    def _emit_trace(self, event: str, **payload: Any) -> None:
+        """Notify an optional trajectory observer without affecting analysis."""
+        if self.trace_observer is None:
+            return
+        try:
+            self.trace_observer({"event": event, **payload})
+        except Exception as exc:  # pragma: no cover - defensive isolation
+            logger.warning("Agent trace observer failed for %s: %s", event, exc)
 
     def _build_initial_message(
         self,
