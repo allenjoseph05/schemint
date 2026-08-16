@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "status": "unmeasured",
+  "agent_analyzer": null,
+  "notes": [
+    "No real-model AgentAnalyzer acceptance run has been executed or committed.",
+    "Populate only after reviewing a complete 60-task, three-trial sweep.",
+    "Do not convert proposed thresholds into claimed outcomes."
+  ]
+}
